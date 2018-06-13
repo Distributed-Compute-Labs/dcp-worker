@@ -1,4 +1,4 @@
-/** 
+/**
  *  @file       standaloneWorker.js     A Node module which implements the class standaloneWorker,
  *                                      which knows how to execute jobs over the network in a
  *                                      standalone worker.
@@ -15,7 +15,8 @@ exports.config =
   debug:                true,                   /**< When false, console.debug is NOP */
   debugLevel:           3,                      /**< Bigger = more verbose */
   defaultHostname:      "127.0.0.1",
-  defaultService:       "9000"
+  defaultService:       "9000",
+  docRoot:              "/var/dcp/www/docs"
 };
 
 console.debug = function()
@@ -30,7 +31,7 @@ if (!exports.config.debug)
   console.debug = function(){};
 
 /** Worker constructor
- *  @param      code            The code to run in the worker
+ *  @param      filename        The filename of the code to run in the worker, relative to exports.config.docRoot.
  *  @param      hostname        The hostname (or IP number) of the standalone miner process. 
  *  @param      service         The service (or port number) of the standalone miner process.
  *
@@ -48,7 +49,7 @@ if (!exports.config.debug)
  *    . error
  *    . messeage
  */
-exports.Worker = function standaloneWorker$$Worker(code, hostname, service)
+exports.Worker = function standaloneWorker$$Worker(filename, hostname, service)
 {
   var   socket = new (require("net")).Socket();
   var   ee = new (require('events').EventEmitter)();
@@ -56,16 +57,20 @@ exports.Worker = function standaloneWorker$$Worker(code, hostname, service)
   var   readBuf = "";
   var   connected = false;
   var   dieTimer;
-  
-  if (typeof code != "string")
-    throw new TypeError("code must be a string!");
+  var   code;
+
+  if (typeof filename != "string")
+    throw new TypeError("filename must be a string!");
+  if (filename[0] === ".")
+    throw new Error("relative paths not allowed (security)");
+  code = require("fs").readFileSync(exports.config.docRoot + "/" + (filename.replace(/\?.*$/,"")), "utf-8");
 
   this.addEventListener    = ee.addListener.bind(ee);
   this.removeEventListener = ee.removeListener.bind(ee);
   
   function finishConnect()
   {
-    var  wrappedMessage = JSON.stringify({ type: "newWorker", payload: code }) + "\n";
+    var  wrappedMessage = JSON.stringify({ type: "initWorker", payload: code }) + "\n";
 
     connected = true;
     socket.setEncoding("ascii");
@@ -132,6 +137,7 @@ exports.Worker = function standaloneWorker$$Worker(code, hostname, service)
           {
             /* Remote threw exception */
             lineObj.exception.type = "Remote" + lineObj.type;
+	    console.log("Remote exception: ", lineObj.exception.stack);
             ee.emit("error", lineObj.exception);
             continue;
           }
@@ -196,8 +202,8 @@ exports.Worker = function standaloneWorker$$Worker(code, hostname, service)
 /* Attach setters for onmessage, onerror, etc on the Worker.prototype
  * which are implemented with this.addEventListener.
  */    
-var onHandlerTypes = ["message", "error" ];
-var onHandlers={};
+const onHandlerTypes = ["message", "error" ];
+exports.Worker.prototype.onHandlers={};
 
 for (let i=0; i < onHandlerTypes.length; i++)
 {
@@ -209,7 +215,8 @@ for (let i=0; i < onHandlerTypes.length; i++)
     set: function(cb)
     {
       /* maintain on{eventName} singleton pattern */
-      this.removeEventListener(message, onHandlers[onHandlerType]);
+      if (this.onHandlers.hasOwnProperty(onHandlerType))
+	this.removeEventListener(onHandlerType, this.onHandlers[onHandlerType]);
       this.addEventListener(onHandlerType, cb);
       this.onHandlers[onHandlerType] = cb;
     },
