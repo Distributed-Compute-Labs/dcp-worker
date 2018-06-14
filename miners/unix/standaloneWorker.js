@@ -194,7 +194,6 @@ exports.Worker = function standaloneWorker$$Worker(filename, hostname, service)
     {
       socket.destroy();
     }
-    setTimeout(cleanup, 7000);
     dieTimer = setTimeout(cleanup, 7000);
   }
 }
