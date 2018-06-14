@@ -20,11 +20,13 @@
  */
 
 const self = this;
+const debug = true;
 
 try {
 (function(_readln, _writeln)
 {
-  delete readln, writeln;
+  if (!debug)
+    delete readln, writeln;
 
   /** implement console.log which propagates messages back to the standaloneWorker */
   var console = { log: function minerControl$$log() { _writeln("LOG:" + Array.prototype.slice.call(arguments).join(" "));}};
@@ -33,9 +35,7 @@ try {
    {
      var line;
      var inMsg, outMsg;
-     var pendingMessages = [];
 
-     var worker;
      var eventListeners = {};
      var onHandlerTypes = ["message", "error"];
      var onHandlers={}; 
@@ -43,7 +43,7 @@ try {
 
      self.postMessage = function minerControl$$Worker$postMessage(message) {
        console.log("Returning result", JSON.stringify(message));
-       pendingMessages.push(message);
+       send({type: "workerMessage", message: message});
        return;
      };
      
@@ -83,15 +83,16 @@ try {
 			     });
      }
 
+     /** Send a message to the supervisor.  If the message is sent
+      *  before we are (the worker is) ready, the message is queued up
+      *  and sent later.  Later would be another call to send(), and
+      *  hopefully triggered by the worker becoming ready.
+      */
      function send(outMsg) {
-       _writeln("MSG:" + JSON.stringify(outMsg));
+       outMsg = JSON.stringify(outMsg);
+       _writeln("MSG:" + outMsg);
      }
-     
-     function flushPendingMessages() {
-       while (worker && pendingMessages.length)
-         send({type: "workerMessage", message: pendingMessages.shift()});
-     }
-     
+
      try {
        loop: while ((line = _readln())) {
          outMsg = { type: "result", step: "parseInput", success: false };
@@ -108,16 +109,16 @@ try {
                throw new Error("have already initialized worker on this socket");
              /* disabled for perf reasons, wg mar-2018 // _writeln("SRC: " + inMsg.payload.split("\n").join("\nSRC: ")); */
 	     indirectEval = eval;
-	     indirectEval(inMsg.payload);
+	     outMsg.result = indirectEval(inMsg.payload);
              outMsg.success = true;
              break;
            case "workerMessage":
              if (!indirectEval)
                throw new Error("Must initWorker before posting messages");
              if (eventListeners["message"])
-               for (let i=0; i < eventListeners["message"].length; i++)
-                 eventListeners["message"][i].call(worker, {data: inMsg.message});
-
+               for (let i=0; i < eventListeners["message"].length; i++) {
+                 eventListeners["message"][i].call(self, {data: inMsg.message});
+	       }
              outMsg.success = true;
              break;
            case "die":
@@ -125,22 +126,19 @@ try {
              outMsg.success = true;
              break loop;
          }
-
-         flushPendingMessages();
        }
      }
-     catch(e)
-     {
+     catch(e) {
        /* Return exceptions thrown in this engine (presumably the host code) to the standaloneWorker object for reporting */
        outMsg.success    = false;
        outMsg.exception  = { name: e.name, message: e.message, fileName: e.fileName, lineNumber: e.lineNumber, stack: e.stack };
      }
-     finally
-     {
-       flushPendingMessages();
+     finally {
        send(outMsg);
      }
    })();
 })(readln, writeln);
 "dcp-miner-control: Normal Exit."
-} catch(e) { "dcp-miner-control: Uncaught Exception: " + e.message + " at " + e.fileName + ":" + e.lineNumber }
+} catch(e) { 
+  "dcp-miner-control: Uncaught Exception: " + e.message + " at " + e.fileName + ":" + e.lineNumber 
+}
