@@ -23,7 +23,7 @@
 /* eslint no-labels: ["error", { "allowLoop": true }] */
 
 const self = this
-const debug = true
+var debug = true
 
 try {
   (function (_readln, _writeln) {
