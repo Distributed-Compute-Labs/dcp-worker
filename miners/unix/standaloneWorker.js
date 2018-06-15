@@ -12,7 +12,7 @@
  */
 exports.config = {
   debug: false, /* When false, console.debug is NOP */
-  debugLevel: 3, /* Bigger = more verbose */
+  debugLevel: 1, /* Bigger = more verbose */
   defaultHostname: '127.0.0.1',
   defaultService: '9000',
   docRoot: '/var/dcp/www/docs'
