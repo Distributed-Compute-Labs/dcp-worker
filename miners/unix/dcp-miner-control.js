@@ -25,9 +25,11 @@ const debug = true;
 try {
 (function(_readln, _writeln)
 {
-  if (!debug)
-    delete readln, writeln;
-
+  if (!debug) {
+    readln = writeln = undefined;
+    delete self.readln;
+    delete self.writeln;
+  }
   /** implement console.log which propagates messages back to the standaloneWorker */
   var console = { log: function minerControl$$log() { _writeln("LOG:" + Array.prototype.slice.call(arguments).join(" "));}};
 
