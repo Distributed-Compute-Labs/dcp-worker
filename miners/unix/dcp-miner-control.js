@@ -23,7 +23,7 @@
 /* eslint no-labels: ["error", { "allowLoop": true }] */
 
 const self = this
-var debug = true
+var debug = false
 
 try {
   (function (_readln, _writeln) {
@@ -33,7 +33,14 @@ try {
       delete self.writeln
     }
     /** implement console.log which propagates messages back to the standaloneWorker */
-    var console = { log: function minerControl$$log () { _writeln('LOG:' + Array.prototype.slice.call(arguments).join(' ')) } };
+    var console = { log: function minerControl$$log () { _writeln('LOG:' + Array.prototype.slice.call(arguments).join(' ').replace(/\n/g,"\u2424")) } }
+
+    try {
+      self.console = console
+      console.debug = console.log
+      console.error = console.log
+      console.warn = console.log
+    } catch (e) {}
 
     (function () {
       var line
@@ -103,8 +110,8 @@ try {
             case 'initWorker':
               if (indirectEval) { throw new Error('have already initialized worker on this socket') }
               /* disabled for perf reasons, wg mar-2018 // _writeln("SRC: " + inMsg.payload.split("\n").join("\nSRC: ")); */
-              indirectEval = eval // eslint-disable-line
-              outMsg.result = indirectEval(inMsg.payload)
+              indirectEval = self.indirectEval || eval // eslint-disable-line
+              outMsg.result = indirectEval(inMsg.payload, inMsg.filename)
               outMsg.success = true
               break
             case 'workerMessage':
