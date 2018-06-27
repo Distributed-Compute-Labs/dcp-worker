@@ -10,14 +10,26 @@
  *  Note: not best practices for network code in JavaScript. Sync code
  *        more suited to C / C++ environments.
  */
-const fs = require("fs");
-process.stdin.setEncoding("ascii");
-process.stdout.setEncoding("ascii");
+const fs = require("fs")
+process.stdin.setEncoding("ascii")
+process.stdout.setEncoding("ascii")
 
-/** Blocking call to read a single line from stdin (the standaloneWorker) */
+const config = {
+  minerControlFilename: "../unix/dcp-miner-control.js"
+}
+
+try {
+  require("sleep").sleep(0)
+} catch (e) {
+  throw new Error("Please npm install sleep")
+}
+
+/** Blocking call to read a single line from stdin (the standaloneWorker) 
+ *  @returns a string terminated by a linefeed character
+ */
 function readln() {
-  var buf = new Buffer(1024);
-  var nRead;
+  var buf = new Buffer(1024)
+  var nRead
 
   if (!readln.pendingData)
     readln.pendingData = ""
@@ -28,7 +40,7 @@ function readln() {
       if (i !== -1) {
 	let line = readln.pendingData.slice(0,i + 1)
 	readln.pendingData = readln.pendingData.slice(i + 1)
-	return line;
+	return line
       }
     }
 
@@ -48,10 +60,10 @@ function readln() {
     }
 
     if (nRead < 0)
-      return null; // socket is closed
+      return null // socket is closed
     if (nRead == 0) { // nothing to read - give up timeslice
-      require("sleep").sleep(0);
-      continue;
+      require("sleep").sleep(0)
+      continue
     }
 
     readln.pendingData += bufToStr(buf, nRead)
@@ -68,10 +80,24 @@ function bufToStr(buf, nRead) {
   return s
 }
 
-/** Blocking call to write a line to stdout (the standaloneWorker) */
+/** Blocking call to write a line to stdout (the standaloneWorker) 
+ *  @param    line    The line to write
+ */
 function writeln(line) {
   process.stdout.write(line + "\n")
 }
 
-/** Load the control code - this is what talks to standaloneWorker.Worker */
-eval(fs.readFileSync(require.resolve("../unix/dcp-miner-control.js"), "ascii"))
+/* Run the control code - this is what talks to standaloneWorker.Worker */
+var code = fs.readFileSync(require.resolve(config.minerControlFilename), "ascii")
+global.writeln = writeln
+global.readln = readln
+
+if (false) {
+  let indirectEval = eval
+  global.this = global
+  global.self = global
+  indirectEval(code)
+} else {
+  let minerControl = new (require('vm').Script)(code, {filename: config.minerControlFilename, lineOffset:0, columnOffset:0})
+  minerControl.runInThisContext()
+}
