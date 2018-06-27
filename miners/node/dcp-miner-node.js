@@ -28,7 +28,7 @@ try {
  *  @returns a string terminated by a linefeed character
  */
 function readln() {
-  var buf = new Buffer(1024)
+  var buf = new Buffer(10240)
   var nRead
 
   if (!readln.pendingData)
@@ -98,6 +98,16 @@ if (false) {
   global.self = global
   indirectEval(code)
 } else {
-  let minerControl = new (require('vm').Script)(code, {filename: config.minerControlFilename, lineOffset:0, columnOffset:0})
+  let Script = require('vm').Script
+  let minerControl = new Script(code, {filename: config.minerControlFilename, lineOffset:0, columnOffset:0})
+  global.indirectEval = function(code, filename) {
+    if (!filename) {
+      /* Pull filename from code comments if not specified */
+      if (filename = code.match(/^ *\* *@file.*$/mi)[0]) {
+	filename = "guess::" + filename.replace(/.*@file */i,'').replace(/ .*$/,'')
+      }
+    }
+    (new Script(code, {filename: filename || "dcp-miner-node::indirectEval", lineOffset:0, columnOffset:0})).runInThisContext()
+  }
   minerControl.runInThisContext()
 }
