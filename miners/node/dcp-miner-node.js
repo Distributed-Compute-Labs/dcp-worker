@@ -91,15 +91,16 @@ function writeln(line) {
 var code = fs.readFileSync(require.resolve(config.minerControlFilename), "ascii")
 global.writeln = writeln
 global.readln = readln
+global.this = global
+global.self = global
 
 if (false) {
   let indirectEval = eval
-  global.this = global
-  global.self = global
   indirectEval(code)
 } else {
   let Script = require('vm').Script
   let minerControl = new Script(code, {filename: config.minerControlFilename, lineOffset:0, columnOffset:0})
+
   global.indirectEval = function(code, filename) {
     if (!filename) {
       /* Pull filename from code comments if not specified */
