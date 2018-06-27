@@ -24,6 +24,7 @@
 
 const self = this
 var debug = false
+delete self.console
 
 try {
   (function (_readln, _writeln) {
@@ -34,7 +35,7 @@ try {
     }
     /** implement console.log which propagates messages back to the standaloneWorker */
     var console = { log: function minerControl$$log () { _writeln('LOG:' + Array.prototype.slice.call(arguments).join(' ').replace(/\n/g,"\u2424")) } }
-
+    self._console = console
     try {
       self.console = console
       console.debug = console.log
@@ -52,7 +53,6 @@ try {
       var indirectEval = null
 
       self.postMessage = function minerControl$$Worker$postMessage (message) {
-        console.log('Returning result', JSON.stringify(message))
         send({type: 'workerMessage', message: message})
       }
 
