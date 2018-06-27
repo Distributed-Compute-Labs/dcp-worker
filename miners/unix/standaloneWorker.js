@@ -66,7 +66,7 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, service)
   this.removeEventListener = ee.removeListener.bind(ee)
 
   function finishConnect () {
-    var wrappedMessage = JSON.stringify({ type: 'initWorker', payload: code }) + '\n'
+    var wrappedMessage = JSON.stringify({ type: 'initWorker', payload: code, origin:filename.replace(/\?.*$/, '') }) + '\n'
 
     connected = true
     socket.setEncoding('ascii')
