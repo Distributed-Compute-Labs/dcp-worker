@@ -110,6 +110,11 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, service)
           break
         }
 
+        if (line.match(/^LOG: */)) {
+	  console.log("Worker:", line.slice(4))
+	  continue
+	}
+
         if (!line.match(/^MSG: */)) {
           if (exports.config.debugLevel > 2) { console.debug('remote:', line) }
           continue
