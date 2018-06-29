@@ -8,7 +8,7 @@
  *                                      the global object in such a way that they
  *                                      can be deleted from JS userland.
  *
- *                                      Each line read is a single JSON object.
+ *                                      Each line read is a single serialized object.
  *
  *  @author     Wes Garland, wes@sparc.network
  *  @date       March 2018
@@ -33,7 +33,7 @@ try {
       delete self.readln
       delete self.writeln
     }
-    /** implement console.log which propagates messages back to the standaloneWorker */
+    /* implement console.log which propagates messages back to the standaloneWorker */
     var console = { log: function minerControl$$log () { _writeln('LOG:' + Array.prototype.slice.call(arguments).join(' ').replace(/\n/g,"\u2424")) } }
     self._console = console
     try {
@@ -51,6 +51,8 @@ try {
       var onHandlerTypes = ['message', 'error']
       var onHandlers = {}
       var indirectEval = null
+      var serialize = JSON.stringify
+      var deserialize = JSON.parse
 
       self.postMessage = function minerControl$$Worker$postMessage (message) {
         send({type: 'workerMessage', message: message})
@@ -93,20 +95,29 @@ try {
       *  hopefully triggered by the worker becoming ready.
       */
       function send (outMsg) {
-        outMsg = JSON.stringify(outMsg)
+        outMsg = serialize(outMsg)
         _writeln('MSG:' + outMsg)
       }
 
       try {
         loop: while ((line = _readln())) {
-          outMsg = { type: 'result', step: 'parseInput', success: false }
-          inMsg = JSON.parse(line)
+          outMsg = { type: 'result', step: 'parseInput::' + deserialize.name, success: false }
+          inMsg = deserialize(line)
           outMsg.origin = inMsg.type
           outMsg.step = 'parseMessage'
 
           switch (inMsg.type) {
             default:
               throw new Error("Invalid message type '" + inMsg.type + "'")
+	    case 'newSerializer':
+	      outMsg.step = 'changeSerializer'
+	      let newSerializer = eval(inMsg.payload)
+	      outMsg.success = true
+	      send(outMsg) // acknowledge change in old format
+	      serialize = newSerializer.serialize
+	      deserialize = function(a) { console.log("XXXX deserialize", a.slice(100)); return newSerializer.deserialize(a) }
+	      continue loop
+	      break
             case 'initWorker':
               if (indirectEval) { throw new Error('have already initialized worker on this socket') }
               /* disabled for perf reasons, wg mar-2018 // _writeln("SRC: " + inMsg.payload.split("\n").join("\nSRC: ")); */
