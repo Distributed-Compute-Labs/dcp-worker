@@ -7,6 +7,9 @@
  *  @date       March 2018
  */
 
+module.paths.push("/var/dcp/lib")
+module.paths.push("/var/dcp/www/docs/node_modules")
+
 /** Module configuration parameters. May be altered at runtime. Should be altered
  *  before first Worker is instanciated.
  */
@@ -64,33 +67,35 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, service)
 
   this.addEventListener = ee.addListener.bind(ee)
   this.removeEventListener = ee.removeListener.bind(ee)
+  this.serialize = JSON.stringify
+  this.deserialize = JSON.parse
 
-  function finishConnect () {
-    var wrappedMessage = JSON.stringify({ type: 'initWorker', payload: code, origin:filename.replace(/\?.*$/, '') }) + '\n'
-
+  var finishConnect = (function finishConnect () {
+    var wrappedMessage = this.serialize({ type: 'initWorker', payload: code, origin:filename.replace(/\?.*$/, '') }) + '\n'
     connected = true
     socket.setEncoding('ascii')
     console.debug('Connected ' + pendingWrites.length + ' pending messages.')
 
     /* We buffer writes in pendingWrites between the call to connect() and
      * the actual establishment of the TCP socket. Once connected, we drain that
-     * buffer into the write buffer in Node's net module.
+     * buffer into the write buffer in Node's net module.  We still, however,
+     * emit the initialization code first; the other writes will be postMessage etc
      */
-    if (connected) {
-      socket.write(wrappedMessage)
-    } else {
-      pendingWrites.push(wrappedMessage)
-    }
-
+    socket.write(wrappedMessage)
     while (pendingWrites.length && !socket.destroyed) {
       socket.write(pendingWrites.shift())
     }
-  }
+    
+    if (this.newSerializerCode)
+      throw new Error("Outstanding serialization change - protocol race condition?")
+    this.newSerializerCode = require("fs").readFileSync("/var/dcp/lib/serialize.js", "ascii")
+    socket.write(this.serialize({ type: "newSerializer", payload: this.newSerializerCode }) + "\n")
+  }).bind(this)
 
   /** Receive data from the network, turning them into debug output,
    *  remote exceptions, worker messages, etc.
    */
-  socket.on('data', function standaloneWorker$$Worker$recvData (data) {
+  socket.on('data', (function standaloneWorker$$Worker$recvData (data) {
     var line, lineObj /* line of data coming over the network */
     var nl
 
@@ -99,7 +104,6 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, service)
       try {
         line = readBuf.slice(0, nl)
         readBuf = readBuf.slice(nl + 1)
-
         if (!line.length) { continue }
 
         if (line.match(/^DIE: */)) {
@@ -120,26 +124,39 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, service)
           continue
         }
 
-        lineObj = JSON.parse(line.slice(4))
-        if (lineObj.hasOwnProperty('message')) {
-          /* Remote posted message */
-          ee.emit('message', {data: lineObj.message})
-        } else {
-          if (lineObj.hasOwnProperty('exception')) {
-            /* Remote threw exception */
-            lineObj.exception.type = 'Remote' + lineObj.type
-            console.log('Remote exception: ', lineObj.exception.stack)
-            ee.emit('error', lineObj.exception)
-            continue
-          }
-          ee.emit('error', new Error('Unrecognized command from remote, \'' + line + '\''))
-        }
+        lineObj = this.deserialize(line.slice(4))
+	switch(lineObj.type) {
+	  case "workerMessage": /* Remote posted message */
+            ee.emit('message', {data: lineObj.message})
+	    break
+          case "result":
+            if (lineObj.hasOwnProperty('exception')) {/* Remote threw exception */
+		lineObj.exception.type = 'Remote' + lineObj.type
+		console.log('Remote exception: ', lineObj.exception.stack)
+		ee.emit('error', lineObj.exception)
+		continue
+            } else {
+	      if (lineObj.success && lineObj.origin === "newSerializer") { /* Remote acknowledges change of serialization */
+		let newSerializer = eval(this.newSerializerCode)
+		this.serialize = newSerializer.serialize
+		this.deserialize = newSerializer.deserialize
+		delete this.newSerializerCode
+	      } else {
+		if (config.debug) { 
+		  console.log("Remote returned result object: ", result) 
+		}
+	      }
+	    }
+	    break
+          default:
+            ee.emit('error', new Error('Unrecognized command from remote, \'' + line + '\''))
+	}
       } catch (e) {
         console.error('Error processing remote response: \'' + line + '\' (' + e.name + ': ' + e.message + e.stack.split('\n')[1].replace(/^  */, ' ') + ')')
         throw e
       }
     }
-  })
+  }).bind(this))
 
   socket.on('error', function worker$$Error (e) {
     console.error('Error communicating with worker: ', e)
@@ -156,7 +173,7 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, service)
 
   /** Send a message over the network to a standalone worker */
   this.postMessage = function standaloneWorker$$Worker$postMessage (message) {
-    var wrappedMessage = JSON.stringify({ type: 'workerMessage', message: message }) + '\n'
+    var wrappedMessage = this.serialize({ type: 'workerMessage', message: message }) + '\n'
     if (connected) { socket.write(wrappedMessage) } else { pendingWrites.push(wrappedMessage) }
   }
 
@@ -164,7 +181,7 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, service)
    *  type DIE:, which in turn eventuallys triggers socket.close() and .destroy()
    */
   this.terminate = function Worker$$terminate () {
-    var wrappedMessage = JSON.stringify({ type: 'die' }) + '\n'
+    var wrappedMessage = this.serialize({ type: 'die' }) + '\n'
     if (connected) { socket.write(wrappedMessage) } else { pendingWrites.push(wrappedMessage) }
 
     /* If DIE: response doesn't arrive in a reasonable time -- clean up */
