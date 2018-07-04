@@ -90,11 +90,21 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, service)
       socket.write(pendingWrites.shift())
     }
     
-    changeSerializer.bind(this)("/var/dcp/lib/serialize.js")
+    /* @todo Make this auto-detected /wg jul 2018
+     * changeSerializer.bind(this)("/var/dcp/lib/serialize.js") 
+     */
   }
 
+  /** Change the protocol's serialization implementation. Must be in 
+   *  a format which is returns an 'exports' object on evaluation that
+   *  has serialize and deserialize methods that are call-compatible
+   *  with JSON.stringify and JSON.parse.
+   *
+   *  @param   filename     The path to the library code
+   *  @param   charset      [optional]   The character set the code is stored in
+   */
   function changeSerializer(filename) {
-    let code = require("fs").readFileSync("/var/dcp/lib/serialize.js", "utf-8")
+    let code = require("fs").readFileSync(filename, charset || "utf-8")
 
     if (this.newSerializer) { throw new Error("Outstanding serialization change on worker #" + this.serial )}
 
