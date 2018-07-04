@@ -99,6 +99,14 @@ try {
         _writeln('MSG:' + outMsg)
       }
 
+      function shorten(text, startChars, endChars) {
+	if (!startChars) { startChars=35 }
+	if (!endChars) { endChars = 20 }
+	if (text.length < (startChars + endChars)) {
+	  return text;
+	}
+	return text.slice(0,startChars) + '\u22ef' + text.slice(-endChars)
+      }
       try {
         loop: while ((line = _readln())) {
           outMsg = { type: 'result', step: 'parseInput::' + deserialize.name, success: false }
@@ -108,16 +116,15 @@ try {
 
           switch (inMsg.type) {
             default:
-              throw new Error("Invalid message type '" + inMsg.type + "'")
+              throw new Error("Invalid message type '" + (typeof inMsg.type === 'string' ? inMsg.type : JSON.stringify(inMsg.type)) + "'")
 	    case 'newSerializer':
 	      outMsg.step = 'changeSerializer'
 	      let newSerializer = eval(inMsg.payload)
 	      outMsg.success = true
 	      send(outMsg) // acknowledge change in old format
 	      serialize = newSerializer.serialize
-	      deserialize = function(a) { console.log("XXXX deserialize", a.slice(100)); return newSerializer.deserialize(a) }
+	      deserialize = newSerializer.deserialize
 	      continue loop
-	      break
             case 'initWorker':
               if (indirectEval) { throw new Error('have already initialized worker on this socket') }
               /* disabled for perf reasons, wg mar-2018 // _writeln("SRC: " + inMsg.payload.split("\n").join("\nSRC: ")); */
