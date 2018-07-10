@@ -13,10 +13,24 @@ var config = {
 const net = require('net')
 var server = net.createServer(handleConnection)
 
-server.listen(config.listenPort, config.listenHost)
+server.listen({port: config.listenPort, host: config.listenHost}, () => {
+  // To let tests know we've actually started
+  if (process.env.FORKED) {
+    process.send({
+      request: 'Server Started',
+      config
+    })
+  }
+})
 
-function handleConnection (socket) {
+async function handleConnection (socket) {
   var child = require('child_process').spawn(config.processName, config.processArgs)
+  if (debug) { console.log('Spawned a new worker process, PID:', child.pid) }
+
+  // console.log('before sleep')
+  // await new Promise((resolve, reject) => setTimeout(resolve, 2000))
+  // console.log('after sleep')
+
   child.stderr.setEncoding('ascii')
 
   socket.on('end', function () {
@@ -58,12 +72,18 @@ function handleConnection (socket) {
 
   socket.on('data', function (data) {
     if (debug.indexOf('network') !== -1) {
-      console.log('W> ', bufToDisplayStr(data))
-      if (data.length > 100) {
-        console.log('\n')
-      }
+      console.log('W> ', bufToDisplayStr(data).slice(0, 64), '...')
+      // console.log('W> ', bufToDisplayStr(data))
+      // if (data.length > 100) {
+      //   console.log('\n')
+      // }
     }
-    child.stdin.write(data)
+    try {
+      child.stdin.write(data)
+    } catch (e) {
+      console.log('could not write to worker process (', child.pid, ') stdin')
+      throw e
+    }
   })
 
   if (debug) { console.log('Handling new connection') }
