@@ -21,18 +21,6 @@ exports.config = {
   docRoot: '/var/dcp/www/docs'
 }
 
-console.debug = function () {
-  if (!exports.config.debug) {
-    return
-  }
-
-  console.log.apply(null, arguments)
-}
-
-if (!exports.config.debug) {
-  console.debug = function () {}
-}
-
 /** Worker constructor
  *  @param      filename        The filename of the code to run in the worker, relative to exports.config.docRoot.
  *  @param      hostname        The hostname (or IP number) of the standalone miner process.
@@ -63,7 +51,7 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, service)
   var connected = false
   var dieTimer
   var code
-  
+ 
   if (typeof filename !== 'string') { throw new TypeError('filename must be a string!') }
   if (filename[0] === '.') { throw new Error('relative paths not allowed (security)') }
   code = require('fs').readFileSync(exports.config.docRoot + '/' + (filename.replace(/\?.*$/, '')), 'utf-8')
@@ -77,8 +65,11 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, service)
   function finishConnect () {
     let wrappedMessage = this.serialize({ type: 'initWorker', w: this.serial, ts: Date.now(), payload: code, origin:filename.replace(/\?.*$/, '') }) + '\n'
     connected = true
+
     socket.setEncoding('utf-8')
-    console.debug('Connected ' + pendingWrites.length + ' pending messages.')
+    if (exports.config.debug) {
+      console.debug('Connected ' + pendingWrites.length + ' pending messages.')
+    }
 
     /* We buffer writes in pendingWrites between the call to connect() and
      * the actual establishment of the TCP socket. Once connected, we drain that
@@ -136,9 +127,9 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, service)
         }
 
         if (line.match(/^LOG: */)) {
-	  console.log("Worker", this.serial, "Log:", line.slice(4))
-	  continue
-	}
+          console.log("Worker", this.serial, "Log:", line.slice(4))
+          continue
+        }
 
         if (!line.match(/^MSG: */)) {
           if (exports.config.debugLevel > 2) { console.debug('worker:', line) }
@@ -187,10 +178,14 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, service)
   })
 
   socket.on('close', function worker$$Close () {
-    console.debug('Closed socket')
+    if (exports.config.debug) {
+      console.debug('Closed socket')
+    }
   })
 
-  console.debug('Connecting to', (hostname || exports.config.defaultHostname) + ':' + (service || exports.config.defaultService))
+  if (exports.config.debug) {
+    console.debug('Connecting to', (hostname || exports.config.defaultHostname) + ':' + (service || exports.config.defaultService))
+  }
   socket.connect(service || exports.config.defaultService, hostname || exports.config.defaultHostname, finishConnect.bind(this))
 
   /** Send a message over the network to a standalone worker */
