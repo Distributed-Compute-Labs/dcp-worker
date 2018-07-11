@@ -1,93 +1,108 @@
 #! /usr/bin/env node
-
-/** Simple daemon for node that works like xinetd/inetd from the worker's POV */
-
-var debug = process.env.DEBUG || ''
-var config = {
-  listenPort: process.env.NSAM_LISTEN_PORT || '9000',
-  listenHost: process.env.NSAM_LISTEN_HOST || '127.0.0.1',
-  processName: process.env.NSAM_PROCESS_NAME || 'node',
-  processArgs: process.env.NSAM_PROCESS_ARGS ? process.env.NSAM_PROCESS_ARGS.split(' ') : [require.resolve('./dcp-miner-node.js')]
-}
-
+/** 
+ *  @file       inet-daemon.js          Simple daemon for node that works like xinetd/inetd 
+ *
+ *                                      Configuration is read from the dcp-config.js file
+ *                                      and its descendendents. Services are configured thus:
+ *
+ *                                       inetDaemon: {
+ *                                         label: { 
+ *                                           net:       {
+ *                                             service: port,
+ *                                             listenHost: optional,
+ *                                           }
+ *                                           process:   /path/to/binary
+ *                                           arguments: [ argv1, argv2, ... ]
+ *                                         },
+ *                                         label2: { .... }
+ *                                       }
+ *
+ *  @author     Wes Garland, wes@kingsds.network
+ *  @date       June 2018
+ */
+/* global dcpConfig */
 const net = require('net')
-var server = net.createServer(handleConnection)
+var debug = process.env.DEBUG || ''
 
-server.listen({port: config.listenPort, host: config.listenHost}, () => {
-  // To let tests know we've actually started
-  if (process.env.FORKED) {
-    process.send({
-      request: 'Server Started',
-      config
+require('../../node/bin/rtLink.js').link(module.paths)
+require('config').load()
+
+Object.entries(dcpConfig.inetDaemon).forEach(function (param) {
+  var [name, config] = param
+  var server = net.createServer(handleConnection)
+
+  if (debug.indexOf('verbose') !== -1) {
+    console.log('Listening for ' + name + ' connections on ' + (config.net.listenHost || 'inaddr_any') + ':' + config.net.service)
+  }
+  server.listen({port: config.net.service, host: config.net.listenHost}, () => {
+    // To let tests know we've actually started
+    if (process.env.FORKED) {
+      process.send({
+	request: 'Server Started',
+	config
+      })
+    }
+  })
+
+  function handleConnection (socket) {
+    if (debug.indexOf('verbose') !== -1) { console.log("New connection; spawning ", config.process, config.arguments) }
+    var child = require('child_process').spawn(config.process, config.arguments || [])
+    if (debug) { console.log('Spawned a new worker process, PID:', child.pid) }
+
+    child.stderr.setEncoding('ascii')
+
+    socket.on('end', function () {
+      if (debug) { console.log('Killing worker') }
+      child.kill()
     })
+
+    socket.on('error', function (e) {
+      console.log('Error from supervisor:', e)
+      socket.destroy()
+      child.kill()
+    })
+
+    child.on('error', function (e) {
+      console.log('Error from worker:', e)
+      socket.destroy()
+      child.kill()
+    })
+
+    child.on('exit', function (code) {
+      if (debug) { console.log('worker exited; closing socket', code || '') }
+      socket.end()
+      socket.destroy()
+    })
+
+    child.stdout.on('data', function (data) {
+      if (debug.indexOf('network') !== -1) {
+	console.log('<W ', bufToDisplayStr(data))
+	if (data.length > 100) {
+          console.log('\n')
+	}
+      }
+      socket.write(data)
+    })
+
+    child.stderr.on('data', function (data) {
+      console.log('worker stderr: ', data)
+    })
+
+    socket.on('data', function (data) {
+      if (debug.indexOf('network') !== -1) {
+	console.log('W> ', bufToDisplayStr(data).slice(0, 64), '...')
+      }
+      try {
+	child.stdin.write(data)
+      } catch (e) {
+	console.log('could not write to worker process (', child.pid, ') stdin')
+	throw e
+      }
+    })
+
+    if (debug) { console.log('Handling new connection') }
   }
 })
-
-async function handleConnection (socket) {
-  var child = require('child_process').spawn(config.processName, config.processArgs)
-  if (debug) { console.log('Spawned a new worker process, PID:', child.pid) }
-
-  // console.log('before sleep')
-  // await new Promise((resolve, reject) => setTimeout(resolve, 2000))
-  // console.log('after sleep')
-
-  child.stderr.setEncoding('ascii')
-
-  socket.on('end', function () {
-    if (debug) { console.log('Killing worker') }
-    child.kill()
-  })
-
-  socket.on('error', function (e) {
-    console.log('Error from supervisor:', e)
-    socket.destroy()
-    child.kill()
-  })
-
-  child.on('error', function (e) {
-    console.log('Error from worker:', e)
-    socket.destroy()
-    child.kill()
-  })
-
-  child.on('exit', function (code) {
-    if (debug) { console.log('worker exited; closing socket', code || '') }
-    socket.end()
-    socket.destroy()
-  })
-
-  child.stdout.on('data', function (data) {
-    if (debug.indexOf('network') !== -1) {
-      console.log('<W ', bufToDisplayStr(data))
-      if (data.length > 100) {
-        console.log('\n')
-      }
-    }
-    socket.write(data)
-  })
-
-  child.stderr.on('data', function (data) {
-    console.log('worker stderr: ', data)
-  })
-
-  socket.on('data', function (data) {
-    if (debug.indexOf('network') !== -1) {
-      console.log('W> ', bufToDisplayStr(data).slice(0, 64), '...')
-      // console.log('W> ', bufToDisplayStr(data))
-      // if (data.length > 100) {
-      //   console.log('\n')
-      // }
-    }
-    try {
-      child.stdin.write(data)
-    } catch (e) {
-      console.log('could not write to worker process (', child.pid, ') stdin')
-      throw e
-    }
-  })
-
-  if (debug) { console.log('Handling new connection') }
-}
 
 function bufToDisplayStr (buf) {
   return Buffer.from(buf.toString('utf-8').replace(/\n/, '\u2424')).toString('utf-8')
