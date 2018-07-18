@@ -24,7 +24,7 @@
 const net = require('net')
 var debug = process.env.DEBUG || ''
 
-require('../../node/bin/rtLink.js').link(module.paths)
+require('dcp-rtlink/rtLink').link(module.paths)
 require('config').load()
 
 if (!process.env.FORKED) {
