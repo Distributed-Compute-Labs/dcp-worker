@@ -1,7 +1,7 @@
 /**
- *  @file       dcp-miner-control.js    Simulated worker environment -
- *                                      Control logic for the DCP miner which runs
- *                                      in dcp-miner-v8 or dcp-miner-jsapi. Reads
+ *  @file       sa-worker-control.js    Simulated worker environment -
+ *                                      Control logic for the standalone worker which runs
+ *                                      in sa-worker-v8, sa-worker-node, etc. Reads
  *                                      and writes to stdin/stdout, requires only
  *                                      readln() and writeln() support from the host
  *                                      environment. These should be attached to
@@ -34,7 +34,7 @@ try {
       delete self.writeln
     }
     /* implement console.log which propagates messages back to the standaloneWorker */
-    var console = { log: function minerControl$$log () { _writeln('LOG:' + Array.prototype.slice.call(arguments).join(' ').replace(/\n/g,"\u2424")) } }
+    var console = { log: function workerControl$$log () { _writeln('LOG:' + Array.prototype.slice.call(arguments).join(' ').replace(/\n/g,"\u2424")) } }
     self._console = console
     try {
       self.console = console
@@ -54,16 +54,16 @@ try {
       var serialize = JSON.stringify
       var deserialize = JSON.parse
 
-      self.postMessage = function minerControl$$Worker$postMessage (message) {
+      self.postMessage = function workerControl$$Worker$postMessage (message) {
         send({type: 'workerMessage', message: message})
       }
 
-      self.addEventListener = function minerControl$$Worker$addEventListener (type, listener) {
+      self.addEventListener = function workerControl$$Worker$addEventListener (type, listener) {
         if (typeof eventListeners[type] === 'undefined') { eventListeners[type] = [] }
         eventListeners[type].push(listener)
       }
 
-      self.removeEventListener = function minerControl$$Worker$removeEventListener (type, listener) {
+      self.removeEventListener = function workerControl$$Worker$removeEventListener (type, listener) {
         var i
 
         if (typeof eventListeners[type] === 'undefined') { return }
@@ -156,7 +156,7 @@ try {
       }
     })()
   })(readln, writeln)
-  'dcp-miner-control: Normal Exit.' // eslint-disable-line
+  'sa-worker-control: Normal Exit.' // eslint-disable-line
 } catch (e) {
-  'dcp-miner-control: Uncaught Exception: ' + e.message + ' at ' + e.fileName + ':' + e.lineNumber  // eslint-disable-line
+  'sa-worker-control: Uncaught Exception: ' + e.message + ' at ' + e.fileName + ':' + e.lineNumber  // eslint-disable-line
 }
