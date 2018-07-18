@@ -1,6 +1,6 @@
 #! /usr/bin/env node
 /** 
- *  @file       dcp-miner-node.js
+ *  @file       sa-worker-node.js
  *              Simple 'node' worker shell -- equivalent to v8, spidermonkey, etc,
  *              worker shells, except it is NOT SECURE as jobs have access to the 
  *              entirety of the node library, with the permissions of the user the 
@@ -14,11 +14,14 @@
  *  @author     Wes Garland, wes@kingsds.network
  *  @date       June 2018
  */
-const fs = require("fs")
+const fs = require('fs')
+const path = require('path')
+const process = require('process')
+const binDir = path.resolve(path.dirname(process.argv[1]))
 process.stdin.setEncoding("utf-8")
 
 const config = {
-  minerControlFilename: "../unix/dcp-miner-control.js"
+  workerControlFilename: path.join(binDir, "../libexec/sa-worker-control.js")
 }
 
 try { require("sleep").sleep(0) } catch (e) { throw new Error("Please npm install sleep") }
@@ -90,7 +93,7 @@ function writeln(line) {
 }
 
 /* Run the control code - this is what talks to standaloneWorker.Worker */
-var code = fs.readFileSync(require.resolve(config.minerControlFilename), "ascii")
+var code = fs.readFileSync(require.resolve(config.workerControlFilename), "ascii")
 global.writeln = writeln
 global.readln = readln
 global.this = global
@@ -101,7 +104,7 @@ if (false) {
   indirectEval(code)
 } else {
   let Script = require('vm').Script
-  let minerControl = new Script(code, {filename: config.minerControlFilename, lineOffset:0, columnOffset:0})
+  let workerControl = new Script(code, {filename: config.workerControlFilename, lineOffset:0, columnOffset:0})
 
   global.indirectEval = function(code, filename) {
     if (!filename) {
@@ -110,7 +113,7 @@ if (false) {
 	filename = "guess::" + filename.replace(/.*@file */i,'').replace(/ .*$/,'')
       }
     }
-    (new Script(code, {filename: filename || "dcp-miner-node::indirectEval", lineOffset:0, columnOffset:0})).runInThisContext()
+    (new Script(code, {filename: filename || "sa-worker-node::indirectEval", lineOffset:0, columnOffset:0})).runInThisContext()
   }
-  minerControl.runInThisContext()
+  workerControl.runInThisContext()
 }
