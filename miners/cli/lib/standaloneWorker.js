@@ -17,14 +17,14 @@ exports.config = {
   debug: process.env.DCP_SAW_DEBUG || false, /* When false, console.debug is NOP */
   debugLevel: parseInt(process.env.DCP_SAW_DEBUG,10), /* Bigger = more verbose */
   defaultHostname: '127.0.0.1',
-  defaultService: '9000',
+  defaultPort: '9000',
   docRoot: '/var/dcp/www/docs'
 }
 
 /** Worker constructor
  *  @param      filename        The filename of the code to run in the worker, relative to exports.config.docRoot.
  *  @param      hostname        The hostname (or IP number) of the standalone miner process.
- *  @param      service         The service (or port number) of the standalone miner process.
+ *  @param      port            The TCP port number of the standalone miner process.
  *
  *  @returns an object with the following
  *  - methods:
@@ -43,7 +43,7 @@ exports.config = {
  *    . error
  *    . messeage
  */
-exports.Worker = function standaloneWorker$$Worker (filename, hostname, service) {
+exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
   var socket = new (require('net')).Socket()
   var ee = new (require('events').EventEmitter)()
   var pendingWrites = []
@@ -184,9 +184,9 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, service)
   })
 
   if (exports.config.debug) {
-    console.debug('Connecting to', (hostname || exports.config.defaultHostname) + ':' + (service || exports.config.defaultService))
+    console.debug('Connecting to', (hostname || exports.config.defaultHostname) + ':' + (port || exports.config.defaultPort))
   }
-  socket.connect(service || exports.config.defaultService, hostname || exports.config.defaultHostname, finishConnect.bind(this))
+  socket.connect(port || exports.config.defaultPort, hostname || exports.config.defaultHostname, finishConnect.bind(this))
 
   /** Send a message over the network to a standalone worker */
   this.postMessage = function standaloneWorker$$Worker$postMessage (message) {
