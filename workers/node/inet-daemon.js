@@ -8,7 +8,7 @@
  *                                       inetDaemon: {
  *                                         label: { 
  *                                           net:       {
- *                                             service: port,
+ *                                             port: port,
  *                                             listenHost: optional,
  *                                           }
  *                                           process:   /path/to/binary
@@ -44,9 +44,9 @@ function start () {
     var server = net.createServer(handleConnection)
     
     if (debug.indexOf('verbose') !== -1) {
-      console.log('Listening for ' + name + ' connections on ' + (config.net.listenHost || 'inaddr_any') + ':' + config.net.service)
+      console.log('Listening for ' + name + ' connections on ' + (config.net.listenHost || 'inaddr_any') + ':' + config.net.port)
     }
-    server.listen({port: config.net.service, host: config.net.listenHost}, () => {
+    server.listen({port: config.net.port, host: config.net.listenHost}, () => {
       // To let tests know we've actually started
       if (process.env.FORKED) {
         process.send({
