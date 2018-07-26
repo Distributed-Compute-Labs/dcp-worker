@@ -7,17 +7,17 @@
  *  @date       March 2018
  */
 
-module.paths.push("/var/dcp/lib")
-module.paths.push("/var/dcp/www/docs/node_modules")
+/* globals dcpConfig */
+
+require('dcp-rtlink/rtLink').link(module.paths)
+require('config')
 
 /** Module configuration parameters. May be altered at runtime. Should be altered
- *  before first Worker is instanciated.
+ *  before first Worker is instantiated.
  */
 exports.config = {
   debug: process.env.DCP_SAW_DEBUG || false, /* When false, console.debug is NOP */
-  debugLevel: parseInt(process.env.DCP_SAW_DEBUG,10), /* Bigger = more verbose */
-  defaultHostname: '127.0.0.1',
-  defaultPort: '9000',
+  debugLevel: parseInt(process.env.DCP_SAW_DEBUG, 10), /* Bigger = more verbose */
   docRoot: '/var/dcp/www/docs'
 }
 
@@ -51,7 +51,7 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
   var connected = false
   var dieTimer
   var code
- 
+
   if (typeof filename !== 'string') { throw new TypeError('filename must be a string!') }
   if (filename[0] === '.') { throw new Error('relative paths not allowed (security)') }
   code = require('fs').readFileSync(exports.config.docRoot + '/' + (filename.replace(/\?.*$/, '')), 'utf-8')
@@ -63,7 +63,7 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
   this.deserialize = JSON.parse
 
   function finishConnect () {
-    let wrappedMessage = this.serialize({ type: 'initWorker', w: this.serial, ts: Date.now(), payload: code, origin:filename.replace(/\?.*$/, '') }) + '\n'
+    let wrappedMessage = this.serialize({ type: 'initWorker', w: this.serial, ts: Date.now(), payload: code, origin: filename.replace(/\?.*$/, '') }) + '\n'
     connected = true
 
     socket.setEncoding('utf-8')
@@ -80,7 +80,7 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
     while (pendingWrites.length && !socket.destroyed) {
       socket.write(pendingWrites.shift())
     }
-    
+
     /* @todo Make this auto-detected /wg jul 2018
      * changeSerializer.bind(this)("/var/dcp/lib/serialize.js") 
      */
@@ -184,9 +184,9 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
   })
 
   if (exports.config.debug) {
-    console.debug('Connecting to', (hostname || exports.config.defaultHostname) + ':' + (port || exports.config.defaultPort))
+    console.debug('Connecting to', (hostname || dcpConfig.inetDaemon.standaloneWorker.net.hostname) + ':' + (port || dcpConfig.inetDaemon.standaloneWorker.net.port))
   }
-  socket.connect(port || exports.config.defaultPort, hostname || exports.config.defaultHostname, finishConnect.bind(this))
+  socket.connect(port || dcpConfig.inetDaemon.standaloneWorker.net.port, hostname || dcpConfig.inetDaemon.standaloneWorker.net.hostname, finishConnect.bind(this))
 
   /** Send a message over the network to a standalone worker */
   this.postMessage = function standaloneWorker$$Worker$postMessage (message) {
