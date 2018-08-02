@@ -10,16 +10,16 @@
 /* globals dcpConfig */
 
 require('dcp-rtlink/rtLink').link(module.paths)
-require('config')
+const path = require('path')
 
 /** Module configuration parameters. May be altered at runtime. Should be altered
  *  before first Worker is instantiated.
  */
-exports.config = {
+exports.config = dcpConfig.standaloneWorker;
+require('config').addConfig(dcpConfig, {
   debug: process.env.DCP_SAW_DEBUG || false, /* When false, console.debug is NOP */
   debugLevel: parseInt(process.env.DCP_SAW_DEBUG, 10), /* Bigger = more verbose */
-  docRoot: '/var/dcp/www/docs'
-}
+})
 
 /** Worker constructor
  *  @param      filename        The filename of the code to run in the worker, relative to exports.config.docRoot.
@@ -54,7 +54,8 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
 
   if (typeof filename !== 'string') { throw new TypeError('filename must be a string!') }
   if (filename[0] === '.') { throw new Error('relative paths not allowed (security)') }
-  code = require('fs').readFileSync(exports.config.docRoot + '/' + (filename.replace(/\?.*$/, '')), 'utf-8')
+
+  code = require('fs').readFileSync(path.join(exports.config.docRoot, (filename.replace(/\?.*$/, ''))), 'utf-8')
 
   this.addEventListener = ee.addListener.bind(ee)
   this.removeEventListener = ee.removeListener.bind(ee)
@@ -82,11 +83,11 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
     }
 
     /* @todo Make this auto-detected /wg jul 2018
-     * changeSerializer.bind(this)("/var/dcp/lib/serialize.js") 
+     * changeSerializer.bind(this)("/var/dcp/lib/serialize.js")
      */
   }
 
-  /** Change the protocol's serialization implementation. Must be in 
+  /** Change the protocol's serialization implementation. Must be in
    *  a format which is returns an 'exports' object on evaluation that
    *  has serialize and deserialize methods that are call-compatible
    *  with JSON.stringify and JSON.parse.
@@ -135,35 +136,35 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
           if (exports.config.debugLevel > 2) { console.debug('worker:', line) }
           continue
         }
- 
+
         lineObj = this.deserialize(line.slice(4))
-	switch(lineObj.type) {
-	  case "workerMessage": /* Remote posted message */
+        switch(lineObj.type) {
+          case "workerMessage": /* Remote posted message */
             ee.emit('message', {data: lineObj.message})
-	    break
+            break
           case "result":
             if (lineObj.hasOwnProperty('exception')) { /* Remote threw exception */
-	      let e2 = new Error(lineObj.exception.message);
-	      e2.stack = "Worker #" + this.serial + " " + lineObj.exception.stack + "\n   via" + e2.stack.split('\n').slice(1).join('\n').slice(6)
-	      e2.name = "Worker" + lineObj.exception.name
-	      if (lineObj.exception.fileName) { e2.fileName = lineObj.exception.fileName }
-	      if (lineObj.exception.lineNumber) { e2.lineNumber = lineObj.exception.lineNumber }
-	      ee.emit('error', e2)
-	      continue
+              let e2 = new Error(lineObj.exception.message);
+              e2.stack = "Worker #" + this.serial + " " + lineObj.exception.stack + "\n   via" + e2.stack.split('\n').slice(1).join('\n').slice(6)
+              e2.name = "Worker" + lineObj.exception.name
+              if (lineObj.exception.fileName) { e2.fileName = lineObj.exception.fileName }
+              if (lineObj.exception.lineNumber) { e2.lineNumber = lineObj.exception.lineNumber }
+              ee.emit('error', e2)
+              continue
             } else {
-	      if (lineObj.success && lineObj.origin === "newSerializer") { /* Remote acknowledges change of serialization */
-		this.deserialize = this.newSerializer.deserialize
-		delete this.newSerializer
-	      } else {
-		if (config.debug) { 
-		  console.log("Worker", this.serial, "returned result object: ", result) 
-		}
-	      }
-	    }
-	    break
+              if (lineObj.success && lineObj.origin === "newSerializer") { /* Remote acknowledges change of serialization */
+                this.deserialize = this.newSerializer.deserialize
+                delete this.newSerializer
+              } else {
+                if (config.debug) {
+                  console.log("Worker", this.serial, "returned result object: ", result)
+                }
+              }
+            }
+            break
           default:
             ee.emit('error', new Error('Unrecognized message type from worker #' + this.serial + ', \'' + lineObj.type + '\''))
-	}
+        }
       } catch (e) {
         console.error('Error processing remote response: \'' + line + '\' (' + e.name + ': ' + e.message + e.stack.split('\n')[1].replace(/^  */, ' ') + ')')
         throw e
