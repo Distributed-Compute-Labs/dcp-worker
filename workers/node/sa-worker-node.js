@@ -41,9 +41,9 @@ function readln() {
     if (readln.pendingData.length) {
       let i=readln.pendingData.indexOf('\n')
       if (i !== -1) {
-	let line = readln.pendingData.slice(0, i + 0)
-	readln.pendingData = readln.pendingData.slice(i + 1)
-	return line
+        let line = readln.pendingData.slice(0, i + 1)
+        readln.pendingData = readln.pendingData.slice(i + 1)
+        return line
       }
     }
 
@@ -51,14 +51,14 @@ function readln() {
       nRead = fs.readSync(process.stdin.fd, buf, 0, buf.length)
     } catch (e) {
       switch(e.code) {
-	case 'EAGAIN':
-  	  nRead = 0
-	  break
-	case 'EOF':
-  	  nRead = -1
-	  break
+        case 'EAGAIN':
+          nRead = 0
+          break
+        case 'EOF':
+          nRead = -1
+          break
         default:
-  	  throw e
+          throw e
       }
     }
 
@@ -110,7 +110,7 @@ if (false) {
     if (!filename) {
       /* Pull filename from code comments if not specified */
       if (filename = code.match(/^ *\* *@file.*$/mi)[0]) {
-	filename = "guess::" + filename.replace(/.*@file */i,'').replace(/ .*$/,'')
+        filename = "guess::" + filename.replace(/.*@file */i,'').replace(/ .*$/,'')
       }
     }
     (new Script(code, {filename: filename || "sa-worker-node::indirectEval", lineOffset:0, columnOffset:0})).runInThisContext()
