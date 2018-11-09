@@ -2,8 +2,8 @@
 /**
  *  @file       inet-daemon.js          Simple daemon for node that works like xinetd/inetd
  *
- *                                      Configuration is read from the dcp-config.js file
- *                                      and its descendendents. Services are configured thus:
+ *                                      Configuration is read from the DCP config.js module.
+ *                                      Services are configured thus:
  *
  *                                       inetDaemon: {
  *                                         label: {
