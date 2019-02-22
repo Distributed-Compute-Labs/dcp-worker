@@ -15,10 +15,10 @@ const path = require('path')
 /** Module configuration parameters. May be altered at runtime. Should be altered
  *  before first Worker is instantiated.
  */
-exports.config = dcpConfig.standaloneWorker;
+exports.config = dcpConfig.standaloneWorker
 require('config').addConfig(dcpConfig, {
   debug: process.env.DCP_SAW_DEBUG || false, /* When false, console.debug is NOP */
-  debugLevel: parseInt(process.env.DCP_SAW_DEBUG, 10), /* Bigger = more verbose */
+  debugLevel: parseInt(process.env.DCP_SAW_DEBUG, 10) /* Bigger = more verbose */
 })
 
 /** Worker constructor
@@ -111,6 +111,7 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
    *  @param   filename     The path to the serialization module, or an exports object
    *  @param   charset      [optional]   The character set the code is stored in
    */
+
   this.changeSerializer = (filename, charset) => {
     if (this.newSerializer) { throw new Error("Outstanding serialization change on worker #" + this.serial )}
 
@@ -122,13 +123,13 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
         let expo = filename
         code = '({ serialize:' + expo.serialize + ',deserialize:' + expo.deserialize + '})'
       } else {
-        code = require("fs").readFileSync(filename, charset || "utf-8")
+        code = require('fs').readFileSync(filename, charset || 'utf-8')
       }
       this.newSerializer = eval(code)
       if (typeof this.newSerializer !== 'object') {
         throw new TypeError('newSerializer code evaluated as ' + typeof this.newSerializer)
       }
-      socket.write(this.serialize({ type: "newSerializer", payload: code }) + "\n")
+      socket.write(this.serialize({ type: 'newSerializer', payload: code }) + '\n')
       this.serialize = this.newSerializer.serialize  /* do not change deserializer until worker acknowledges change */
     } catch(e) {
       console.log('Cannot change serializer', e)
@@ -157,7 +158,7 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
         }
 
         if (line.match(/^LOG: */)) {
-          console.log("Worker", this.serial, "Log:", line.slice(4))
+          console.log('Worker', this.serial, 'Log:', line.slice(4))
           continue
         }
 
@@ -167,23 +168,23 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
         }
 
         lineObj = this.deserialize(line.slice(4))
-        switch(lineObj.type) {
-          case "workerMessage": /* Remote posted message */
+        switch (lineObj.type) {
+          case 'workerMessage': /* Remote posted message */
             ee.emit('message', {data: lineObj.message})
             break
           case "nop":
             break
           case "result":
             if (lineObj.hasOwnProperty('exception')) { /* Remote threw exception */
-              let e2 = new Error(lineObj.exception.message);
-              e2.stack = "Worker #" + this.serial + " " + lineObj.exception.stack + "\n   via" + e2.stack.split('\n').slice(1).join('\n').slice(6)
-              e2.name = "Worker" + lineObj.exception.name
+              let e2 = new Error(lineObj.exception.message)
+              e2.stack = 'Worker #' + this.serial + ' ' + lineObj.exception.stack + '\n   via' + e2.stack.split('\n').slice(1).join('\n').slice(6)
+              e2.name = 'Worker' + lineObj.exception.name
               if (lineObj.exception.fileName) { e2.fileName = lineObj.exception.fileName }
               if (lineObj.exception.lineNumber) { e2.lineNumber = lineObj.exception.lineNumber }
               ee.emit('error', e2)
               continue
             } else {
-              if (lineObj.success && lineObj.origin === "newSerializer") { /* Remote acknowledges change of serialization */
+              if (lineObj.success && lineObj.origin === 'newSerializer') { /* Remote acknowledges change of serialization */
                 this.deserialize = this.newSerializer.deserialize
                 delete this.newSerializer
               } else {
@@ -213,7 +214,15 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
     if (exports.config.debug) {
       console.debug('Closed socket')
     }
-  })
+    this.terminate()
+  }.bind(this))
+
+  socket.on('end', function worker$$Close () {
+    if (exports.config.debug) {
+      console.debug('Ended socket; closing')
+    }
+    this.terminate()
+  }.bind(this))
 
   if (exports.config.debug) {
     console.debug('Connecting to', (hostname || dcpConfig.inetDaemon.standaloneWorker.net.hostname) + ':' + (port || dcpConfig.inetDaemon.standaloneWorker.net.port))
