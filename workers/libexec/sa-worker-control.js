@@ -38,6 +38,7 @@ try {
   (function privateScope(writeln, onreadln, nextTimer, ontimer, die) {
     /* implement console.log which propagates messages back to the standaloneWorker */
     var console = { log: function workerControl$$log () { writeln('LOG:' + Array.prototype.slice.call(arguments).join(' ').replace(/\n/g,"\u2424")) } }
+
     self._console = console
     try {
       self.console = console
@@ -270,6 +271,7 @@ try {
         /* Return exceptions thrown in this engine (presumably the host code) to the standaloneWorker object for reporting */
         outMsg.success = false
         outMsg.exception = { name: e.name, message: e.message, fileName: e.fileName, lineNumber: e.lineNumber, stack: e.stack }
+        outMsg.e = e
       } finally {
         send(outMsg)
       }
