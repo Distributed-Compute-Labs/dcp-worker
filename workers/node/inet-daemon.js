@@ -23,9 +23,18 @@
 /* global dcpConfig */
 const net = require('net')
 var debug = process.env.DEBUG || ''
+var counter = 0
+
 // console.log(process.env)
 require('dcp-rtlink/rtLink').link(module.paths)
 require('config').load()
+
+console.log('DCP inetd starting...')
+
+if (debug) {
+  console.log('** Debug mode:', debug)
+  console.log('Config:', dcpConfig.inetDaemon)
+}
 
 Object.entries(dcpConfig.inetDaemon).forEach(function (param) {
   var [name, config] = param
@@ -47,12 +56,14 @@ Object.entries(dcpConfig.inetDaemon).forEach(function (param) {
   function handleConnection (socket) {
     if (debug.indexOf('verbose') !== -1) { console.log('New connection; spawning ', config.process, config.arguments) }
     var child = require('child_process').spawn(config.process, config.arguments || [])
-    if (debug) { console.log('Spawned a new worker process, PID:', child.pid) }
+    child.index = counter++
+
+    if (debug) { console.log('Spawned a new worker process, PID:', child.pid, 'Index:', child.index) }
 
     child.stderr.setEncoding('ascii')
 
     socket.on('end', function () {
-      if (debug) { console.log('Killing worker ', child.index) }
+      if (debug) { console.log('Killing worker', child.index) }
       child.kill()
     })
 
@@ -69,14 +80,14 @@ Object.entries(dcpConfig.inetDaemon).forEach(function (param) {
     })
 
     child.on('exit', function (code) {
-      if (debug) { console.log('worker ' + child.index + ' exited; closing socket', code || '', '\n') }
+      if (debug) { console.log('worker exited; closing socket', code || '', 'index:', child.index) }
       socket.end()
       socket.destroy()
     })
 
     child.stdout.on('data', function (data) {
       if (debug.indexOf('network') !== -1) {
-        console.log('<W ', bufToDisplayStr(data))
+        console.log('<W', child.index, bufToDisplayStr(data))
         if (data.length > 100) {
           console.log('\n')
         }
@@ -90,12 +101,12 @@ Object.entries(dcpConfig.inetDaemon).forEach(function (param) {
 
     socket.on('data', function (data) {
       if (debug.indexOf('network') !== -1) {
-        console.log('W> ', bufToDisplayStr(data).slice(0, 64), '...')
+        console.log('W>', child.index, bufToDisplayStr(data, 93))
       }
       try {
         child.stdin.write(data)
       } catch (e) {
-        console.log('could not write to worker process (', child.pid, ') stdin')
+        console.log('could not write to worker process (', child.pid, ', index', child.index, ') stdin')
         throw e
       }
     })
@@ -104,8 +115,14 @@ Object.entries(dcpConfig.inetDaemon).forEach(function (param) {
   }
 })
 
-function bufToDisplayStr (buf) {
-  return Buffer.from(buf.toString('utf-8').replace(/\n/, '\u2424')).toString('utf-8')
+function bufToDisplayStr (buf, limit) {
+  const str = Buffer.from(buf.toString('utf-8').replace(/\n/, '\u2424')).toString('utf-8')
+
+  if (typeof limit === 'number' && str.length > limit) {
+    return str.substr(0, limit) + '...'
+  } else {
+    return str
+  }
 }
 
 process.on('uncaughtException', function (e) {
