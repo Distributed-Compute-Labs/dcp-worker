@@ -52,24 +52,24 @@ Object.entries(dcpConfig.inetDaemon).forEach(function (param) {
     child.stderr.setEncoding('ascii')
 
     socket.on('end', function () {
-      if (debug) { console.log('Killing worker') }
+      if (debug) { console.log('Killing worker ', child.index) }
       child.kill()
     })
 
     socket.on('error', function (e) {
-      console.log('Error from supervisor:', e)
+      console.log('Error from supervisor for worker ' + child.index + ':', e)
       socket.destroy()
       child.kill()
     })
 
     child.on('error', function (e) {
-      console.log('Error from worker:', e)
+      console.log('Error from worker ' + child.index + ':', e)
       socket.destroy()
       child.kill()
     })
 
     child.on('exit', function (code) {
-      if (debug) { console.log('worker exited; closing socket', code || '') }
+      if (debug) { console.log('worker ' + child.index + ' exited; closing socket', code || '', '\n') }
       socket.end()
       socket.destroy()
     })
@@ -85,7 +85,7 @@ Object.entries(dcpConfig.inetDaemon).forEach(function (param) {
     })
 
     child.stderr.on('data', function (data) {
-      console.log('worker stderr: ', data)
+      console.log('worker ' + child.index + ' stderr: ', data)
     })
 
     socket.on('data', function (data) {
