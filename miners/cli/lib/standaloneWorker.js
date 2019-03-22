@@ -22,7 +22,12 @@ require('config').addConfig(dcpConfig, {
 })
 
 /** Worker constructor
- *  @param      filename        The filename of the code to run in the worker, relative to exports.config.docRoot.
+ *  @param      filename        The filename of the code to run in the worker, relative to exports.config.docRoot
+ *                              OR an object for development testing. The dev testing object has optional properties 
+ *                              which can override as follows:
+ *                              - code:   replaces the code normally read by reading the file
+ *                              - socket: an object compatible with require('socket').Socket() to monkey patch in
+ *                                        a alternate way to connect to the sa-worker-control process.
  *  @param      hostname        The hostname (or IP number) of the standalone miner process.
  *  @param      port            The TCP port number of the standalone miner process.
  *
@@ -50,12 +55,23 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
   var readBuf = ''
   var connected = false
   var dieTimer
-  var code
+  var code = 'throw new Error("standaloneWorker initialization code unspecified")'
+  
+  if (typeof filename !== 'string') {
+    let options = filename
+    filename = options.filename || new Error().fileName || ''
+    code = options.code || code
+    socket = options.socket || socket
+  }
 
-  if (typeof filename !== 'string') { throw new TypeError('filename must be a string!') }
-  if (filename[0] === '.') { throw new Error('relative paths not allowed (security)') }
-
-  code = require('fs').readFileSync(path.join(exports.config.docRoot, (filename.replace(/\?.*$/, ''))), 'utf-8')
+  if (filename)
+  {
+    if (filename[0] === '.' || filename.indexOf('../') !== -1) {
+      throw new Error('relative paths not allowed (security)')
+    }
+    socket = new (require('net')).Socket()
+    code = require('fs').readFileSync(path.join(exports.config.docRoot, (filename.replace(/\?.*$/, ''))), 'utf-8')    
+  }
 
   this.addEventListener = ee.addListener.bind(ee)
   this.removeEventListener = ee.removeListener.bind(ee)
@@ -95,23 +111,29 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
    *  @param   filename     The path to the library code
    *  @param   charset      [optional]   The character set the code is stored in
    */
-  function changeSerializer(filename) {
-    let code = require("fs").readFileSync(filename, charset || "utf-8")
-
+  this.changeSerializer = (filename, charset) => {
     if (this.newSerializer) { throw new Error("Outstanding serialization change on worker #" + this.serial )}
 
-    this.newSerializer = eval(code)
-    socket.write(this.serialize({ type: "newSerializer", payload: code }) + "\n")
-    this.serialize = this.newSerializer.serialize  /* do not change deserializer until worker acknowledges change */
-  }
+    try {
+      let code = require("fs").readFileSync(filename, charset || "utf-8")
 
+      this.newSerializer = eval(code)
+      if (typeof this.newSerializer !== 'object') {
+        throw new TypeError('newSerializer code evaluated as ' + typeof this.newSerializer)
+      }
+      socket.write(this.serialize({ type: "newSerializer", payload: code }) + "\n")
+      this.serialize = this.newSerializer.serialize  /* do not change deserializer until worker acknowledges change */
+    } catch(e) {
+      console.log('Cannot change serializer', e)
+    }
+  }
+  
   /* Receive data from the network, turning it into debug output,
    * remote exceptions, worker messages, etc.
    */
   socket.on('data', function standaloneWorker$$Worker$recvData (data) {
     var line, lineObj /* line of data coming over the network */
     var nl
-
     readBuf += data
     while ((nl = readBuf.indexOf('\n')) !== -1) {
       try {
@@ -142,6 +164,8 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
           case "workerMessage": /* Remote posted message */
             ee.emit('message', {data: lineObj.message})
             break
+          case "nop":
+            break
           case "result":
             if (lineObj.hasOwnProperty('exception')) { /* Remote threw exception */
               let e2 = new Error(lineObj.exception.message);
@@ -156,8 +180,8 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
                 this.deserialize = this.newSerializer.deserialize
                 delete this.newSerializer
               } else {
-                if (config.debug) {
-                  console.log("Worker", this.serial, "returned result object: ", result)
+                if (exports.config.debug) {
+                  console.log("Worker", this.serial, "returned result object: ", lineObj.result)
                 }
               }
             }
