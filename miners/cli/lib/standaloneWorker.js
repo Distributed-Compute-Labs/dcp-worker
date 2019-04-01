@@ -108,15 +108,22 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
    *  has serialize and deserialize methods that are call-compatible
    *  with JSON.stringify and JSON.parse.
    *
-   *  @param   filename     The path to the library code
+   *  @param   filename     The path to the serialization module, or an exports object
    *  @param   charset      [optional]   The character set the code is stored in
    */
   this.changeSerializer = (filename, charset) => {
     if (this.newSerializer) { throw new Error("Outstanding serialization change on worker #" + this.serial )}
 
     try {
-      let code = require("fs").readFileSync(filename, charset || "utf-8")
-
+      let code
+      let expo = filename
+      
+      if (typeof filename === 'object') {
+        let expo = filename
+        code = '({ serialize:' + expo.serialize + ',deserialize:' + expo.deserialize + '})'
+      } else {
+        code = require("fs").readFileSync(filename, charset || "utf-8")
+      }
       this.newSerializer = eval(code)
       if (typeof this.newSerializer !== 'object') {
         throw new TypeError('newSerializer code evaluated as ' + typeof this.newSerializer)
