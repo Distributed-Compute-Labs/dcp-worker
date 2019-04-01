@@ -101,11 +101,10 @@ try {
     /* Fire any timers which are ready to run, being careful not to
      * get into a recurring timer death loop without reactor mediation.
      */
-    function fireTimerCallbacks() {
+    ontimer(function fireTimerCallbacks() {
       let now = Date.now()
 
-      timers.sort(function(a,b) { return a.time - b.time })
-      
+      timers.sort(function(a,b) { return b.time - a.time })
       for (let i=0; i < timers.length; i++) {
         if (timers[i].time <= now) {
           Promise.resolve().then(timers[i].fn)
@@ -118,14 +117,15 @@ try {
           break
         }
       }
-    }
+      timers.sort(function(a,b) { return b.time - a.time })
+      nextTimer(timers[0].time)
+    })
 
     /** Execute callback after at least timeout ms. 
      *  @returns    A value which may be used as the timeoutId paramter of clearTimeout()
      */
     self.setTimeout = function workerControl$$Worker$setTimeout (callback, timeout) {
       let timer
-
       if (typeof callback === 'string')
       {
         let code = callback
@@ -143,7 +143,7 @@ try {
         valueOf: function() { return this.serial }
       }
       timers.push(timer)
-      if (timer.time < timers[0].time)
+      if (timer.time <= timers[0].time)
         setNextTimer()
       return timer
     }
@@ -153,7 +153,7 @@ try {
      *
      *  @param       timeoutId     The value, returned from setTimeout(), identifying the timer.
      */
-    self.clearTimeout = function workerControl$$Worker$setTimeout (timeoutId) {
+    self.clearTimeout = function workerControl$$Worker$clearTimeout (timeoutId) {
       if (typeof timeoutId === "object") {
         let i = timers.indexOf(timeoutId)
         if (i != -1)
@@ -174,7 +174,7 @@ try {
      *  @returns    A value which may be used as the intervalId paramter of clearInterval()
      */
     self.setInterval = function workerControl$$Worker$setInterval (callback, interval) {
-      let timer = self.setTimeout(callback, Date.now() + (+interval || 0))
+      let timer = self.setTimeout(callback, +interval || 0)
       timer.recur = interval 
       return timer
     }
@@ -201,6 +201,14 @@ try {
     /** Remove a pending request for an animation frame. */
     self.cancelAnimationFrame = self.clearTimeout 
 
+    /** Emit an event */
+    function emitEvent(eventName, argument) {
+      if (eventListeners[eventName]) {
+        for (let i = 0; i < eventListeners[eventName].length; i++) {
+          eventListeners[eventName][i].call(self, argument)
+        }
+      }
+    }
     /** Send a message to the supervisor.  If the message is sent
      *  before we are (the worker is) ready, the message is queued up
      *  and sent later.  Later would be another call to send(), and
@@ -246,12 +254,10 @@ try {
           outMsg.success = true
           break
         case 'workerMessage':
-          if (!indirectEval) { throw new Error('Must initWorker before posting messages') }
-          if (eventListeners['message']) {
-            for (let i = 0; i < eventListeners['message'].length; i++) {
-              eventListeners['message'][i].call(self, {data: inMsg.message})
-            }
+          if (!indirectEval) {
+            throw new Error('Must initWorker before posting messages')
           }
+          emitEvent('message', {data: inMsg.message})
           outMsg.success = true
           break
         case 'die':
