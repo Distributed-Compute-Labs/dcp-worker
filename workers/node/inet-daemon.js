@@ -33,17 +33,17 @@ console.log('DCP inetd starting...')
 
 if (debug) {
   console.log('** Debug mode:', debug)
-  console.log('Config:', dcpConfig.inetDaemon)
+  if (debug.includes('verbose')) {
+    console.log('Config:', dcpConfig.inetDaemon)
+  }
 }
 
 Object.entries(dcpConfig.inetDaemon).forEach(function (param) {
   var [name, config] = param
   var server = net.createServer(handleConnection)
 
-  if (debug.indexOf('verbose') !== -1) {
-    console.log('Listening for ' + name + ' connections on ' + (config.net.listenHost || 'inaddr_any') + ':' + config.net.port)
-  }
   server.listen({port: config.net.port, host: config.net.listenHost}, () => {
+    console.log('Listening for ' + name + ' connections on ' + (config.net.listenHost || 'inaddr_any') + ':' + config.net.port)
     // To let tests know we've actually started
     if (process.env.FORKED) {
       process.send({
@@ -106,12 +106,10 @@ Object.entries(dcpConfig.inetDaemon).forEach(function (param) {
       try {
         child.stdin.write(data)
       } catch (e) {
-        console.log('could not write to worker process (', child.pid, ', index', child.index, ') stdin')
+        console.warn('could not write to worker process (', child.pid, ', index', child.index, ') stdin')
         throw e
       }
     })
-
-    if (debug) { console.log('Handling new connection') }
   }
 })
 
