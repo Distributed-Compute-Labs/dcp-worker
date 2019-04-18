@@ -23,7 +23,7 @@ require('config').addConfig(dcpConfig, {
 
 /** Worker constructor
  *  @param      filename        The filename of the code to run in the worker, relative to exports.config.docRoot
- *                              OR an object for development testing. The dev testing object has optional properties 
+ *                              OR an object for development testing. The dev testing object has optional properties
  *                              which can override as follows:
  *                              - code:   replaces the code normally read by reading the file
  *                              - socket: an object compatible with require('socket').Socket() to monkey patch in
@@ -56,7 +56,7 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
   var connected = false
   var dieTimer
   var code = 'throw new Error("standaloneWorker initialization code unspecified")'
-  
+
   if (typeof filename !== 'string') {
     let options = filename
     filename = options.filename || new Error().fileName || ''
@@ -64,13 +64,12 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
     socket = options.socket || socket
   }
 
-  if (filename)
-  {
+  if (filename) {
     if (filename[0] === '.' || filename.indexOf('../') !== -1) {
       throw new Error('relative paths not allowed (security)')
     }
     socket = new (require('net')).Socket()
-    code = require('fs').readFileSync(path.join(exports.config.docRoot, (filename.replace(/\?.*$/, ''))), 'utf-8')    
+    code = require('fs').readFileSync(path.join(exports.config.docRoot, (filename.replace(/\?.*$/, ''))), 'utf-8')
   }
 
   this.addEventListener = ee.addListener.bind(ee)
@@ -113,12 +112,12 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
    */
 
   this.changeSerializer = (filename, charset) => {
-    if (this.newSerializer) { throw new Error("Outstanding serialization change on worker #" + this.serial )}
+    if (this.newSerializer) { throw new Error('Outstanding serialization change on worker #' + this.serial) }
 
     try {
       let code
       let expo = filename
-      
+
       if (typeof filename === 'object') {
         let expo = filename
         code = '({ serialize:' + expo.serialize + ',deserialize:' + expo.deserialize + '})'
@@ -130,12 +129,12 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
         throw new TypeError('newSerializer code evaluated as ' + typeof this.newSerializer)
       }
       socket.write(this.serialize({ type: 'newSerializer', payload: code }) + '\n')
-      this.serialize = this.newSerializer.serialize  /* do not change deserializer until worker acknowledges change */
-    } catch(e) {
+      this.serialize = this.newSerializer.serialize /* do not change deserializer until worker acknowledges change */
+    } catch (e) {
       console.log('Cannot change serializer', e)
     }
   }
-  
+
   /* Receive data from the network, turning it into debug output,
    * remote exceptions, worker messages, etc.
    */
@@ -172,9 +171,9 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
           case 'workerMessage': /* Remote posted message */
             ee.emit('message', {data: lineObj.message})
             break
-          case "nop":
+          case 'nop':
             break
-          case "result":
+          case 'result':
             if (lineObj.hasOwnProperty('exception')) { /* Remote threw exception */
               let e2 = new Error(lineObj.exception.message)
               e2.stack = 'Worker #' + this.serial + ' ' + lineObj.exception.stack + '\n   via' + e2.stack.split('\n').slice(1).join('\n').slice(6)
@@ -189,7 +188,7 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
                 delete this.newSerializer
               } else {
                 if (exports.config.debug) {
-                  console.log("Worker", this.serial, "returned result object: ", lineObj.result)
+                  console.log('Worker', this.serial, 'returned result object: ', lineObj.result)
                 }
               }
             }
@@ -205,22 +204,24 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
   }.bind(this))
 
   socket.on('error', function worker$$Error (e) {
-    console.error('Error communicating with worker: ', e)
+    console.error('Error communicating with worker ' + this.serial + ': ', e)
     socket.destroy()
     throw e
-  })
+  }.bind(this))
 
   socket.on('close', function worker$$Close () {
     if (exports.config.debug) {
-      console.debug('Closed socket')
+      console.debug('Closed socket ' + this.serial + '')
     }
+    connected = false
     this.terminate()
   }.bind(this))
 
   socket.on('end', function worker$$Close () {
     if (exports.config.debug) {
-      console.debug('Ended socket; closing')
+      console.debug('Ended socket; closing ' + this.serial + '')
     }
+    connected = false
     this.terminate()
   }.bind(this))
 
@@ -235,7 +236,7 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
     if (connected) { socket.write(wrappedMessage) } else { pendingWrites.push(wrappedMessage) }
   }
 
-  /** The the worker to die.  The worker should respond with a message back of
+  /** Tell the worker to die.  The worker should respond with a message back of
    *  type DIE:, which in turn eventuallys triggers socket.close() and .destroy()
    */
   this.terminate = function Worker$$terminate () {
