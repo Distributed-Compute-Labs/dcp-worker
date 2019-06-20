@@ -9,7 +9,7 @@
  *                                         label: {
  *                                           net:       {
  *                                             port: port,
- *                                             listenHost: optional,
+ *                                             host: optional,
  *                                           }
  *                                           process:   /path/to/binary
  *                                           arguments: [ argv1, argv2, ... ]
@@ -42,8 +42,8 @@ Object.entries(dcpConfig.inetDaemon).forEach(function (param) {
   var [name, config] = param
   var server = net.createServer(handleConnection)
 
-  server.listen({port: config.net.port, host: config.net.listenHost}, () => {
-    console.log('Listening for ' + name + ' connections on ' + (config.net.listenHost || 'inaddr_any') + ':' + config.net.port)
+  server.listen({host: config.net.location.hostaddr, port: config.net.location.port}, () => {
+    console.log('Listening for ' + name + ' connections on ' + (config.net.listen.hostaddr || 'inaddr_any') + ':' + config.net.listen.port)
     // To let tests know we've actually started
     if (process.env.FORKED) {
       process.send({
