@@ -22,7 +22,7 @@ require('config').addConfig(dcpConfig, {
 })
 
 /** Worker constructor
- *  @param      filename        The filename of the code to run in the worker, relative to exports.config.docRoot
+ *  @param      code            The code to run in the worker to bootstrap it (setup comms with Supervisor)
  *                              OR an object for development testing. The dev testing object has optional properties
  *                              which can override as follows:
  *                              - code:   replaces the code normally read by reading the file
@@ -48,28 +48,20 @@ require('config').addConfig(dcpConfig, {
  *    . error
  *    . messeage
  */
-exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
+exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
   var socket = new (require('net')).Socket()
   var ee = new (require('events').EventEmitter)()
   var pendingWrites = []
   var readBuf = ''
   var connected = false
   var dieTimer
-  var code = 'throw new Error("standaloneWorker initialization code unspecified")'
 
-  if (typeof filename !== 'string') {
-    let options = filename
-    filename = options.filename || new Error().fileName || ''
+  if (typeof code !== 'string') {
+    let options = code
     code = options.code || code
     socket = options.socket || socket
-  }
-
-  if (filename) {
-    if (filename[0] === '.' || filename.indexOf('../') !== -1) {
-      throw new Error('relative paths not allowed (security)')
-    }
+  } else {
     socket = new (require('net')).Socket()
-    code = require('fs').readFileSync(path.join(exports.config.docRoot, (filename.replace(/\?.*$/, ''))), 'utf-8')
   }
 
   this.addEventListener = ee.addListener.bind(ee)
@@ -79,7 +71,7 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
   this.deserialize = JSON.parse
 
   function finishConnect () {
-    let wrappedMessage = this.serialize({ type: 'initWorker', w: this.serial, ts: Date.now(), payload: code, origin: filename.replace(/\?.*$/, '') }) + '\n'
+    let wrappedMessage = this.serialize({ type: 'initWorker', w: this.serial, ts: Date.now(), payload: code, origin: 'workerBootstrap' }) + '\n'
     connected = true
 
     socket.setEncoding('utf-8')
@@ -228,7 +220,9 @@ exports.Worker = function standaloneWorker$$Worker (filename, hostname, port) {
   if (exports.config.debug) {
     console.debug('Connecting to', (hostname || dcpConfig.inetDaemon.standaloneWorker.net.hostname) + ':' + (port || dcpConfig.inetDaemon.standaloneWorker.net.port))
   }
-  socket.connect(port || dcpConfig.inetDaemon.standaloneWorker.net.port, hostname || dcpConfig.inetDaemon.standaloneWorker.net.hostname, finishConnect.bind(this))
+
+  /* XXX refactor port, hostname to real location */
+  socket.connect(port || dcpConfig.inetDaemon.standaloneWorker.net.location.port, hostname || dcpConfig.inetDaemon.standaloneWorker.net.location.hostname, finishConnect.bind(this))
 
   /** Send a message over the network to a standalone worker */
   this.postMessage = function standaloneWorker$$Worker$postMessage (message) {
