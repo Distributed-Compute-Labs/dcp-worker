@@ -43,7 +43,7 @@ Object.entries(dcpConfig.inetDaemon).forEach(function (param) {
   var server = net.createServer(handleConnection)
 
   server.listen({host: config.net.location.hostaddr, port: config.net.location.port}, () => {
-    console.log('Listening for ' + name + ' connections on ' + (config.net.listen.hostaddr || 'inaddr_any') + ':' + config.net.listen.port)
+    console.log('Listening for ' + name + ' connections on ' + config.net.listen.href)
     // To let tests know we've actually started
     if (process.env.FORKED) {
       process.send({
