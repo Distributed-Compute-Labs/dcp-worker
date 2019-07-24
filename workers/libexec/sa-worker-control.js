@@ -22,10 +22,10 @@
  *  @author     Wes Garland, wes@sparc.network
  *  @date       March 2018
  *
- *  @note Unusual function scoping is done to eliminate spurious symbols from
- *        being accessible from the global object, to mitigate certain classes
- *        of security risks.  The global object here is the top of the scope
- *        chain (ie global object) for all code run by hosts in this environment.
+ *  *note* - Unusual function scoping is done to eliminate spurious symbols from
+ *           being accessible from the global object, to mitigate certain classes
+ *           of security risks.  The global object here is the top of the scope
+ *           chain (ie global object) for all code run by hosts in this environment.
  */
 
 /* globals writeln, onreadln, nextTimer, ontimer, die */
