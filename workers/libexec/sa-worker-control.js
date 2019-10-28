@@ -37,7 +37,11 @@ delete self.console
 try {
   (function privateScope(writeln, onreadln, nextTimer, ontimer, die) {
     /* implement console.log which propagates messages back to the standaloneWorker */
-    var console = { log: function workerControl$$log () { writeln('LOG:' + Array.prototype.slice.call(arguments).join(' ').replace(/\n/g,"\u2424")) } }
+    var console = {
+      log: function workerControl$$log () {
+        writeln('LOG:' + Array.prototype.slice.call(arguments).join(' ').replace(/\n/g,"\u2424"))
+      }
+    }
 
     self._console = console
     try {
@@ -78,19 +82,18 @@ try {
 
     for (let i = 0; i < onHandlerTypes.length; i++) {
       let onHandlerType = onHandlerTypes[i]
-      Object.defineProperty(self, 'on' + onHandlerType,
-                            {
-                              enumerable: true,
-                              configurable: false,
-                              set: function (cb) {
-                                this.removeEventListener(onHandlerType, onHandlers[onHandlerType])
-                                this.addEventListener(onHandlerType, cb)
-                                onHandlers[onHandlerType] = cb
-                              },
-                              get: function () {
-                                return onHandlers[onHandlerType]
-                              }
-                            })
+      Object.defineProperty(self, 'on' + onHandlerType, {
+        enumerable: true,
+        configurable: false,
+        set: function (cb) {
+          this.removeEventListener(onHandlerType, onHandlers[onHandlerType])
+          this.addEventListener(onHandlerType, cb)
+          onHandlers[onHandlerType] = cb
+        },
+        get: function () {
+          return onHandlers[onHandlerType]
+        }
+      })
     }
 
     /* Tell the host environment when to fire the timer callback next */
@@ -210,6 +213,7 @@ try {
         }
       }
     }
+
     /** Send a message to the supervisor.  If the message is sent
      *  before we are (the worker is) ready, the message is queued up
      *  and sent later.  Later would be another call to send(), and
