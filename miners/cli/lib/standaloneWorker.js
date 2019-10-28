@@ -27,7 +27,7 @@ require('config').addConfig(dcpConfig, {
  *                              which can override as follows:
  *                              - code:   replaces the code normally read by reading the file
  *                              - socket: an object compatible with require('socket').Socket() to monkey patch in
- *                                        a alternate way to connect to the sa-worker-control process.
+ *                                        an alternate way to connect to the sa-worker-control process.
  *  @param      hostname        The hostname (or IP number) of the standalone miner process.
  *  @param      port            The TCP port number of the standalone miner process.
  *
@@ -46,7 +46,7 @@ require('config').addConfig(dcpConfig, {
  *    . deserialize             current deserialization function
  *  - events:
  *    . error
- *    . messeage
+ *    . message
  */
 exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
   var socket = new (require('net')).Socket()
@@ -64,6 +64,9 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
     socket = new (require('net')).Socket()
   }
 
+  hostname = hostname || dcpConfig.inetDaemon.standaloneWorker.net.location.hostname
+  port = port || dcpConfig.inetDaemon.standaloneWorker.net.location.port
+
   this.addEventListener = ee.addListener.bind(ee)
   this.removeEventListener = ee.removeListener.bind(ee)
   this.serial = exports.Worker.lastSerial = (exports.Worker.lastSerial || 0) + 1
@@ -71,7 +74,9 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
   this.deserialize = JSON.parse
 
   function finishConnect () {
-    let wrappedMessage = this.serialize({ type: 'initWorker', w: this.serial, ts: Date.now(), payload: code, origin: 'workerBootstrap' }) + '\n'
+    let wrappedMessage = this.serialize(
+      { type: 'initWorker', w: this.serial, ts: Date.now(), payload: code, origin: 'workerBootstrap' }
+    ) + '\n'
     connected = true
 
     socket.setEncoding('utf-8')
@@ -95,16 +100,17 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
   }
 
   /** Change the protocol's serialization implementation. Must be in
-   *  a format which is returns an 'exports' object on evaluation that
+   *  a format which returns an 'exports' object on evaluation that
    *  has serialize and deserialize methods that are call-compatible
    *  with JSON.stringify and JSON.parse.
    *
    *  @param   filename     The path to the serialization module, or an exports object
    *  @param   charset      [optional]   The character set the code is stored in
    */
-
   this.changeSerializer = (filename, charset) => {
-    if (this.newSerializer) { throw new Error('Outstanding serialization change on worker #' + this.serial) }
+    if (this.newSerializer) {
+      throw new Error('Outstanding serialization change on worker #' + this.serial)
+    }
 
     try {
       let code
@@ -195,13 +201,13 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
     }
   }.bind(this))
 
-  socket.on('error', function worker$$Error (e) {
+  socket.on('error', function standaloneWorker$$Worker$error (e) {
     console.error('Error communicating with worker ' + this.serial + ': ', e)
     socket.destroy()
     throw e
   }.bind(this))
 
-  socket.on('close', function worker$$Close () {
+  socket.on('close', function standaloneWorker$$Worker$close () {
     if (exports.config.debug) {
       console.debug('Closed socket ' + this.serial + '')
     }
@@ -209,7 +215,7 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
     this.terminate()
   }.bind(this))
 
-  socket.on('end', function worker$$Close () {
+  socket.on('end', function standaloneWorker$$Worker$end () {
     if (exports.config.debug) {
       console.debug('Ended socket; closing ' + this.serial + '')
     }
@@ -218,11 +224,10 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
   }.bind(this))
 
   if (exports.config.debug) {
-    console.debug('Connecting to', (hostname || dcpConfig.inetDaemon.standaloneWorker.net.hostname) + ':' + (port || dcpConfig.inetDaemon.standaloneWorker.net.port))
+    console.debug('Connecting to', hostname + ':' + port)
   }
-
   /* XXX refactor port, hostname to real location */
-  socket.connect(port || dcpConfig.inetDaemon.standaloneWorker.net.location.port, hostname || dcpConfig.inetDaemon.standaloneWorker.net.location.hostname, finishConnect.bind(this))
+  socket.connect(port, hostname, finishConnect.bind(this))
 
   /** Send a message over the network to a standalone worker */
   this.postMessage = function standaloneWorker$$Worker$postMessage (message) {
@@ -233,7 +238,7 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
   /** Tell the worker to die.  The worker should respond with a message back of
    *  type DIE:, which in turn eventuallys triggers socket.close() and .destroy()
    */
-  this.terminate = function Worker$$terminate () {
+  this.terminate = function standaloneWorker$$Worker$terminate () {
     var wrappedMessage = this.serialize({ type: 'die' }) + '\n'
     if (connected) { socket.write(wrappedMessage) } else { pendingWrites.push(wrappedMessage) }
 
@@ -258,7 +263,9 @@ for (let i = 0; i < onHandlerTypes.length; i++) {
     configurable: false,
     set: function (cb) {
       /* maintain on{eventName} singleton pattern */
-      if (this.onHandlers.hasOwnProperty(onHandlerType)) { this.removeEventListener(onHandlerType, this.onHandlers[onHandlerType]) }
+      if (this.onHandlers.hasOwnProperty(onHandlerType)) {
+        this.removeEventListener(onHandlerType, this.onHandlers[onHandlerType])
+      }
       this.addEventListener(onHandlerType, cb)
       this.onHandlers[onHandlerType] = cb
     },
