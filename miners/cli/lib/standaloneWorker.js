@@ -27,7 +27,7 @@ require('config').addConfig(dcpConfig, {
  *                              which can override as follows:
  *                              - code:   replaces the code normally read by reading the file
  *                              - socket: an object compatible with require('socket').Socket() to monkey patch in
- *                                        an alternate way to connect to the sa-worker-control process.
+ *                                        an alternate way to connect to the evaluator-web-worker-environment process.
  *  @param      hostname        The hostname (or IP number) of the standalone miner process.
  *  @param      port            The TCP port number of the standalone miner process.
  *
