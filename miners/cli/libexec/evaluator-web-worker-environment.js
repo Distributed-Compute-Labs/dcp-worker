@@ -1,23 +1,20 @@
 /**
- *  @file sa-worker-control.js  Simulated WebWorker environment for standalone workers.
+ *  @file evaluator-web-worker-environment.js  Simulated WebWorker environment for evaluators.
  *
- *  Control logic for the standalone worker which runs in sa-worker-v8, sa-worker-node, etc. 
+ *  Control logic for the evaluator which runs in evaluator-v8, evaluator-node, etc. 
  *  This environment is designed so that no I/O etc is permitted, beyond communication with
- *  the supervisor over a socket.  This program turns that communication into message events
- *  which are dispatched to the worker, as though said worker were executing in a WebWorker.
+ *  stdin and stdout using a well-defined protocol, exposed via a WebWorker-like API using
+ *  postMessage etc.
  *
  *  The host environment must provide the following API on the global object when this program
  *  is evaluated:
- *  - writeln('string')         Write a message to the standaloneWorker
+ *  - writeln('string')         Write a message to stdout.
  *  - onreadln(function)        Displatch function, with a single string argument, when the
- *                              standaloneWorker sends a message. Each string si a single 
+ *                              a message is received on stdin. Each string is a single 
  *                              JSON-serialized object.
- *  - nextTimer(number)         Notify the host environment when the next timer should be run
- *  - ontimer(function)         Dispatch function when we think a timer might be ready to run
- *  - die()                     Tell the host environment that it's time to end it all
- *
- *  @see miners/cli/lib/standaloneWorker.js
- *  @see miners/cli/lib/standaloneWorker-README.md
+ *  - nextTimer(number)         Notify the host environment when the next timer should be run.
+ *  - ontimer(function)         Dispatch function when we think a timer might be ready to run.
+ *  - die()                     Tell the host environment that it's time to end it all.
  *
  *  @author     Wes Garland, wes@sparc.network
  *  @date       March 2018
@@ -36,7 +33,7 @@ delete self.console
 
 try {
   (function privateScope(writeln, onreadln, nextTimer, ontimer, die) {
-    /* implement console.log which propagates messages back to the standaloneWorker */
+    /* Implement console.log which propagates messages to stdout. */
     var console = {
       log: function workerControl$$log () {
         writeln('LOG:' + Array.prototype.slice.call(arguments).join(' ').replace(/\n/g,"\u2424"))
@@ -96,7 +93,7 @@ try {
       })
     }
 
-    /* Tell the host environment when to fire the timer callback next */
+    /* Tell the host environment when to fire the timer callback next. */
     function setNextTimer() {
       timers.sort(function(a,b) { return a.time - b.time })
       nextTimer(timers[0].time)
@@ -126,7 +123,7 @@ try {
     })
 
     /** Execute callback after at least timeout ms. 
-     *  @returns    A value which may be used as the timeoutId paramter of clearTimeout()
+     *  @returns    A value which may be used as the timeoutId parameter of clearTimeout()
      */
     self.setTimeout = function workerControl$$Worker$setTimeout (callback, timeout) {
       let timer
@@ -193,8 +190,8 @@ try {
     /** Near-polyfill for window.requestAnimationFrame, running as fast as the SET_TIMEOUT_CLAMP 
      *  will allow in the host environment.
      *  @returns    A value which may be used as the timeoutId parameter of cancelAnimationFrame()
-     *  @note       The spec requires that the return value is a long, however, we are using an object 
-     *              which has a long value.
+     *  @note       The spec requires that the return value is a long; however, we are using an object 
+     *              which has a long value
      */
     self.requestAnimationFrame = function workerControl$$Worker$requestAnimationFrame (callback) {
       let timer = self.setTimeout(callback, 0)
@@ -214,7 +211,7 @@ try {
       }
     }
 
-    /** Send a message to the supervisor.  If the message is sent
+    /** Send a message to stdout. If the message is sent
      *  before we are (the worker is) ready, the message is queued up
      *  and sent later.  Later would be another call to send(), and
      *  hopefully triggered by the worker becoming ready.
@@ -272,7 +269,7 @@ try {
           break;
         } /*esac */
       } catch (e) {
-        /* Return exceptions thrown in this engine (presumably the host code) to the standaloneWorker object for reporting */
+        /* Return exceptions thrown in this engine (presumably the host code) to stdout for reporting. */
         outMsg.success = false
         outMsg.exception = { name: e.name, message: e.message, fileName: e.fileName, lineNumber: e.lineNumber, stack: e.stack }
         outMsg.e = e
@@ -288,7 +285,7 @@ try {
   delete self.nextTimer
   delete self.ontimer
   delete self.die
-  'sa-worker-control: Ready.' // eslint-disable-line
+  'evaluator-web-worker-environment: Ready.' // eslint-disable-line
 } catch (e) {
-  'sa-worker-control: Uncaught Exception: ' + e.message + ' at ' + e.fileName + ':' + e.lineNumber  // eslint-disable-line
+  'evaluator-web-worker-environment: Uncaught Exception: ' + e.message + ' at ' + e.fileName + ':' + e.lineNumber  // eslint-disable-line
 }
