@@ -21,6 +21,7 @@
  *  @date       June 2018
  */
 /* global dcpConfig */
+
 const net = require('net')
 var debug = process.env.DEBUG || ''
 var counter = 0
