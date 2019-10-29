@@ -1,8 +1,8 @@
 #! /usr/bin/env node
 /** 
- *  @file       sa-worker-node.js
- *              Simple 'node' worker shell -- equivalent to v8, spidermonkey, etc,
- *              worker shells, except it is NOT SECURE as jobs have access to the 
+ *  @file       evaluator-node.js
+ *              Simple 'node' evaluator -- equivalent to v8, spidermonkey, etc,
+ *              evaluators, except it is NOT SECURE as jobs have access to the 
  *              entirety of the node library, with the permissions of the user the 
  *              spawning the daemon.
  *
@@ -14,19 +14,19 @@
  *  @author     Wes Garland, wes@kingsds.network
  *  @date       June 2018
  */
+
 const fs = require('fs')
 const path = require('path')
 const process = require('process')
-const binDir = path.resolve(path.dirname(process.argv[1]))
 process.stdin.setEncoding("utf-8")
 
 const config = {
-  workerControlFilename: path.join(binDir, "../libexec/sa-worker-control.js")
+  environmentPath: path.resolve(path.dirname(process.argv[1]))
 }
 
 try { require("sleep").sleep(0) } catch (e) { throw new Error("Please npm install sleep") }
 
-/** Blocking call to read a single line from stdin (the standaloneWorker) 
+/** Blocking call to read a single line from stdin
  *  @returns a string terminated by a linefeed character
  */
 function readln() {
@@ -85,15 +85,15 @@ function bufToStr(buf, nRead) {
   return s
 }
 
-/** Blocking call to write a line to stdout (the standaloneWorker) 
+/** Blocking call to write a line to stdout
  *  @param    line    The line to write
  */
 function writeln(line) {
   process.stdout.write(line + '\n', 'utf-8')
 }
 
-/* Run the control code - this is what talks to standaloneWorker.Worker */
-var code = fs.readFileSync(require.resolve(config.workerControlFilename), "ascii")
+/* Run the control code */
+var code = fs.readFileSync(require.resolve(config.environmentPath), "ascii")
 global.writeln = writeln
 global.readln = readln
 global.this = global
@@ -104,7 +104,7 @@ if (false) {
   indirectEval(code)
 } else {
   let Script = require('vm').Script
-  let workerControl = new Script(code, {filename: config.workerControlFilename, lineOffset:0, columnOffset:0})
+  let environment = new Script(code, {filename: config.environmentPath, lineOffset: 0, columnOffset: 0})
 
   global.indirectEval = function(code, filename) {
     if (!filename) {
@@ -113,7 +113,7 @@ if (false) {
         filename = "guess::" + filename.replace(/.*@file */i,'').replace(/ .*$/,'')
       }
     }
-    (new Script(code, {filename: filename || "sa-worker-node::indirectEval", lineOffset:0, columnOffset:0})).runInThisContext()
+    (new Script(code, {filename: filename || "evaluator-node::indirectEval", lineOffset:0, columnOffset:0})).runInThisContext()
   }
-  workerControl.runInThisContext()
+  environment.runInThisContext()
 }
