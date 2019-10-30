@@ -60,8 +60,6 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
     let options = code
     code = options.code || code
     socket = options.socket || socket
-  } else {
-    socket = new (require('net')).Socket()
   }
 
   hostname = hostname || dcpConfig.inetDaemon.standaloneWorker.net.location.hostname
