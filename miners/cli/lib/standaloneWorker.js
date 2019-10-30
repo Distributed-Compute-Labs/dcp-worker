@@ -116,7 +116,7 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
 
       if (typeof filename === 'object') {
         let expo = filename
-        code = '({ serialize:' + expo.serialize + ',deserialize:' + expo.deserialize + '})'
+        code = '({ serialize:' + expo.serialize + ', deserialize:' + expo.deserialize + '})'
       } else {
         code = require('fs').readFileSync(filename, charset || 'utf-8')
       }
