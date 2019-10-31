@@ -199,6 +199,16 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
     }
   }.bind(this))
 
+  ee.on('error', function standaloneWorker$$Worker$recvData$error (e) {
+    console.error("Worker threw an error:", e);
+  })
+
+  ee.on('message', function standaloneWorker$$Worker$recvData$message (e) {
+    if (exports.config.debug) {
+      console.log("Worker relayed a message:", e);
+    }
+  });
+
   socket.on('error', function standaloneWorker$$Worker$error (e) {
     console.error('Error communicating with worker ' + this.serial + ': ', e)
     socket.destroy()
