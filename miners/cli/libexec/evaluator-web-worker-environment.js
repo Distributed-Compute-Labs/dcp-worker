@@ -235,7 +235,7 @@ try {
         outMsg = { type: 'result', step: 'parseInput::' + deserialize.name, success: false }
         inMsg = deserialize(line)
         outMsg.origin = inMsg.type
-        outMsg.step = 'parseMessage'
+        outMsg.step = inMsg.type || 'parseMessage'
         switch (inMsg.type) {
         default:
           throw new Error("Invalid message type '" + (typeof inMsg.type === 'string' ? inMsg.type : JSON.stringify(inMsg.type)) + "'")
