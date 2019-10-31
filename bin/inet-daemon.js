@@ -2,6 +2,10 @@
 /**
  *  @file       inet-daemon.js          Simple daemon for node that works like xinetd/inetd
  *
+ *                                      This program is a super-simple replacement for xinetd or
+ *                                      inetd. It doesn't have the management features (connection
+ *                                      throttling, loading monitoring, etc) that we get from xinetd.
+ * 
  *                                      Configuration is read from the DCP config.js module.
  *                                      Services are configured thus:
  *
