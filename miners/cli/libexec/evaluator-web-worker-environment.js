@@ -59,25 +59,23 @@ try {
     var serialize = JSON.stringify
     var deserialize = JSON.parse
 
-    self.postMessage = function workerControl$$Worker$postMessage (message) {
+    self.postMessage = function workerControl$$Worker$postMessage(message) {
       send({type: 'workerMessage', message: message})
     }
 
-    self.addEventListener = function workerControl$$Worker$addEventListener (type, listener) {
+    self.addEventListener = function workerControl$$Worker$addEventListener(type, listener) {
       if (typeof eventListeners[type] === 'undefined') { eventListeners[type] = [] }
       eventListeners[type].push(listener)
     }
 
-    self.removeEventListener = function workerControl$$Worker$removeEventListener (type, listener) {
-      var i
-
+    self.removeEventListener = function workerControl$$Worker$removeEventListener(type, listener) {
       if (typeof eventListeners[type] === 'undefined') { return }
 
-      i = eventListeners[type].indexOf(listener)
+      const i = eventListeners[type].indexOf(listener)
       if (i !== -1) { eventListeners[type].splice(i, 1) }
     }
 
-    for (let i = 0; i < onHandlerTypes.length; i++) {
+    for (let i = 0; i < onHandlerTypes.length; ++i) {
       let onHandlerType = onHandlerTypes[i]
       Object.defineProperty(self, 'on' + onHandlerType, {
         enumerable: true,
@@ -93,20 +91,14 @@ try {
       })
     }
 
-    /* Tell the host environment when to fire the timer callback next. */
-    function setNextTimer() {
-      timers.sort(function(a,b) { return a.time - b.time })
-      nextTimer(timers[0].time)
-    }
-
     /* Fire any timers which are ready to run, being careful not to
      * get into a recurring timer death loop without reactor mediation.
      */
     ontimer(function fireTimerCallbacks() {
       let now = Date.now()
 
-      timers.sort(function(a,b) { return b.time - a.time })
-      for (let i=0; i < timers.length; i++) {
+      timers.sort(function(a, b) { return b.time - a.time })
+      for (let i = 0; i < timers.length; ++i) {
         if (timers[i].time <= now) {
           Promise.resolve().then(timers[i].fn)
           if (timers[i].recur) {
@@ -118,17 +110,16 @@ try {
           break
         }
       }
-      timers.sort(function(a,b) { return b.time - a.time })
+      timers.sort(function(a, b) { return b.time - a.time })
       nextTimer(timers[0].time)
     })
 
     /** Execute callback after at least timeout ms. 
      *  @returns    A value which may be used as the timeoutId parameter of clearTimeout()
      */
-    self.setTimeout = function workerControl$$Worker$setTimeout (callback, timeout) {
+    self.setTimeout = function workerControl$$Worker$setTimeout(callback, timeout) {
       let timer
-      if (typeof callback === 'string')
-      {
+      if (typeof callback === 'string') {
         let code = callback
         callback = function workerControl$$Worker$setTimeout$wrapper() {
           let indirectEval = eval
@@ -144,8 +135,10 @@ try {
         valueOf: function() { return this.serial }
       }
       timers.push(timer)
-      if (timer.time <= timers[0].time)
-        setNextTimer()
+      if (timer.time <= timers[0].time) {
+        timers.sort(function(a, b) { return a.time - b.time })
+        nextTimer(timers[0].time)
+      }
       return timer
     }
 
@@ -154,18 +147,17 @@ try {
      *
      *  @param       timeoutId     The value, returned from setTimeout(), identifying the timer.
      */
-    self.clearTimeout = function workerControl$$Worker$clearTimeout (timeoutId) {
+    self.clearTimeout = function workerControl$$Worker$clearTimeout(timeoutId) {
       if (typeof timeoutId === "object") {
         let i = timers.indexOf(timeoutId)
-        if (i != -1)
+        if (i != -1) {
           timers.splice(i, 1)
-      } else {
-        if (typeof timeoutId === "number") { /* slow path - object has been reinterpreted in terms of valueOf() */
-          for (let i=0; i < timers.length; i++) {
-            if (timers[i].serial === timeoutId) {
-              timers.splice(i, 1)
-              break
-            }
+        }
+      } else if (typeof timeoutId === "number") { /* slow path - object has been reinterpreted in terms of valueOf() */
+        for (let i = 0; i < timers.length; ++i) {
+          if (timers[i].serial === timeoutId) {
+            timers.splice(i, 1)
+            break
           }
         }
       }
@@ -174,7 +166,7 @@ try {
     /** Execute callback after at least interval ms, regularly, at least interval ms apart.
      *  @returns    A value which may be used as the intervalId paramter of clearInterval()
      */
-    self.setInterval = function workerControl$$Worker$setInterval (callback, interval) {
+    self.setInterval = function workerControl$$Worker$setInterval(callback, interval) {
       let timer = self.setTimeout(callback, +interval || 0)
       timer.recur = interval 
       return timer
@@ -193,7 +185,7 @@ try {
      *  @note       The spec requires that the return value is a long; however, we are using an object 
      *              which has a long value
      */
-    self.requestAnimationFrame = function workerControl$$Worker$requestAnimationFrame (callback) {
+    self.requestAnimationFrame = function workerControl$$Worker$requestAnimationFrame(callback) {
       let timer = self.setTimeout(callback, 0)
       timers.unshift(timers.splice(timers.indexOf(timer), 1)[0])
       nextTimer() // now
@@ -205,7 +197,7 @@ try {
     /** Emit an event */
     function emitEvent(eventName, argument) {
       if (eventListeners[eventName]) {
-        for (let i = 0; i < eventListeners[eventName].length; i++) {
+        for (let i = 0; i < eventListeners[eventName].length; ++i) {
           eventListeners[eventName][i].call(self, argument)
         }
       }
@@ -216,18 +208,9 @@ try {
      *  and sent later.  Later would be another call to send(), and
      *  hopefully triggered by the worker becoming ready.
      */
-    function send (outMsg) {
+    function send(outMsg) {
       outMsg = serialize(outMsg)
       writeln('MSG:' + outMsg)
-    }
-
-    function shorten(text, startChars, endChars) {
-      if (!startChars) { startChars=35 }
-      if (!endChars) { endChars = 20 }
-      if (text.length < (startChars + endChars)) {
-        return text;
-      }
-      return text.slice(0,startChars) + '\u22ef' + text.slice(-endChars)
     }
 
     onreadln(function receiveLine(line) {
