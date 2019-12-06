@@ -9,17 +9,19 @@
 
 /* globals dcpConfig */
 
-require('dcp-rtlink/rtLink').link(module.paths)
 const path = require('path')
 
 /** Module configuration parameters. May be altered at runtime. Should be altered
  *  before first Worker is instantiated.
  */
-exports.config = dcpConfig.standaloneWorker
-require('config').addConfig(dcpConfig, {
-  debug: process.env.DCP_SAW_DEBUG || false, /* When false, console.debug is NOP */
-  debugLevel: parseInt(process.env.DCP_SAW_DEBUG, 10) /* Bigger = more verbose */
+require('dcp/config').addConfig(dcpConfig, {
+  standaloneWorker: {
+    ...dcpConfig.standaloneWorker,
+    debug: process.env.DCP_SAW_DEBUG || false, /* When false, console.debug is NOP */
+    debugLevel: parseInt(process.env.DCP_SAW_DEBUG, 10), /* Bigger = more verbose */
+  }
 })
+exports.config = dcpConfig.standaloneWorker
 
 /** Worker constructor
  *  @param      code            The code to run in the worker to bootstrap it (setup comms with Supervisor)
@@ -148,6 +150,7 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
           /* Remote telling us they are dying */
           if (exports.config.debugLevel > 2) { console.debug('Worker is dying (', line + ')') }
           socket.destroy()
+          connected = false
           clearTimeout(dieTimer)
           break
         }
@@ -212,6 +215,7 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
   socket.on('error', function standaloneWorker$$Worker$error (e) {
     console.error('Error communicating with worker ' + this.serial + ': ', e)
     socket.destroy()
+    connected = false
     throw e
   }.bind(this))
 
@@ -248,11 +252,16 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
    */
   this.terminate = function standaloneWorker$$Worker$terminate () {
     var wrappedMessage = this.serialize({ type: 'die' }) + '\n'
-    if (connected) { socket.write(wrappedMessage) } else { pendingWrites.push(wrappedMessage) }
+    try {
+      if (connected) { socket.write(wrappedMessage) } else { pendingWrites.push(wrappedMessage) }
+    } catch (e) {
+      // Socket may have already been destroyed
+    }
 
     /* If DIE: response doesn't arrive in a reasonable time -- clean up */
     function cleanup () {
       socket.destroy()
+      connected = false
     }
     dieTimer = setTimeout(cleanup, 7000)
   }
