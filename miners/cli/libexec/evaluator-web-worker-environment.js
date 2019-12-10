@@ -75,7 +75,7 @@ try {
       if (i !== -1) { eventListeners[type].splice(i, 1) }
     }
 
-    for (let i = 0; i < onHandlerTypes.length; ++i) {
+    for (let i = 0; i < onHandlerTypes.length; i++) {
       let onHandlerType = onHandlerTypes[i]
       Object.defineProperty(self, 'on' + onHandlerType, {
         enumerable: true,
@@ -98,7 +98,7 @@ try {
       let now = Date.now()
 
       timers.sort(function(a, b) { return b.time - a.time })
-      for (let i = 0; i < timers.length; ++i) {
+      for (let i = 0; i < timers.length; i++) {
         if (timers[i].time <= now) {
           Promise.resolve().then(timers[i].fn)
           if (timers[i].recur) {
@@ -154,7 +154,7 @@ try {
           timers.splice(i, 1)
         }
       } else if (typeof timeoutId === "number") { /* slow path - object has been reinterpreted in terms of valueOf() */
-        for (let i = 0; i < timers.length; ++i) {
+        for (let i = 0; i < timers.length; i++) {
           if (timers[i].serial === timeoutId) {
             timers.splice(i, 1)
             break
@@ -197,7 +197,7 @@ try {
     /** Emit an event */
     function emitEvent(eventName, argument) {
       if (eventListeners[eventName]) {
-        for (let i = 0; i < eventListeners[eventName].length; ++i) {
+        for (let i = 0; i < eventListeners[eventName].length; i++) {
           eventListeners[eventName][i].call(self, argument)
         }
       }
