@@ -17,11 +17,11 @@ const path = require('path')
 require('dcp/config').addConfig(dcpConfig, {
   standaloneWorker: {
     ...dcpConfig.standaloneWorker,
-    debug: process.env.DCP_SAW_DEBUG || false, /* When false, console.debug is NOP */
-    debugLevel: parseInt(process.env.DCP_SAW_DEBUG, 10), /* Bigger = more verbose */
+    debug: undefined
   }
 })
 exports.config = dcpConfig.standaloneWorker
+const debugging = require('dcp/debugging').scope('worker', exports.config);
 
 /** Worker constructor
  *  @param      code            The code to run in the worker to bootstrap it (setup comms with Supervisor)
@@ -80,9 +80,7 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
     connected = true
 
     socket.setEncoding('utf-8')
-    if (exports.config.debug) {
-      console.debug('Connected ' + pendingWrites.length + ' pending messages.')
-    }
+    debugging() && console.debug('Connected ' + pendingWrites.length + ' pending messages.');
 
     /* We buffer writes in pendingWrites between the call to connect() and
      * the actual establishment of the TCP socket. Once connected, we drain that
@@ -148,7 +146,7 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
 
         if (line.match(/^DIE: */)) {
           /* Remote telling us they are dying */
-          if (exports.config.debugLevel > 2) { console.debug('Worker is dying (', line + ')') }
+          debugging('lifecycle') && console.debug('Worker is dying (', line + ')');
           socket.destroy()
           connected = false
           clearTimeout(dieTimer)
@@ -156,12 +154,12 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
         }
 
         if (line.match(/^LOG: */)) {
-          console.log('Worker', this.serial, 'Log:', line.slice(4))
+          debugging('log') && console.log('Worker', this.serial, 'Log:', line.slice(4));
           continue
         }
 
         if (!line.match(/^MSG: */)) {
-          if (exports.config.debugLevel > 2) { console.debug('worker:', line) }
+          debugging('messages') && console.debug('worker:', line);
           continue
         }
 
@@ -186,9 +184,7 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
                 this.deserialize = this.newSerializer.deserialize
                 delete this.newSerializer
               } else {
-                if (exports.config.debug) {
-                  console.log('Worker', this.serial, 'returned result object: ', lineObj.result)
-                }
+                debugging() && console.log('Worker', this.serial, 'returned result object: ', lineObj.result);
               }
             }
             break
@@ -206,10 +202,8 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
     console.error("Worker threw an error:", e);
   })
 
-  ee.on('message', function standaloneWorker$$Worker$recvData$message (e) {
-    if (exports.config.debug) {
-      console.log("Worker relayed a message:", e);
-    }
+  ee.on('message', function standaloneWorker$$Worker$recvData$message (ev) {
+    debugging() && console.log("Worker relayed a message:", ev);
   });
 
   socket.on('error', function standaloneWorker$$Worker$error (e) {
@@ -220,24 +214,18 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
   }.bind(this))
 
   socket.on('close', function standaloneWorker$$Worker$close () {
-    if (exports.config.debug) {
-      console.debug('Closed socket ' + this.serial + '')
-    }
+    debugging('lifecycle') && console.debug('Closed socket ' + this.serial + '');
     connected = false
     this.terminate()
   }.bind(this))
 
   socket.on('end', function standaloneWorker$$Worker$end () {
-    if (exports.config.debug) {
-      console.debug('Ended socket; closing ' + this.serial + '')
-    }
+    debugging('lifecycle') && console.debug('Ended socket; closing ' + this.serial + '');
     connected = false
     this.terminate()
   }.bind(this))
 
-  if (exports.config.debug) {
-    console.debug('Connecting to', hostname + ':' + port)
-  }
+  debugging('lifecycle') && console.debug('Connecting to', hostname + ':' + port);
   /* XXX refactor port, hostname to real location */
   socket.connect(port, hostname, finishConnect.bind(this))
 
