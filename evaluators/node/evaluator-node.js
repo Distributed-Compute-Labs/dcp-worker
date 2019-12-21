@@ -1,10 +1,10 @@
 #! /usr/bin/env node
 /** 
  *  @file       evaluator-node.js
- *              Simple 'node' evaluator -- equivalent to v8, spidermonkey, etc,
- *              evaluators, except it is NOT SECURE as jobs have access to the 
- *              entirety of the node library, with the permissions of the user the 
- *              spawning the daemon.
+ *              Simple 'node' evaluator -- equivalent to native evaluators,
+ *              except it is NOT SECURE as jobs have access to the entirety of
+ *              the node library, with the permissions of the user the spawning
+ *              the daemon.
  *
  * ***** Suitable for development, NOT for production *****
  *
