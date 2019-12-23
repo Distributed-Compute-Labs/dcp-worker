@@ -114,8 +114,10 @@ try {
           timers.splice(i--, 1);
         }
       }
-      sortTimers();
-      nextTimer(timers[0].time);
+      if (timers.length) {
+        sortTimers();
+        nextTimer(timers[0].time);
+      }
     })
 
     /** Execute callback after at least timeout ms. 
