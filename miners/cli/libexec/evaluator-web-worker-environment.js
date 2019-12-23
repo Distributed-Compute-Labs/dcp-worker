@@ -91,27 +91,31 @@ try {
       })
     }
 
+    function sortTimers() {
+      timers.sort(function (a, b) { return b.time - a.time; });
+    }
+
     /* Fire any timers which are ready to run, being careful not to
      * get into a recurring timer death loop without reactor mediation.
      */
     ontimer(function fireTimerCallbacks() {
-      let now = Date.now()
+      let now = Date.now();
 
-      timers.sort(function(a, b) { return b.time - a.time })
-      for (let i = 0; i < timers.length; i++) {
-        if (timers[i].time <= now) {
-          Promise.resolve().then(timers[i].fn)
-          if (timers[i].recur) {
-            timers[i].time = Date.now() + timers[i].recur;
-          } else {
-            timers.splice(i--, 1)
-          }
+      sortTimers();
+      for (let i = 0; i < timers.length; ++i) {
+        let timer = timers[i];
+        if (timer.time > now) {
+          break;
+        }
+        Promise.resolve().then(timer.fn);
+        if (timer.recur) {
+          timer.time = Date.now() + timer.recur;
         } else {
-          break
+          timers.splice(i--, 1);
         }
       }
-      timers.sort(function(a, b) { return b.time - a.time })
-      nextTimer(timers[0].time)
+      sortTimers();
+      nextTimer(timers[0].time);
     })
 
     /** Execute callback after at least timeout ms. 
@@ -136,8 +140,8 @@ try {
       }
       timers.push(timer)
       if (timer.time <= timers[0].time) {
-        timers.sort(function(a, b) { return a.time - b.time })
-        nextTimer(timers[0].time)
+        sortTimers();
+        nextTimer(timers[0].time);
       }
       return timer
     }
