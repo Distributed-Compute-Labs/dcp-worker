@@ -1,28 +1,32 @@
-/**
- *  @file evaluator-web-worker-environment.js  Simulated WebWorker environment for evaluators.
+/** @file       web-worker-environment.js 
+ *              A simulated WebWorker evaluator environment.
  *
- *  Control logic for the evaluator which runs in evaluator-v8, evaluator-node, etc. 
- *  This environment is designed so that no I/O etc is permitted, beyond communication with
- *  stdin and stdout using a well-defined protocol, exposed via a WebWorker-like API using
- *  postMessage etc.
+ *  Control logic for the evaluator which runs in evaluator-v8,
+ *  evaluator-node, etc.  This environment is designed so that no I/O etc is
+ *  permitted, beyond communication with stdin and stdout using a well-defined
+ *  protocol, exposed via a WebWorker-like API using postMessage etc.
  *
- *  The host environment must provide the following API on the global object when this program
- *  is evaluated:
+ *  The evaluator provides the following API on the global object when this
+ *  program is evaluated:
  *  - writeln('string')         Write a message to stdout.
- *  - onreadln(function)        Displatch function, with a single string argument, when the
- *                              a message is received on stdin. Each string is a single 
- *                              JSON-serialized object.
- *  - nextTimer(number)         Notify the host environment when the next timer should be run.
- *  - ontimer(function)         Dispatch function when we think a timer might be ready to run.
- *  - die()                     Tell the host environment that it's time to end it all.
+ *  - onreadln(function)        Dispatch function, with a single string
+ *                              argument, when a message is received on stdin.
+ *                              Each string is a single JSON-serialized object.
+ *  - nextTimer(number)         Notify the host environment when the next timer
+ *                              should be run.
+ *  - ontimer(function)         Dispatch function when we think a timer might
+ *                              be ready to run.
+ *  - die()                     Tell the host environment that it's time to end
+ *                              it all.
  *
  *  @author     Wes Garland, wes@sparc.network
  *  @date       March 2018
  *
- *  *note* - Unusual function scoping is done to eliminate spurious symbols from
- *           being accessible from the global object, to mitigate certain classes
- *           of security risks.  The global object here is the top of the scope
- *           chain (ie global object) for all code run by hosts in this environment.
+ *  @note       Unusual function scoping is done to eliminate spurious symbols
+ *              from being accessible from the global object, to mitigate
+ *              certain classes of security risks.  The global object here is
+ *              the top of the scope chain (ie global object) for all code run
+ *              by hosts in this environment.
  */
 
 /* globals writeln, onreadln, nextTimer, ontimer, die */
@@ -209,16 +213,17 @@ try {
       }
     }
 
-    /** Send a message to stdout. If the message is sent
-     *  before we are (the worker is) ready, the message is queued up
-     *  and sent later.  Later would be another call to send(), and
-     *  hopefully triggered by the worker becoming ready.
+    /** Send a message to stdout.
+     *  This defines the "from evaluator" half of the protocol.
      */
     function send(outMsg) {
       outMsg = serialize(outMsg)
       writeln('MSG:' + outMsg)
     }
 
+    /** Receive a line from stdin.
+     *  This defines the "to evaluator" half of the protocol.
+     */
     onreadln(function receiveLine(line) {
       try {
         outMsg = { type: 'result', step: 'parseInput::' + deserialize.name, success: false }
@@ -256,7 +261,7 @@ try {
           outMsg.success = true
           die();
           break;
-        } /*esac */
+        }
       } catch (e) {
         /* Return exceptions thrown in this engine (presumably the host code) to stdout for reporting. */
         outMsg.success = false
@@ -274,7 +279,7 @@ try {
   delete self.nextTimer
   delete self.ontimer
   delete self.die
-  'evaluator-web-worker-environment: Ready.' // eslint-disable-line
+  'web-worker-environment: Ready.' // eslint-disable-line
 } catch (e) {
-  'evaluator-web-worker-environment: Uncaught Exception: ' + e.message + ' at ' + e.fileName + ':' + e.lineNumber  // eslint-disable-line
+  'web-worker-environment: Uncaught Exception: ' + e.message + ' at ' + e.fileName + ':' + e.lineNumber  // eslint-disable-line
 }
