@@ -29,7 +29,7 @@ const debugging = require('dcp/debugging').scope('worker', exports.config);
  *                              which can override as follows:
  *                              - code:   replaces the code normally read by reading the file
  *                              - socket: an object compatible with require('socket').Socket() to monkey patch in
- *                                        an alternate way to connect to the evaluator-web-worker-environment process.
+ *                                        an alternate way to connect to the evaluator process.
  *  @param      hostname        The hostname (or IP number) of the standalone miner process.
  *  @param      port            The TCP port number of the standalone miner process.
  *
