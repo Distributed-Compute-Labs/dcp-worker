@@ -1,10 +1,10 @@
 /** @file       web-worker-environment.js 
  *              A simulated WebWorker evaluator environment.
  *
- *  Control logic for the evaluator which runs in evaluator-v8,
- *  evaluator-node, etc.  This environment is designed so that no I/O etc is
- *  permitted, beyond communication with stdin and stdout using a well-defined
- *  protocol, exposed via a WebWorker-like API using postMessage etc.
+ *  Control logic for the evaluator which runs in the native or node evaluator.
+ *  This environment is designed so that no I/O etc is permitted, beyond
+ *  communication with stdin and stdout using a well-defined protocol, exposed
+ *  via a WebWorker-like API using postMessage etc.
  *
  *  The evaluator provides the following API on the global object when this
  *  program is evaluated:
