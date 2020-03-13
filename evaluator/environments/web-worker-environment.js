@@ -63,16 +63,16 @@ try {
     var serialize = JSON.stringify
     var deserialize = JSON.parse
 
-    self.postMessage = function workerControl$$Worker$postMessage(message) {
+    self.postMessage = function workerControl$$Worker$postMessage (message) {
       send({type: 'workerMessage', message: message})
     }
 
-    self.addEventListener = function workerControl$$Worker$addEventListener(type, listener) {
+    self.addEventListener = function workerControl$$Worker$addEventListener (type, listener) {
       if (typeof eventListeners[type] === 'undefined') { eventListeners[type] = [] }
       eventListeners[type].push(listener)
     }
 
-    self.removeEventListener = function workerControl$$Worker$removeEventListener(type, listener) {
+    self.removeEventListener = function workerControl$$Worker$removeEventListener (type, listener) {
       if (typeof eventListeners[type] === 'undefined') { return }
 
       const i = eventListeners[type].indexOf(listener)
@@ -127,7 +127,7 @@ try {
     /** Execute callback after at least timeout ms. 
      *  @returns    A value which may be used as the timeoutId parameter of clearTimeout()
      */
-    self.setTimeout = function workerControl$$Worker$setTimeout(callback, timeout) {
+    self.setTimeout = function workerControl$$Worker$setTimeout (callback, timeout) {
       let timer
       if (typeof callback === 'string') {
         let code = callback
@@ -157,26 +157,26 @@ try {
      *
      *  @param       timeoutId     The value, returned from setTimeout(), identifying the timer.
      */
-    self.clearTimeout = function workerControl$$Worker$clearTimeout(timeoutId) {
+    self.clearTimeout = function workerControl$$Worker$clearTimeout (timeoutId) {
       if (typeof timeoutId === "object") {
         let i = timers.indexOf(timeoutId)
         if (i != -1) {
           timers.splice(i, 1)
         }
       } else if (typeof timeoutId === "number") { /* slow path - object has been reinterpreted in terms of valueOf() */
-        for (let i = 0; i < timers.length; i++) {
-          if (timers[i].serial === timeoutId) {
-            timers.splice(i, 1)
-            break
+          for (let i=0; i < timers.length; i++) {
+            if (timers[i].serial === timeoutId) {
+              timers.splice(i, 1)
+              break
+            }
           }
         }
       }
-    }
 
     /** Execute callback after at least interval ms, regularly, at least interval ms apart.
      *  @returns    A value which may be used as the intervalId paramter of clearInterval()
      */
-    self.setInterval = function workerControl$$Worker$setInterval(callback, interval) {
+    self.setInterval = function workerControl$$Worker$setInterval (callback, interval) {
       let timer = self.setTimeout(callback, +interval || 0)
       timer.recur = interval 
       return timer
@@ -195,7 +195,7 @@ try {
      *  @note       The spec requires that the return value is a long; however, we are using an object 
      *              which has a long value
      */
-    self.requestAnimationFrame = function workerControl$$Worker$requestAnimationFrame(callback) {
+    self.requestAnimationFrame = function workerControl$$Worker$requestAnimationFrame (callback) {
       let timer = self.setTimeout(callback, 0)
       timers.unshift(timers.splice(timers.indexOf(timer), 1)[0])
       nextTimer() // now
@@ -216,7 +216,7 @@ try {
     /** Send a message to stdout.
      *  This defines the "from evaluator" half of the protocol.
      */
-    function send(outMsg) {
+    function send (outMsg) {
       outMsg = serialize(outMsg)
       writeln('MSG:' + outMsg)
     }
