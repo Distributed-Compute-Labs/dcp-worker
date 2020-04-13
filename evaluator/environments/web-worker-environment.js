@@ -164,14 +164,14 @@ try {
           timers.splice(i, 1)
         }
       } else if (typeof timeoutId === "number") { /* slow path - object has been reinterpreted in terms of valueOf() */
-          for (let i=0; i < timers.length; i++) {
-            if (timers[i].serial === timeoutId) {
-              timers.splice(i, 1)
-              break
-            }
+        for (let i=0; i < timers.length; i++) {
+          if (timers[i].serial === timeoutId) {
+            timers.splice(i, 1)
+            break
           }
         }
       }
+    }
 
     /** Execute callback after at least interval ms, regularly, at least interval ms apart.
      *  @returns    A value which may be used as the intervalId paramter of clearInterval()
