@@ -1,0 +1,88 @@
+#! /usr/bin/env node
+/**
+ *  @file       dcp-worker.js
+ *              Standalone NodeJS DCP Worker
+ *
+ *  @author     Ryan Rossiter, ryan@kingsds.network
+ *  @date       April 2020
+ */
+
+const process = require('process');
+const os = require('os');
+
+const DEFAULT_CORES = os.cpus().length - 1;
+
+async function main () {
+  await require('dcp-client').init(process.argv);
+
+  const argv = require('dcp/dcp-cli')
+  .base('Standalone NodeJS DCP Worker')
+  .command('start',
+    'Start the worker.', {
+      cores: {
+        alias: 'c',
+        describe: 'Number of cores to work with',
+        type: 'number',
+        default: DEFAULT_CORES,
+      }
+    })
+  .demandCommand(1)
+  .strict().argv;
+
+  const command = argv._[0];
+  switch (command) {
+    case 'start':
+      await startWorking(argv);
+      break;
+    default:
+      console.error(`Unknown command ${command}.`);
+  }
+}
+
+main()
+.then(() => process.exit(0))
+.catch(e => {
+  console.error("Script failed:");
+  console.error(e);
+  process.exit(1);
+});
+
+/**
+ * 
+ * @param {object} options
+ * @param {number} options.cores - Number of cores to work with
+ */
+async function startWorking(options) {
+  const compute = require('dcp/compute');
+  const dcpConfig = require('dcp/dcp-config');
+
+  // Need to figure out a way to set identity ks globally
+  // const { eventSubscriber } = require('dcp/events/event-subscriber');
+  const { Worker } = require('./lib/standaloneWorker');
+  const { SupervisorMonitor } = require('./lib/supervisorMonitor');
+
+  const { getIdentityKeystore, getAccountKeystore } = require('dcp/dcp-cli');
+
+  const identityKeystore = await getIdentityKeystore();
+  const accountKeystore = await getAccountKeystore();
+
+  // eventSubscriber.identityKeystore = identityKeystore;
+  compute.supervisor.identityKeystore = identityKeystore;
+  compute.supervisor.options.distributedWorkerOptions = {
+    WorkerConstructor: Worker,
+  };
+
+  const supervisorMonitor = new SupervisorMonitor(compute.supervisor);
+
+  console.log(` * Starting DCP Worker`);
+  console.log(` . Configured for scheduler ${dcpConfig.scheduler.location.href}`);
+  console.log(` . Earned funds will be deposited in account ${accountKeystore.address} in bank ${dcpConfig.bank.location.href}`);
+  console.log(` . Identity is ${identityKeystore.address}`);
+
+  compute.mine(options.cores, accountKeystore.address);
+
+  await new Promise(resolve => process.on('SIGQUIT', resolve));
+
+  console.log('\n*** caught SIGQUIT; exiting...\n');
+  await compute.supervisor.stopWork(true);
+}
