@@ -64,8 +64,8 @@ main()
  * 
  * @param {object} options
  * @param {number} options.cores - Number of cores to work with
- * @param {number} options.verbose - Verbose output
- * @param {number} options.outputMode - Passed to startSupervisorLogger to determine which outputMode to use
+ * @param {boolean} options.verbose - Verbose output
+ * @param {string} options.outputMode - Passed to startSupervisorLogger to determine which outputMode to use
  */
 async function startWorking(options) {
   const compute = require('dcp/compute');
