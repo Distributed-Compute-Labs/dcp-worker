@@ -24,6 +24,19 @@ async function main () {
         describe: 'Number of cores to work with',
         type: 'number',
         default: DEFAULT_CORES,
+      },
+      verbose: {
+        alias: 'v',
+        describe: 'Enable verbose output',
+        type: 'boolean',
+        default: false,
+      },
+      outputMode: {
+        alias: 'o',
+        describe: 'Set the output mode',
+        type: 'string',
+        default: 'detect',
+        choices: ['detect', 'console', 'dashboard'],
       }
     })
   .demandCommand(1)
@@ -51,6 +64,8 @@ main()
  * 
  * @param {object} options
  * @param {number} options.cores - Number of cores to work with
+ * @param {number} options.verbose - Verbose output
+ * @param {number} options.outputMode - Passed to startSupervisorLogger to determine which outputMode to use
  */
 async function startWorking(options) {
   const compute = require('dcp/compute');
@@ -59,7 +74,7 @@ async function startWorking(options) {
   // Need to figure out a way to set identity ks globally
   // const { eventSubscriber } = require('dcp/events/event-subscriber');
   const { Worker } = require('./lib/standaloneWorker');
-  const { SupervisorMonitor } = require('./lib/supervisorMonitor');
+  const { startSupervisorLogger } = require('./lib/startSupervisorLogger');
 
   const { getIdentityKeystore, getAccountKeystore } = require('dcp/dcp-cli');
 
@@ -67,12 +82,18 @@ async function startWorking(options) {
   const accountKeystore = await getAccountKeystore();
 
   // eventSubscriber.identityKeystore = identityKeystore;
+  compute.supervisor.schedulerURL = dcpConfig.scheduler.location;
   compute.supervisor.identityKeystore = identityKeystore;
+  compute.paymentAddress = compute.supervisor.paymentAddress = accountKeystore.address;
+  compute.supervisor.maxWorkingWorkers = options.cores;
   compute.supervisor.options.distributedWorkerOptions = {
     WorkerConstructor: Worker,
   };
 
-  const supervisorMonitor = new SupervisorMonitor(compute.supervisor);
+  startSupervisorLogger(compute.supervisor, {
+    verbose: options.verbose,
+    outputMode: options.outputMode,
+  });
 
   console.log(` * Starting DCP Worker`);
   console.log(` . Configured for scheduler ${dcpConfig.scheduler.location.href}`);
