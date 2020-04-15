@@ -2,118 +2,158 @@
 /** 
  *  @file       evaluator-node.js
  *              Simple 'node' evaluator -- equivalent to native evaluators,
- *              except it is NOT SECURE as jobs have access to the entirety of
+ *              except it is NOT SECURE as jobs could access the entirety of
  *              the node library, with the permissions of the user the spawning
  *              the daemon.
  *
- * ***** Suitable for development, NOT for production *****
- *
- *  Note: not best practices for network code in JavaScript. Sync code
- *        more suited to C / C++ environments.
+ * ***** Suitable for development/debug, NOT for production *****
  *
  *  @author     Wes Garland, wes@kingsds.network
- *  @date       June 2018
+ *  @date       June 2018, April 2020
  */
 
-const fs = require('fs')
-const path = require('path')
-const process = require('process')
-process.stdin.setEncoding("utf-8")
+const vm = require('vm');
+const path = require('path');
+const fs = require('fs-ext');
+const mmap = require('mmap-io');
 
-const config = {
-  environmentPath: path.resolve(path.dirname(process.argv[1]))
+if (process.getuid() === 0 || process.geteuid() === 0) {
+  console.error('Running this program as root is a very bad idea.');
+  process.exit(1);
 }
 
-try { require("sleep").sleep(0) } catch (e) { throw new Error("Please npm install sleep") }
-
-/** Blocking call to read a single line from stdin
- *  @returns a string terminated by a linefeed character
+/** @constructor
+ *  Instantiate a new Evaluator and initialize event handlers, bootstrap
+ *  the sandbox, etc.
+ *
+ *  @param    inputStream            {object} Stream carrying information from the Supervisor
+ *  @param    outputStream           {object} Stream carrying information to the Supervisor
+ *  @param    bootstrapCodeFilename  {string} Filename of local JS code to run during
+ *                                            constructor, to bootstrap the sandbox environment.
+ *
+ *  @param returns {object} which is an instance of exports.Evaluator that been fully initialized.
  */
-function readln() {
-  var buf = new Buffer(10240)
-  var nRead
-  var backoffCount = 0
+exports.Evaluator = function Evaluator(inputStream, outputStream, bootstrapCodeFilename) {
+  var fd, bootstrapCode;
 
-  if (!readln.pendingData)
-    readln.pendingData = ""
+  this.sandboxGlobal = {};
+  this.streams = { input: inputStream, output: outputStream };
 
-  while (true) {
-    if (readln.pendingData.length) {
-      let i=readln.pendingData.indexOf('\n')
-      if (i !== -1) {
-        let line = readln.pendingData.slice(0, i + 1)
-        readln.pendingData = readln.pendingData.slice(i + 1)
-        return line
-      }
-    }
+  outputStream.setEncoding("utf-8")
+  inputStream.setEncoding("utf-8")
 
-    try {
-      nRead = fs.readSync(process.stdin.fd, buf, 0, buf.length)
-    } catch (e) {
-      switch(e.code) {
-        case 'EAGAIN':
-          nRead = 0
-          break
-        case 'EOF':
-          nRead = -1
-          break
-        default:
-          throw e
-      }
-    }
+  /* Add non-standard JavaScript global properties */
+  this.sandboxGlobal.self      = this.sandboxGlobal;
+  this.sandboxGlobal.writeln   = (string)  => { this.writeln(string) };
+  this.sandboxGlobal.onreadln  = (handler) => { this.onreadlnHandler = handler };
+  this.sandboxGlobal.ontimer   = (handler) => { this.ontimerHandler  = handler };
+  this.sandboxGlobal.nextTimer = (when) => {
+    if (this.nextTimer >= Date.now())
+      process.nextTick(this.ontimerHandler);
+    clearTimeout(this.nextTimer);
+    this.nextTimer = setTimeout(this.ontimerHandler, when - Date.now()) 
+  };
+  this.sandboxGlobal.die       =() => {
+    this.destroy();
+  };
 
-    if (nRead < 0)
-      return null // socket is closed
-    if (nRead == 0) { // nothing to read - give up timeslice
-      require("sleep").usleep(Math.round(1000 * Math.min(Math.max(Math.log(3*backoffCount) + (backoffCount/2),0),50)))
-      backoffCount++
-      continue
-    }
+  /* Create a new JS context that has our non-JS-standard global
+   * props, and initialize it with the bootstrap code.
+   */
+  vm.createContext(this.sandboxGlobal, {
+    name: 'Evaluator ' + (exports.nextEvaluatorId++),
+    origin: 'dcp:://evaluator',
+    codeGeneration: { strings: true, wasm: true },
+  });
 
-    backoffCount = 0
-    readln.pendingData += bufToStr(buf, nRead)
-  }
+  fd = fs.openSync(bootstrapCodeFilename, 'r');
+  fs.flockSync(fd, 'sh');
+  bootstrapCode = mmap.map(fs.fstatSync(fd).size, mmap.PROT_READ, mmap.MAP_SHARED, fd, 0, mmap.MADV_SEQUENTIAL).toString('utf8');
+  fs.closeSync(fd);
+
+  vm.runInContext(bootstrapCode, this.sandboxGlobal, {
+    filename: path.basename(bootstrapCodeFilename),
+    lineOffset: 0,
+    columnOffset: 0,
+    displayErrors: true,
+    timeout: 60 * 1000,
+    breakOnSigInt: true
+  });
+
+  /* Pass any new data on the input stream to the onreadln()
+   * handler, which the bootstrap code should have hooked.
+   */
+  this.readData = this.readData.bind(this);
+  inputStream.on('data', this.readData);
 }
+exports.nextEvaluatorId = 1;
 
-function bufToStr(buf, nRead) {
-  var s = ''
-
-  for (let i=0; i < nRead; i++) {
-    s += String.fromCharCode(buf[i])
-  }
-
-  return s
+/** Destroy a instance of Evaluator, closing the streams
+ *  if input and output were the same (presumably a socket).
+ */
+exports.Evaluator.prototype.destroy = function Evaluator$destroy() {
+  this.streams.input.removeListener('data', this.readData);
+  clearTimeout(this.nextTimer);
+  if (this.streams.input === this.streams.output) /* single socket, not stdio stream pair */
+    this.streams.input.destroy();
 }
 
 /** Blocking call to write a line to stdout
  *  @param    line    The line to write
  */
-function writeln(line) {
-  process.stdout.write(line + '\n', 'utf-8')
+exports.Evaluator.prototype.writeln = function Evaluator$writeln(line) {
+  this.streams.output.write(line + '\n');
 }
 
-/* Run the control code */
-var code = fs.readFileSync(require.resolve(config.environmentPath), "ascii")
-global.writeln = writeln
-global.readln = readln
-global.this = global
-global.self = global
+/** Event handler to read data from the input stream. Maintains an internal
+ *  buffer of unprocessed input; invokes this.onreadlnHandler as we recognize
+ *  lines (terminated by 0x0a newlines).
+ */
+exports.Evaluator.prototype.readData = function Evaluator$readData(data) {
+  var completeLines = data.split('\n');
 
-if (false) {
-  let indirectEval = eval
-  indirectEval(code)
-} else {
-  let Script = require('vm').Script
-  let environment = new Script(code, {filename: config.environmentPath, lineOffset: 0, columnOffset: 0})
+  if (this.incompleteLine)
+    completeLines[0] = this.incompleteLine + completeLines[0];
+  this.incompleteLine = completeLines.pop();
 
-  global.indirectEval = function(code, filename) {
-    if (!filename) {
-      /* Pull filename from code comments if not specified */
-      if (filename = code.match(/^ *\* *@file.*$/mi)[0]) {
-        filename = "guess::" + filename.replace(/.*@file */i,'').replace(/ .*$/,'')
-      }
-    }
-    (new Script(code, {filename: filename || "evaluator-node::indirectEval", lineOffset:0, columnOffset:0})).runInThisContext()
+  while (completeLines.length) {
+    line = completeLines.shift();
+    if (this.onreadlnHandler) 
+      this.onreadlnHandler(line + '\n');
+   else
+     console.warn(`Warning: no onreadln handler registered; dropping line '${line}'`);
   }
-  environment.runInThisContext()
 }
+
+/** Main program entry point; either establishes a daemon that listens for tcp
+ *  connections, or falls back to inetd single sandbox mode.
+ *
+ *  @note:  This function is not invoked if this file is require()d.
+ */
+function main(argv) {
+  if (process.argv.length < 3) {
+    console.error("Usage: <bootstrapCode.js> [port [listen address]]");
+    process.exit(1);
+  }
+
+  const bootstrapCodeFilename = process.argv[2];
+  if (process.argv.length > 3) {
+    const net = require('net');
+    let port = +process.argv[3];
+    let listenAddr = process.argv.length > 4 ? process.argv[4] : '0.0.0.0';
+    let server = net.createServer(handleConnection);
+
+    server.listen({host: listenAddr, port: port}, () => {
+      console.log(`Listening for connections on ${listenAddr}:${port}`);
+    });
+
+    function handleConnection(socket) {
+      new exports.Evaluator(socket, socket, bootstrapCodeFilename);
+    }
+  } else {
+    new exports.Evaluator(process.stdin, process.stdout, bootstrapCodeFilename);
+  }
+}
+
+if (module.id === '.')
+  main(process.argv);
