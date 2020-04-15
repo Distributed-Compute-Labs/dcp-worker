@@ -10,17 +10,19 @@
 /* globals dcpConfig */
 
 const path = require('path')
+const { requireNative } = require('../webpack-native-bridge');
 
 /** Module configuration parameters. May be altered at runtime. Should be altered
  *  before first Worker is instantiated.
  */
-require('dcp/config').addConfig(dcpConfig, {
-  standaloneWorker: {
-    ...dcpConfig.standaloneWorker,
-    debug: undefined
-  }
-})
-exports.config = dcpConfig.standaloneWorker
+exports.config = {
+  debug: undefined
+}
+if (dcpConfig.inetDaemon) { /* full DCP install */
+  exports.config.hostname = dcpConfig.inetDaemon.standaloneWorker.net.location.hostname;
+  exports.config.locaiton = dcpConfig.inetDaemon.standaloneWorker.net.location.port;
+}
+exports.config = Object.assign(exports.config, dcpConfig.standaloneWorker || {});
 const debugging = require('dcp/debugging').scope('worker', exports.config);
 
 /** Worker constructor
@@ -51,8 +53,8 @@ const debugging = require('dcp/debugging').scope('worker', exports.config);
  *    . message
  */
 exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
-  var socket = new (require('net')).Socket()
-  var ee = new (require('events').EventEmitter)()
+  var socket = new (requireNative('net')).Socket()
+  var ee = new (requireNative('events').EventEmitter)()
   var pendingWrites = []
   var readBuf = ''
   var connected = false
@@ -119,6 +121,7 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
         code = '({ serialize:' + expo.serialize + ',deserialize:' + expo.deserialize + '})'
       } else {
         code = require('fs').readFileSync(filename, charset || 'utf-8')
+
       }
       this.newSerializer = eval(code)
       if (typeof this.newSerializer !== 'object') {
