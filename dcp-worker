@@ -52,11 +52,13 @@ async function main () {
   }
 }
 
+// Preserve console.error, the dashboard replaces it with a custom logger
+const logError = console.error;
 main()
 .then(() => process.exit(0))
 .catch(e => {
-  console.error("Script failed:");
-  console.error(e);
+  logError("Script failed:");
+  logError(e);
   process.exit(1);
 });
 
@@ -70,21 +72,18 @@ main()
 async function startWorking(options) {
   const compute = require('dcp/compute');
   const dcpConfig = require('dcp/dcp-config');
+  const wallet = require('dcp/wallet');
 
-  // Need to figure out a way to set identity ks globally
-  // const { eventSubscriber } = require('dcp/events/event-subscriber');
   const { Worker } = require('./lib/standaloneWorker');
   const { startSupervisorLogger } = require('./lib/startSupervisorLogger');
 
   const { getIdentityKeystore, getAccountKeystore } = require('dcp/dcp-cli');
 
   const identityKeystore = await getIdentityKeystore();
+  wallet.addId(identityKeystore);
   const accountKeystore = await getAccountKeystore();
+  wallet.add(accountKeystore);
 
-  // eventSubscriber.identityKeystore = identityKeystore;
-  compute.supervisor.schedulerURL = dcpConfig.scheduler.location;
-  compute.supervisor.identityKeystore = identityKeystore;
-  compute.paymentAddress = compute.supervisor.paymentAddress = accountKeystore.address;
   compute.supervisor.maxWorkingWorkers = options.cores;
   compute.supervisor.options.distributedWorkerOptions = {
     WorkerConstructor: Worker,
@@ -100,7 +99,7 @@ async function startWorking(options) {
   console.log(` . Earned funds will be deposited in account ${accountKeystore.address} in bank ${dcpConfig.bank.location.href}`);
   console.log(` . Identity is ${identityKeystore.address}`);
 
-  compute.mine(options.cores, accountKeystore.address);
+  compute.mine();
 
   await new Promise(resolve => process.on('SIGQUIT', resolve));
 
