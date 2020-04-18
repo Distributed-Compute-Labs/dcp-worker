@@ -16,6 +16,7 @@ const vm = require('vm');
 const path = require('path');
 const fs = require('fs-ext');
 const mmap = require('mmap-io');
+let debug = !!process.env.DCP_DEBUG_EVALUATOR;
 
 if (process.getuid() === 0 || process.geteuid() === 0) {
   console.error('Running this program as root is a very bad idea.');
@@ -39,22 +40,25 @@ exports.Evaluator = function Evaluator(inputStream, outputStream, bootstrapCodeF
   this.sandboxGlobal = {};
   this.streams = { input: inputStream, output: outputStream };
 
-  outputStream.setEncoding("utf-8")
-  inputStream.setEncoding("utf-8")
+  outputStream.setEncoding('utf-8');
+  inputStream.setEncoding('utf-8');
 
   /* Add non-standard JavaScript global properties */
   this.sandboxGlobal.self      = this.sandboxGlobal;
+  this.sandboxGlobal.die       = ()        => { this.destroy(); };
   this.sandboxGlobal.writeln   = (string)  => { this.writeln(string) };
   this.sandboxGlobal.onreadln  = (handler) => { this.onreadlnHandler = handler };
   this.sandboxGlobal.ontimer   = (handler) => { this.ontimerHandler  = handler };
   this.sandboxGlobal.nextTimer = (when) => {
-    if (this.nextTimer >= Date.now())
-      process.nextTick(this.ontimerHandler);
+    if (this.ontimerHandler && (this.nextTimer >= Date.now())) {
+      try {
+        this.ontimerHandler();
+      } catch(e) {
+        console.log(e);
+      }
+    }
     clearTimeout(this.nextTimer);
     this.nextTimer = setTimeout(this.ontimerHandler, when - Date.now()) 
-  };
-  this.sandboxGlobal.die       =() => {
-    this.destroy();
   };
 
   /* Create a new JS context that has our non-JS-standard global
@@ -94,15 +98,24 @@ exports.nextEvaluatorId = 1;
 exports.Evaluator.prototype.destroy = function Evaluator$destroy() {
   this.streams.input.removeListener('data', this.readData);
   clearTimeout(this.nextTimer);
+
+  process.nextTick(() => {
   if (this.streams.input === this.streams.output) /* single socket, not stdio stream pair */
     this.streams.input.destroy();
+    this.streams.output = null;
+    if (this.incompleteLine)
+      console.warn(`Discarded incomplete line ${this.incompleteLine} from destroyed connection`);
+  });
 }
 
 /** Blocking call to write a line to stdout
  *  @param    line    The line to write
  */
 exports.Evaluator.prototype.writeln = function Evaluator$writeln(line) {
-  this.streams.output.write(line + '\n');
+  if (this.streams.output !== null)
+    this.streams.output.write(line + '\n');
+  else
+    console.error(`Cannot write to destroyed output stream (${line})`);
 }
 
 /** Event handler to read data from the input stream. Maintains an internal
@@ -112,14 +125,23 @@ exports.Evaluator.prototype.writeln = function Evaluator$writeln(line) {
 exports.Evaluator.prototype.readData = function Evaluator$readData(data) {
   var completeLines = data.split('\n');
 
+  if (this.streams.output === null) {
+    console.warn(`Discarding buffer ${data} from destroyed connection`);
+    return;
+  }
   if (this.incompleteLine)
     completeLines[0] = this.incompleteLine + completeLines[0];
   this.incompleteLine = completeLines.pop();
 
   while (completeLines.length) {
     line = completeLines.shift();
-    if (this.onreadlnHandler) 
-      this.onreadlnHandler(line + '\n');
+    if (this.onreadlnHandler) {
+      try {
+        this.onreadlnHandler(line + '\n');
+      } catch(e) {
+        console.log(e);
+      }
+    }
    else
      console.warn(`Warning: no onreadln handler registered; dropping line '${line}'`);
   }
@@ -151,6 +173,8 @@ function main(argv) {
       new exports.Evaluator(socket, socket, bootstrapCodeFilename);
     }
   } else {
+    if (debug)
+      console.error(`Started daemon in stdio mode`);
     new exports.Evaluator(process.stdin, process.stdout, bootstrapCodeFilename);
   }
 }
