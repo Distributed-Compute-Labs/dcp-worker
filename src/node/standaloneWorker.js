@@ -66,8 +66,8 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
     socket = options.socket || socket
   }
 
-  hostname = hostname || dcpConfig.inetDaemon.standaloneWorker.net.location.hostname
-  port = port || dcpConfig.inetDaemon.standaloneWorker.net.location.port
+  hostname = hostname || exports.config.hostname;
+  port = port || exports.config.port;
 
   this.addEventListener = ee.addListener.bind(ee)
   this.removeEventListener = ee.removeListener.bind(ee)
