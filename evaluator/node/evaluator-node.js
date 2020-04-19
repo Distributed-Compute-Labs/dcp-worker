@@ -1,4 +1,3 @@
-#! /usr/bin/env node
 /** 
  *  @file       evaluator-node.js
  *              Simple 'node' evaluator -- equivalent to native evaluators,
@@ -12,10 +11,18 @@
  *  @date       June 2018, April 2020
  */
 
-const vm = require('vm');
-const path = require('path');
-const fs = require('fs-ext');
-const mmap = require('mmap-io');
+const { requireNative } = require('dcp/webpack-native-bridge');
+const process = requireNative('process');
+const vm = requireNative('vm');
+const path = requireNative('path');
+let fs, mmap;
+try {
+  mmap = requireNative('mmap-io');
+  fs = requireNative('fs-ext');
+} catch(e) {
+  fs = requireNative('fs');
+}
+
 let debug = !!process.env.DCP_DEBUG_EVALUATOR;
 
 if (process.getuid() === 0 || process.geteuid() === 0) {
@@ -71,8 +78,12 @@ exports.Evaluator = function Evaluator(inputStream, outputStream, bootstrapCodeF
   });
 
   fd = fs.openSync(bootstrapCodeFilename, 'r');
-  fs.flockSync(fd, 'sh');
-  bootstrapCode = mmap.map(fs.fstatSync(fd).size, mmap.PROT_READ, mmap.MAP_SHARED, fd, 0, mmap.MADV_SEQUENTIAL).toString('utf8');
+  if (mmap) {
+    fs.flockSync(fd, 'sh');
+    bootstrapCode = mmap.map(fs.fstatSync(fd).size, mmap.PROT_READ, mmap.MAP_SHARED, fd, 0, mmap.MADV_SEQUENTIAL).toString('utf8');
+  } else {
+    bootstrapCode = fs.readFileSync(fd, 'utf-8');
+  }
   fs.closeSync(fd);
 
   vm.runInContext(bootstrapCode, this.sandboxGlobal, {
@@ -150,7 +161,8 @@ exports.Evaluator.prototype.readData = function Evaluator$readData(data) {
 /** Main program entry point; either establishes a daemon that listens for tcp
  *  connections, or falls back to inetd single sandbox mode.
  *
- *  @note:  This function is not invoked if this file is require()d.
+ *  @note:  This function is not invoked if this file is requireNative()d; only when
+ *          it is used as a program module.
  */
 function main(argv) {
   if (process.argv.length < 3) {
@@ -160,7 +172,7 @@ function main(argv) {
 
   const bootstrapCodeFilename = process.argv[2];
   if (process.argv.length > 3) {
-    const net = require('net');
+    const net = requireNative('net');
     let port = +process.argv[3];
     let listenAddr = process.argv.length > 4 ? process.argv[4] : '0.0.0.0';
     let server = net.createServer(handleConnection);
