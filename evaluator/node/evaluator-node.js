@@ -1,4 +1,5 @@
-/** 
+#! /usr/bin/env node
+/**
  *  @file       evaluator-node.js
  *              Simple 'node' evaluator -- equivalent to native evaluators,
  *              except it is NOT SECURE as jobs could access the entirety of
@@ -10,8 +11,9 @@
  *  @author     Wes Garland, wes@kingsds.network
  *  @date       June 2018, April 2020
  */
+'use strict';
 
-const { requireNative } = require('dcp/webpack-native-bridge');
+const requireNative = eval('require');
 const process = requireNative('process');
 const vm = requireNative('vm');
 const path = requireNative('path');
@@ -145,7 +147,7 @@ exports.Evaluator.prototype.readData = function Evaluator$readData(data) {
   this.incompleteLine = completeLines.pop();
 
   while (completeLines.length) {
-    line = completeLines.shift();
+    let line = completeLines.shift();
     if (this.onreadlnHandler) {
       try {
         this.onreadlnHandler(line + '\n');
@@ -174,7 +176,7 @@ function main(argv) {
   if (process.argv.length > 3) {
     const net = requireNative('net');
     let port = +process.argv[3];
-    let listenAddr = process.argv.length > 4 ? process.argv[4] : '0.0.0.0';
+    let listenAddr = process.argv.length > 4 ? process.argv[4] : '127.0.0.1';
     let server = net.createServer(handleConnection);
 
     server.listen({host: listenAddr, port: port}, () => {
