@@ -27,12 +27,8 @@ const debugging = require('dcp/debugging').scope('worker', exports.config);
 
 /** Worker constructor
  *  @param      code            The code to run in the worker to bootstrap it (setup comms with Supervisor)
- *                              OR an object for development testing. The dev testing object has optional properties
- *                              which can override as follows:
- *                              - code:   replaces the code normally read by reading the file
- *                              - socket: an object compatible with require('socket').Socket() to monkey patch in
- *                                        an alternate way to connect to the evaluator process.
- *  @param      hostname        The hostname (or IP number) of the standalone miner process.
+ *  @param      hostname        The hostname (or IP number) of the evaluator daemon or an object which holds a pair
+ *                              of Node Streams, 'read' and 'write' which are connected to an instance of evaluator.
  *  @param      port            The TCP port number of the standalone miner process.
  *
  *  @returns an object with the following
@@ -53,22 +49,26 @@ const debugging = require('dcp/debugging').scope('worker', exports.config);
  *    . message
  */
 exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
-  var socket = new (requireNative('net')).Socket()
-  var ee = new (requireNative('events').EventEmitter)()
+  var readStream, writeStream;
+  var ee = new (require('events').EventEmitter)()
   var pendingWrites = []
   var readBuf = ''
   var connected = false
   var dieTimer
 
-  if (typeof code !== 'string') {
-    let options = code
-    code = options.code || code
-    socket = options.socket || socket
+  if (typeof hostname === 'object') {
+    readStream = hostname.read;
+    writeStream = hostname.write;
+    debugging('lifecycle') && console.debug('Connecting via supplied streams');
+  } else {
+    readStream = writeStream = new (require('net')).Socket()
+    hostname = hostname || 'localhost';
+    port = port || 9000;
+
+    debugging('lifecycle') && console.debug('Connecting to', hostname + ':' + port);
+    stream.connect(port, hostname, finishConnect.bind(this));
   }
-
-  hostname = hostname || exports.config.hostname;
-  port = port || exports.config.port;
-
+  
   this.addEventListener = ee.addListener.bind(ee)
   this.removeEventListener = ee.removeListener.bind(ee)
   this.serial = exports.Worker.lastSerial = (exports.Worker.lastSerial || 0) + 1
@@ -81,7 +81,8 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
     ) + '\n'
     connected = true
 
-    socket.setEncoding('utf-8')
+    readStream.setEncoding('utf-8');
+    writeStream.setEncoding('utf-8');
     debugging() && console.debug('Connected ' + pendingWrites.length + ' pending messages.');
 
     /* We buffer writes in pendingWrites between the call to connect() and
@@ -89,9 +90,9 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
      * buffer into the write buffer in Node's net module.  We still, however,
      * emit the initialization code first; the other writes will be postMessage etc
      */
-    socket.write(wrappedMessage)
-    while (pendingWrites.length && !socket.destroyed) {
-      socket.write(pendingWrites.shift())
+    writeStream.write(wrappedMessage);
+    while (pendingWrites.length && !writeStream.destroyed) {
+      writeStream.write(pendingWrites.shift());
     }
 
     /* @todo Make this auto-detected /wg jul 2018
@@ -121,13 +122,12 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
         code = '({ serialize:' + expo.serialize + ',deserialize:' + expo.deserialize + '})'
       } else {
         code = require('fs').readFileSync(filename, charset || 'utf-8')
-
       }
       this.newSerializer = eval(code)
       if (typeof this.newSerializer !== 'object') {
         throw new TypeError('newSerializer code evaluated as ' + typeof this.newSerializer)
       }
-      socket.write(this.serialize({ type: 'newSerializer', payload: code }) + '\n')
+      writeStream.write(this.serialize({ type: 'newSerializer', payload: code }) + '\n');
       this.serialize = this.newSerializer.serialize /* do not change deserializer until worker acknowledges change */
     } catch (e) {
       console.log('Cannot change serializer', e)
@@ -137,7 +137,7 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
   /* Receive data from the network, turning it into debug output,
    * remote exceptions, worker messages, etc.
    */
-  socket.on('data', function standaloneWorker$$Worker$recvData (data) {
+  readStream.on('data', function standaloneWorker$$Worker$recvData (data) {
     var line, lineObj /* line of data coming over the network */
     var nl
     readBuf += data
@@ -150,8 +150,7 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
         if (line.match(/^DIE: */)) {
           /* Remote telling us they are dying */
           debugging('lifecycle') && console.debug('Worker is dying (', line + ')');
-          socket.destroy()
-          connected = false
+          shutdown();
           clearTimeout(dieTimer)
           break
         }
@@ -202,59 +201,60 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
   }.bind(this))
 
   ee.on('error', function standaloneWorker$$Worker$recvData$error (e) {
-    console.error("Worker threw an error:", e);
+    console.error("Evaluator threw an error:", e);
   })
 
   ee.on('message', function standaloneWorker$$Worker$recvData$message (ev) {
     debugging() && console.log("Worker relayed a message:", ev);
   });
 
-  socket.on('error', function standaloneWorker$$Worker$error (e) {
-    console.error('Error communicating with worker ' + this.serial + ': ', e)
-    socket.destroy()
-    connected = false
-    throw e
-  }.bind(this))
-
-  socket.on('close', function standaloneWorker$$Worker$close () {
-    debugging('lifecycle') && console.debug('Closed socket ' + this.serial + '');
-    connected = false
-    this.terminate()
-  }.bind(this))
-
-  socket.on('end', function standaloneWorker$$Worker$end () {
-    debugging('lifecycle') && console.debug('Ended socket; closing ' + this.serial + '');
-    connected = false
-    this.terminate()
-  }.bind(this))
-
-  debugging('lifecycle') && console.debug('Connecting to', hostname + ':' + port);
-  /* XXX refactor port, hostname to real location */
-  socket.connect(port, hostname, finishConnect.bind(this))
-
+  /* Shutdown the stream(s) which are connected to the evaluator */
+  function shutdown(e) {
+    if (!connected)
+      return;
+    if (e instanceof Error)
+      console.error(e);
+    debugging('lifecycle') && console.debug('Shutting down evaluator connection ' + this.serial + '');
+    readStream.destroy();
+    if (readStream !== writeStream)
+      writeStream.destroy();
+    connected = false;
+  }
+  
+  readStream.on ('error', shutdown);
+  readStream.on ('end',   shutdown);
+  readStream.on ('close', shutdown);
+  if (readStream !== writeStream) {
+    writeStream.on('error', shutdown);
+    writeStream.on('end',   shutdown);
+    writeStream.on('close', shutdown);
+  }
+  
   /** Send a message over the network to a standalone worker */
   this.postMessage = function standaloneWorker$$Worker$postMessage (message) {
     var wrappedMessage = this.serialize({ type: 'workerMessage', message: message }) + '\n'
-    if (connected) { socket.write(wrappedMessage) } else { pendingWrites.push(wrappedMessage) }
+    if (connected)
+      writeStream.write(wrappedMessage);
+    else
+      pendingWrites.push(wrappedMessage);
   }
 
   /** Tell the worker to die.  The worker should respond with a message back of
-   *  type DIE:, which in turn eventuallys triggers socket.close() and .destroy()
+   *  type DIE:, which in turn eventuallys triggers shutdown. fuck
    */
   this.terminate = function standaloneWorker$$Worker$terminate () {
     var wrappedMessage = this.serialize({ type: 'die' }) + '\n'
     try {
-      if (connected) { socket.write(wrappedMessage) } else { pendingWrites.push(wrappedMessage) }
+      if (connected)
+        writeStream.write(wrappedMessage);
+      else
+        pendingWrites.push(wrappedMessage);
     } catch (e) {
       // Socket may have already been destroyed
     }
 
     /* If DIE: response doesn't arrive in a reasonable time -- clean up */
-    function cleanup () {
-      socket.destroy()
-      connected = false
-    }
-    dieTimer = setTimeout(cleanup, 7000)
+    dieTimer = setTimeout(shutdown, 7000);
   }
 }
 
