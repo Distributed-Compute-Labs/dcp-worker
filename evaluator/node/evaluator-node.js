@@ -25,7 +25,7 @@ try {
   fs = requireNative('fs');
 }
 
-let debug = !!process.env.DCP_DEBUG_EVALUATOR;
+let debug = process.env.DCP_DEBUG_EVALUATOR;
 
 if (process.getuid() === 0 || process.geteuid() === 0) {
   console.error('Running this program as root is a very bad idea.');
@@ -48,7 +48,8 @@ exports.Evaluator = function Evaluator(inputStream, outputStream, bootstrapCodeF
 
   this.sandboxGlobal = {};
   this.streams = { input: inputStream, output: outputStream };
-
+  this.id = exports.Evaluator.seq = (+exports.Evaluator.seq + 1) || 1;
+  
   outputStream.setEncoding('utf-8');
   inputStream.setEncoding('utf-8');
 
@@ -109,6 +110,7 @@ exports.nextEvaluatorId = 1;
  *  if input and output were the same (presumably a socket).
  */
 exports.Evaluator.prototype.destroy = function Evaluator$destroy() {
+  debug && console.log('Destroying evaluator');
   this.streams.input.removeListener('data', this.readData);
   clearTimeout(this.nextTimer);
 
@@ -125,6 +127,13 @@ exports.Evaluator.prototype.destroy = function Evaluator$destroy() {
  *  @param    line    The line to write
  */
 exports.Evaluator.prototype.writeln = function Evaluator$writeln(line) {
+  if (debug === 'verbose') {
+    let logLine = line;
+    if (logLine.length > 103)
+      logLine = line.slice(0,50) + '...' + line.slice(-50);
+    console.log(`Evalr-${this.id}<`, logLine, `${line.length} bytes`);
+  }
+
   if (this.streams.output !== null)
     this.streams.output.write(line + '\n');
   else
@@ -136,18 +145,32 @@ exports.Evaluator.prototype.writeln = function Evaluator$writeln(line) {
  *  lines (terminated by 0x0a newlines).
  */
 exports.Evaluator.prototype.readData = function Evaluator$readData(data) {
-  var completeLines = data.split('\n');
+  var completeLines;
 
   if (this.streams.output === null) {
     console.warn(`Discarding buffer ${data} from destroyed connection`);
     return;
   }
+
+  if (data.length === 0)
+    return;
+  completeLines = data.split('\n');
   if (this.incompleteLine)
     completeLines[0] = this.incompleteLine + completeLines[0];
   this.incompleteLine = completeLines.pop();
 
+  (debug === 'verbose') && console.log(`Evalr-${this.id} read ${completeLines.length} complete lines, plus ${this.incompleteLine.length} bytes of next`);
+
   while (completeLines.length) {
     let line = completeLines.shift();
+
+    if (debug === 'verbose') {
+      let logLine = line;
+      if (logLine.length > 103)
+        logLine = line.slice(0,50) + '...' + line.slice(-50);
+      console.log(`Evalr-${this.id}>`, logLine, `${line.length} bytes`);
+    }
+
     if (this.onreadlnHandler) {
       try {
         this.onreadlnHandler(line + '\n');
@@ -184,11 +207,12 @@ function main(argv) {
     });
 
     function handleConnection(socket) {
+      debug && console.log('Handling new connection from supervsior');
       new exports.Evaluator(socket, socket, bootstrapCodeFilename);
     }
   } else {
-    if (debug)
-      console.error(`Started daemon in stdio mode`);
+    debug && console.error(`Started daemon in stdio mode - disabling debug mode`);
+    debug = false;
     new exports.Evaluator(process.stdin, process.stdout, bootstrapCodeFilename);
   }
 }
