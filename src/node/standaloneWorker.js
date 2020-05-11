@@ -6,30 +6,37 @@
  *  @author     Wes Garland, wes@sparc.network
  *  @date       March 2018
  */
-
-/* globals dcpConfig */
-
-const path = require('path')
-const { requireNative } = require('../webpack-native-bridge');
+"use strict";
+var dcpConfig = global.dcpConfig || require('dcp/dcp-config');
+var debugging;
 
 /** Module configuration parameters. May be altered at runtime. Should be altered
  *  before first Worker is instantiated.
  */
 exports.config = {
-  debug: undefined
+  debug: true
 }
 if (dcpConfig.inetDaemon) { /* full DCP install */
   exports.config.hostname = dcpConfig.inetDaemon.standaloneWorker.net.location.hostname;
-  exports.config.locaiton = dcpConfig.inetDaemon.standaloneWorker.net.location.port;
+  exports.config.location = dcpConfig.inetDaemon.standaloneWorker.net.location.port;
+  debugging = require('dcp/debugging').scope('worker', exports.config);
+} else {
+  debugging = () => exports.config;
 }
-exports.config = Object.assign(exports.config, dcpConfig.standaloneWorker || {});
-const debugging = require('dcp/debugging').scope('worker', exports.config);
+exports.config = Object.assign(exports.config, dcpConfig.standaloneWorker || {
+  hostname: 'localhost',
+  port: 9000
+});
 
 /** Worker constructor
  *  @param      code            The code to run in the worker to bootstrap it (setup comms with Supervisor)
- *  @param      hostname        The hostname (or IP number) of the evaluator daemon or an object which holds a pair
- *                              of Node Streams, 'read' and 'write' which are connected to an instance of evaluator.
- *  @param      port            The TCP port number of the standalone miner process.
+ *  @param      options         Options for the Worker constructor.  These can be options per the specification
+ *                              for Web Workers (note: not current propagated) or any of these options:
+ *
+ *                              hostname:     The hostname of the Evaluator server; default to exports.config.hostname or localhost.
+ *                              port:         The port number of the Evaluator server; default to exports.config.port or 9000.
+ *                              readStream:   An instance of Stream.readable connected to an Evaluator
+ *                              writeStream:  An instance of Stream.writeable connected to the same Evaluator, default=readStream
  *
  *  @returns an object with the following
  *  - methods:
@@ -48,25 +55,39 @@ const debugging = require('dcp/debugging').scope('worker', exports.config);
  *    . error
  *    . message
  */
-exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
+exports.Worker = function standaloneWorker$$Worker (code, options) {
+  var hostname, port;
   var readStream, writeStream;
   var ee = new (require('events').EventEmitter)()
   var pendingWrites = []
   var readBuf = ''
   var connected = false
   var dieTimer
+  var shutdown;
+  
+  if (typeof options === 'string') {
+    options = { hostname: arguments[1], port: arguments[2] }
+  }
 
-  if (typeof hostname === 'object') {
-    readStream = hostname.read;
-    writeStream = hostname.write;
+  if (typeof options === 'object' && options.readStream) {
     debugging('lifecycle') && console.debug('Connecting via supplied streams');
-  } else {
-    readStream = writeStream = new (require('net')).Socket()
-    hostname = hostname || 'localhost';
-    port = port || 9000;
+    readStream = options.readStream;
+    writeStream = options.writeStream || options.readStream;
+    delete options.readStream;
+    delete options.writeStream;
+  }
+  
+  if (!readStream) {
+    let socket = readStream = writeStream = new (require('net')).Socket();
+    hostname = exports.config.hostname || 'localhost';
+    port = exports.config.port || 9000;
 
     debugging('lifecycle') && console.debug('Connecting to', hostname + ':' + port);
-    stream.connect(port, hostname, finishConnect.bind(this));
+    socket.connect(port, hostname, finishConnect.bind(this));
+    delete options.hostname;
+    delete options.port;
+  } else {
+    finishConnect.bind(this)();
   }
   
   this.addEventListener = ee.addListener.bind(ee)
@@ -209,7 +230,7 @@ exports.Worker = function standaloneWorker$$Worker (code, hostname, port) {
   });
 
   /* Shutdown the stream(s) which are connected to the evaluator */
-  function shutdown(e) {
+  shutdown = (e) => {
     if (!connected)
       return;
     if (e instanceof Error)
