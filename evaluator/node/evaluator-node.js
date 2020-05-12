@@ -13,16 +13,15 @@
  */
 'use strict';
 
-const requireNative = eval('require');
-const process = requireNative('process');
-const vm = requireNative('vm');
-const path = requireNative('path');
+const process = require('process');
+const vm = require('vm');
+const path = require('path');
 let fs, mmap;
 try {
-  mmap = requireNative('mmap-io');
-  fs = requireNative('fs-ext');
+  mmap = require('mmap-io');
+  fs = require('fs-ext');
 } catch(e) {
-  fs = requireNative('fs');
+  fs = require('fs');
 }
 
 let debug = process.env.DCP_DEBUG_EVALUATOR;
@@ -228,7 +227,7 @@ exports.Evaluator.prototype.readData = function Evaluator$readData(data) {
  *  @param   bootstrapCodeFilename {string}   The code to run in each new Evaluator
  */
 function solo(listenAddr, port, bootstrapCodeFilename) {
-  const net = requireNative('net');
+  const net = require('net');
   let server = net.createServer(handleConnection);
 
   server.listen({host: listenAddr, port: port}, () => {
@@ -249,7 +248,7 @@ function solo(listenAddr, port, bootstrapCodeFilename) {
  *  @param   bootstrapCodeFilename {string}   The code to run in each new Evaluator
  */
 function server(listenAddr, port, bootstrapCodeFilename) {
-  const net = requireNative('net');
+  const net = require('net');
   let server = net.createServer(handleConnection);
 
   server.listen({host: listenAddr, port: port}, () => {
@@ -263,7 +262,6 @@ function server(listenAddr, port, bootstrapCodeFilename) {
     debug && console.log('Spawning child to handle new connection from supervsior');
 
     child = child_process.spawn(process.execPath, [ __filename, bootstrapCodeFilename ]);
-    debugger;
     child.stderr.setEncoding('utf-8');
     child.stderr.on('data', (chunk) => process.stderr.write('child>', chunk));
     child.stdout.on('data', (chunk) => socket.write(chunk));
@@ -281,7 +279,7 @@ function server(listenAddr, port, bootstrapCodeFilename) {
 /** Main program entry point; either establishes a server that listens for tcp
  *  connections, or falls back to inetd single sandbox mode.
  *
- *  @note:  This function is not invoked if this file is requireNative()d; only when
+ *  @note:  This function is not invoked if this file is require()d; only when
  *          it is used as a program module.
  */
 function main(argv) {
