@@ -49,9 +49,11 @@ exports.Evaluator = function Evaluator(inputStream, outputStream, bootstrapCodeF
   this.sandboxGlobal = {};
   this.streams = { input: inputStream, output: outputStream };
   this.id = exports.Evaluator.seq = (+exports.Evaluator.seq + 1) || 1;
-  
+
   outputStream.setEncoding('utf-8');
   inputStream.setEncoding('utf-8');
+
+  outputStream.write('running evaluator-node XXX\n');
 
   /* Add non-standard JavaScript global properties */
   this.sandboxGlobal.self      = this.sandboxGlobal;
@@ -75,7 +77,7 @@ exports.Evaluator = function Evaluator(inputStream, outputStream, bootstrapCodeF
    * props, and initialize it with the bootstrap code.
    */
   vm.createContext(this.sandboxGlobal, {
-    name: 'Evaluator ' + (exports.nextEvaluatorId++),
+    name: 'Evaluator ' + this.id,
     origin: 'dcp:://evaluator',
     codeGeneration: { strings: true, wasm: true },
   });
@@ -93,9 +95,14 @@ exports.Evaluator = function Evaluator(inputStream, outputStream, bootstrapCodeF
     filename: path.basename(bootstrapCodeFilename),
     lineOffset: 0,
     columnOffset: 0,
+    contextName: 'Evaluator #' + this.id,
+    contextCodeGeneration: {
+      wasm: true,
+      strings: true
+    },
     displayErrors: true,
-    timeout: 60 * 1000,
-    breakOnSigInt: true
+    timeout: 3600 * 1000,   /* gives us our own event loop; this is max time for one pass run-to-completion */
+    breakOnSigInt: true     /* also gives us our own event loop */
   });
 
   /* Pass any new data on the input stream to the onreadln()
@@ -103,24 +110,54 @@ exports.Evaluator = function Evaluator(inputStream, outputStream, bootstrapCodeF
    */
   this.readData = this.readData.bind(this);
   inputStream.on('data', this.readData);
-}
-exports.nextEvaluatorId = 1;
 
-/** Destroy a instance of Evaluator, closing the streams
- *  if input and output were the same (presumably a socket).
+  this.destroy = this.destroy.bind(this);
+  inputStream.on('end',   this.destroy);
+  inputStream.on('close', this.destroy);
+  inputStream.on('error', this.destroy);
+  if (inputStream !== outputStream) {
+    outputStream.on('end',   this.destroy);
+    outputStream.on('close', this.destroy);
+    outputStream.on('error', this.destroy);
+  } 
+}
+
+exports.Evaluator.prototype.shutdownSockets = function Evaluator$shutdownSockets() {
+  if (this.streams.input !== this.streams.output) /* two streams => stdio, leave alone */
+    return;
+
+  debug && console.log(`Evalr-${this.id}: Shutting down evaluator sockets`);
+  
+  if (this.incompleteLine)
+    console.warn(`Discarded incomplete line ${this.incompleteLine} from destroyed connection`);
+
+  this.streams.input .off('end',   this.destroy);
+  this.streams.input .off('close', this.destroy);
+  this.streams.input .off('error', this.destroy);
+  this.streams.output.off('end',   this.destroy);
+  this.streams.output.off('close', this.destroy);
+  this.streams.output.off('error', this.destroy);
+
+  this.streams.input.destroy();
+  this.streams.output.destroy();
+  this.streams.output = null;
+}
+    
+/** Destroy a instance of Evaluator, closing the streams input and output 
+ *  were the same (presumably a socket). All events are released to avoid
+ *  entrain garbage, closures, etc.
+ *
+ *  Note that this might still not stop the compute dead in its tracks when
+ *  we are operating in daemon mode; there is no way to halt a context.
  */
 exports.Evaluator.prototype.destroy = function Evaluator$destroy() {
   debug && console.log('Destroying evaluator');
   this.streams.input.removeListener('data', this.readData);
   clearTimeout(this.nextTimer);
+  this.sandboxGlobal.writeln = () => { throw new Error('Evaluator ' + this.id + ' has been destroyed; cannot write'); }
+  this.sandboxGlobal.progress = () => { throw new Error('Evaluator ' + this.id + ' has been destroyed; cannot send process updates'); }
 
-  process.nextTick(() => {
-  if (this.streams.input === this.streams.output) /* single socket, not stdio stream pair */
-    this.streams.input.destroy();
-    this.streams.output = null;
-    if (this.incompleteLine)
-      console.warn(`Discarded incomplete line ${this.incompleteLine} from destroyed connection`);
-  });
+  this.shutdownSockets();
 }
 
 /** Blocking call to write a line to stdout
