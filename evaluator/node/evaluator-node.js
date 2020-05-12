@@ -4,7 +4,7 @@
  *              Simple 'node' evaluator -- equivalent to native evaluators,
  *              except it is NOT SECURE as jobs could access the entirety of
  *              the node library, with the permissions of the user the spawning
- *              the daemon.
+ *              the process.
  *
  * ***** Suitable for development/debug, NOT for production *****
  *
@@ -148,7 +148,7 @@ exports.Evaluator.prototype.shutdownSockets = function Evaluator$shutdownSockets
  *  entrain garbage, closures, etc.
  *
  *  Note that this might still not stop the compute dead in its tracks when
- *  we are operating in daemon mode; there is no way to halt a context.
+ *  we are operating in solo mode; there is no way to halt a context.
  */
 exports.Evaluator.prototype.destroy = function Evaluator$destroy() {
   debug && console.log('Destroying evaluator');
@@ -220,7 +220,65 @@ exports.Evaluator.prototype.readData = function Evaluator$readData(data) {
   }
 }
 
-/** Main program entry point; either establishes a daemon that listens for tcp
+/** Launch a solo evaluator listener - listen on a port, run the evaluator in this
+ *  process until completion. Primarily useful for running in a debugger.
+ *
+ *  @param   listenAddr   {string}    The address of the interface to listen on
+ *  @param   port         {number}    The TCP port number to listen on
+ *  @param   bootstrapCodeFilename {string}   The code to run in each new Evaluator
+ */
+function solo(listenAddr, port, bootstrapCodeFilename) {
+  const net = requireNative('net');
+  let server = net.createServer(handleConnection);
+
+  server.listen({host: listenAddr, port: port}, () => {
+    console.log(`Listening for connection on ${listenAddr}:${port} [solo mode]`);
+  });
+
+  function handleConnection(socket) {
+    debug && console.log('Handling new connection from supervsior');
+    new exports.Evaluator(socket, socket, bootstrapCodeFilename);
+  }
+}
+
+/** Launch an a full evaluator server - listen on a port and run an evaluator in a
+ *  new process for each incoming connection.
+ *
+ *  @param   listenAddr   {string}    The address of the interface to listen on
+ *  @param   port         {number}    The TCP port number to listen on
+ *  @param   bootstrapCodeFilename {string}   The code to run in each new Evaluator
+ */
+function server(listenAddr, port, bootstrapCodeFilename) {
+  const net = requireNative('net');
+  let server = net.createServer(handleConnection);
+
+  server.listen({host: listenAddr, port: port}, () => {
+    console.log(`Listening for connections on ${listenAddr}:${port}`);
+  });
+
+  function handleConnection(socket) {
+    const child_process = require('child_process');
+    var child;
+
+    debug && console.log('Spawning child to handle new connection from supervsior');
+
+    child = child_process.spawn(process.execPath, [ __filename, bootstrapCodeFilename ]);
+    debugger;
+    child.stderr.setEncoding('utf-8');
+    child.stderr.on('data', (chunk) => process.stderr.write('child>', chunk));
+    child.stdout.on('data', (chunk) => socket.write(chunk));
+    socket.on('data', (chunk) => child.stdin.write(chunk));
+    socket.on('close', () => child.kill('SIGINT'));
+    socket.on('end', () => {
+      child.stdin.destroy();
+      child.stdout.destroy();
+      child.stderr.destroy();
+      setImmediate(() => child.kill());
+    });
+  }
+}
+
+/** Main program entry point; either establishes a server that listens for tcp
  *  connections, or falls back to inetd single sandbox mode.
  *
  *  @note:  This function is not invoked if this file is requireNative()d; only when
@@ -228,27 +286,30 @@ exports.Evaluator.prototype.readData = function Evaluator$readData(data) {
  */
 function main(argv) {
   if (process.argv.length < 3) {
-    console.error("Usage: <bootstrapCode.js> [port [listen address]]");
+    console.error('\nNode Evaluator - Copyright (c) 2020 Kings Distributed Systems. All Rights Reserved.\n');
+    console.error(`Usage: ${path.basename(process.argv[1])} <bootstrapCode.js> [port [solo] [listen address|any]]`);
+    console.error('Where: port - indicates port number to listen on (default: stdio pipes)\n' +
+                  '       listen address - indicates address of network interface to listen on\n' +
+                  '       solo - do not fork; only run one evaluator at a time');
     process.exit(1);
   }
 
   const bootstrapCodeFilename = process.argv[2];
   if (process.argv.length > 3) {
-    const net = requireNative('net');
     let port = +process.argv[3];
-    let listenAddr = process.argv.length > 4 ? process.argv[4] : '127.0.0.1';
-    let server = net.createServer(handleConnection);
+    let isSolo = (process.argv[4] === 'solo');
+    let listenAddr = process.argv[isSolo ? 5 : 4];
+    if (listenAddr === 'any' || listenAddr === 'any/0')
+      listenAddr = '0.0.0.0';
+    if (!listenAddr)
+      listenAddr = '127.0.0.1';
 
-    server.listen({host: listenAddr, port: port}, () => {
-      console.log(`Listening for connections on ${listenAddr}:${port}`);
-    });
-
-    function handleConnection(socket) {
-      debug && console.log('Handling new connection from supervsior');
-      new exports.Evaluator(socket, socket, bootstrapCodeFilename);
-    }
+    if (isSolo)
+      solo(listenAddr, port, bootstrapCodeFilename);
+    else
+      server(listenAddr, port, bootstrapCodeFilename);
   } else {
-    debug && console.error(`Started daemon in stdio mode - disabling debug mode`);
+    debug && console.error(`Started in stdio mode - disabling debug mode`);
     debug = false;
     new exports.Evaluator(process.stdin, process.stdout, bootstrapCodeFilename);
   }
