@@ -64,10 +64,10 @@ exports.Worker = function standaloneWorker$$Worker (code, options) {
   var connected = false
   var dieTimer
   var shutdown;
+  var connectTimer = false;
   
   if (typeof options === 'string') {
     options = { hostname: arguments[1], port: arguments[2] }
-  }
 
   if (typeof options === 'object' && options.readStream) {
     debugging('lifecycle') && console.debug('Connecting via supplied streams');
@@ -97,6 +97,10 @@ exports.Worker = function standaloneWorker$$Worker (code, options) {
   this.deserialize = JSON.parse
 
   function finishConnect () {
+    if (connectTimer) {
+      clearTimeout(connectTimer);
+    }
+    
     let wrappedMessage = this.serialize(
       { type: 'initWorker', w: this.serial, ts: Date.now(), payload: code, origin: 'workerBootstrap' }
     ) + '\n'
@@ -250,7 +254,70 @@ exports.Worker = function standaloneWorker$$Worker (code, options) {
     writeStream.on('end',   shutdown);
     writeStream.on('close', shutdown);
   }
+
+  debugging('lifecycle') && console.debug('Connecting to', hostname + ':' + port);
+  /* XXX refactor port, hostname to real location */
+  socket.connect(port, hostname, finishConnect.bind(this))
+
+  socket.on('error', function standaloneWorker$$Worker$error (e) {
+    if (!connected) {
+      // already connected; if we alreday have a timeout set, note the error but keep waiting
+      if (connectTimer) {
+        console.error(` repeated error connecting to worker ${this.serial}`, e);
+        return;
+      }
+      
+      console.error(`  Error connecting to worker ${this.serial}`, e);
+      startConnecting();
+      return;
+    }
+    
+    console.error('Error communicating with worker ' + this.serial + ': ', e)
+    socket.destroy()
+    connected = false
+    throw e
+  }.bind(this))
+
+  socket.on('close', function standaloneWorker$$Worker$close () {
+    debugging('lifecycle') && console.debug('Closed socket ' + this.serial + '');
+    if (connected) {
+      debugging('lifecycle') && console.debug('- terminating worker ' + this.serial + '');
+      connected = false;
+      this.terminate();
+      socket.destroy();
+    }
+  }.bind(this))
+
+  socket.on('end', function standaloneWorker$$Worker$end () {
+    debugging('lifecycle') && console.debug('Ended socket; closing ' + this.serial + '');
+    connected = false
+    this.terminate()
+    socket.destroy();
+  }.bind(this))
+
+  var connectBackoff = 10 * 1000; // start: 10s
+  var backoffMax = 5 * 60 * 1000; // max: 5 minutes
+  var backoffFactor = 1.1;        // each fail, back off by 10%
+  const startConnecting = () => {
+    debugging('lifecycle') && console.debug(`Connecting worker ${this.serial} to ${hostname}:${port}; backoff will be ${(connectBackoff/1000).toFixed(1)}s`);
+    // only bind finishConnect() the first time, or things go badly
+    socket.connect(port, hostname);
+    
+    if (connectTimer)
+      return;
+    
+    connectTimer = setTimeout(() => {
+      connectTimer = false;
+      debugging('lifecycle') && console.error(`! Connect timeout of ${(connectBackoff/1000).toFixed(1)}s expired for worker ${this.serial}.`);
+      connectBackoff = Math.min(backoffMax, connectBackoff * backoffFactor);
+      
+      startConnecting();
+    }, connectBackoff);
+  };
   
+  socket.on('connect', finishConnect.bind(this));
+  startConnecting();
+
   /** Send a message over the network to a standalone worker */
   this.postMessage = function standaloneWorker$$Worker$postMessage (message) {
     var wrappedMessage = this.serialize({ type: 'workerMessage', message: message }) + '\n'
