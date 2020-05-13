@@ -80,8 +80,12 @@ async function startWorking(options) {
   const { getIdentityKeystore, getAccountKeystore } = require('dcp/dcp-cli');
 
   const identityKeystore = await getIdentityKeystore();
+  // unlock the id keystore before starting the worker
+  await identityKeystore.unlock(null, 5 * 60 /* 5 minutes */, true);
   wallet.addId(identityKeystore);
+
   const accountKeystore = await getAccountKeystore();
+  // don't need to unlock the bank ks because we only need the address
   wallet.add(accountKeystore);
 
   compute.supervisor.maxWorkingWorkers = options.cores;
@@ -99,7 +103,7 @@ async function startWorking(options) {
   console.log(` . Earned funds will be deposited in account ${accountKeystore.address} in bank ${dcpConfig.bank.location.href}`);
   console.log(` . Identity is ${identityKeystore.address}`);
 
-  compute.mine();
+  compute.work();
 
   await new Promise(resolve => process.on('SIGQUIT', resolve));
 
