@@ -7,29 +7,37 @@
  *  @date       March 2018
  */
 "use strict";
-var dcpConfig = global.dcpConfig || require('dcp/dcp-config');
-var debugging;
+const { setBackoffInterval, clearBackoffInterval } = require('dcp/dcp-timers');
+const dcpConfig = global.dcpConfig || require('dcp/dcp-config');
+var debugging = () => exports.config.debug;
 
 /** Module configuration parameters. May be altered at runtime. Should be altered
  *  before first Worker is instantiated.
  */
 exports.config = {
-  debug: true
+  debug: process.env.DCP_SAW_DEBUG
 }
 if (dcpConfig.inetDaemon) { /* full DCP install */
   exports.config.hostname = dcpConfig.inetDaemon.standaloneWorker.net.location.hostname;
   exports.config.location = dcpConfig.inetDaemon.standaloneWorker.net.location.port;
   debugging = require('dcp/debugging').scope('worker', exports.config);
-} else {
-  debugging = () => exports.config;
 }
 exports.config = Object.assign(exports.config, {
+  quiet: false,
   hostname: 'localhost',
   port: 9000,
-  connectBackoff: 10 * 1000, // start: 10s
-  backoffMax: 5 * 60 * 1000, // max: 5 minutes
-  backoffFactor: 1.1         // each fail, back off by 10%
 }, dcpConfig.standaloneWorker || {});
+
+exports.config.connectBackoff = Object.assign(exports.config.connectBackoff || {}, {
+  maxInterval:   5 * 60 * 1000, // max: 5 minutes
+  baseInterval:      10 * 1000, // start: 10s
+  backoffFactor: 1.1            // each fail, back off by 10%
+});
+
+function timestamp() {
+  var now = new Date();
+  return now.toLocaleDateString() + ' ' + now.toTimeString().replace(/ .*/, '');
+}
 
 /** Worker constructor
  *  @param      code            The code to run in the worker to bootstrap it (setup comms with Supervisor)
@@ -82,16 +90,28 @@ exports.Worker = function standaloneWorker$$Worker (code, options) {
   }
   
   if (!readStream) {
-    /* No supplied streams - reach and connect over TCP/IP */
+    /* No supplied streams - reach out and connect over TCP/IP */
     let socket = readStream = writeStream = new (require('net')).Socket();
-    ({ hostname, port } =  exports.config);
+    let hostname = options.hostname || exports.config.hostname;
+    let port     = options.port     || exports.config.port;
+    let connecting = true;
+    
     debugging('lifecycle') && console.debug('Connecting to', hostname + ':' + port);
-    socket.on('connect', finishConnect.bind(this));
-    startConnecting();
-    delete options.hostname;
-    delete options.port;
+    connectTimer = setBackoffInterval(function saWorker$$connect$backoff() {
+      if (!connecting)
+        socket.connect(port, hostname)
+    }, exports.config.connectBackoff);
+
+    socket.connect(port, hostname);
+    socket.on('connect', beginSession.bind(this));
+    socket.on('error', function saWorker$$socket$errorHandler(e) {
+      connecting = false;
+      if (!exports.config.quiet)
+        console.error(`${timestamp()} Evaluator ${this.serial} - socket error:`,
+                      e.code === 'ECONNREFUSED' ? e.message : e);
+    }.bind(this));
   } else {
-    finishConnect.bind(this)();
+    beginSession.bind(this)();
   }
   
   this.addEventListener = ee.addListener.bind(ee)
@@ -100,15 +120,21 @@ exports.Worker = function standaloneWorker$$Worker (code, options) {
   this.serialize = JSON.stringify
   this.deserialize = JSON.parse
 
-  function finishConnect () {
-    if (connectTimer) {
-      clearTimeout(connectTimer);
-    }
-    
-    let wrappedMessage = this.serialize(
+  function beginSession () {
+    var wrappedMessage = this.serialize(
       { type: 'initWorker', w: this.serial, ts: Date.now(), payload: code, origin: 'workerBootstrap' }
     ) + '\n'
     connected = true
+    clearBackoffInterval(connectTimer);
+
+    readStream.on ('error', shutdown);
+    readStream.on ('end',   shutdown);
+    readStream.on ('close', shutdown);
+    if (readStream !== writeStream) {
+      writeStream.on('error', shutdown);
+      writeStream.on('end',   shutdown);
+      writeStream.on('close', shutdown);
+    }
 
     readStream.setEncoding('utf-8');
     writeStream.setEncoding('utf-8');
@@ -255,70 +281,8 @@ exports.Worker = function standaloneWorker$$Worker (code, options) {
     connected = false;
   }
   
-  readStream.on ('error', shutdown);
-  readStream.on ('end',   shutdown);
-  readStream.on ('close', shutdown);
-  if (readStream !== writeStream) {
-    writeStream.on('error', shutdown);
-    writeStream.on('end',   shutdown);
-    writeStream.on('close', shutdown);
-  }
-
   debugging('lifecycle') && console.debug('Connecting to', hostname + ':' + port);
 
-  socket.on('error', function standaloneWorker$$Worker$error (e) {
-    if (!connected) {
-      // already connected; if we alreday have a timeout set, note the error but keep waiting
-      if (connectTimer) {
-        console.error(` repeated error connecting to worker ${this.serial}`, e);
-        return;
-      }
-      
-      console.error(`  Error connecting to worker ${this.serial}`, e);
-      startConnecting();
-      return;
-    }
-    
-    console.error('Error communicating with worker ' + this.serial + ': ', e)
-    socket.destroy()
-    connected = false
-    throw e
-  }.bind(this))
-
-  socket.on('close', function standaloneWorker$$Worker$close () {
-    debugging('lifecycle') && console.debug('Closed socket ' + this.serial + '');
-    if (connected) {
-      debugging('lifecycle') && console.debug('- terminating worker ' + this.serial + '');
-      connected = false;
-      this.terminate();
-      socket.destroy();
-    }
-  }.bind(this))
-
-  socket.on('end', function standaloneWorker$$Worker$end () {
-    debugging('lifecycle') && console.debug('Ended socket; closing ' + this.serial + '');
-    connected = false
-    this.terminate()
-    socket.destroy();
-  }.bind(this))
-
-  const startConnecting = () => {
-    debugging('lifecycle') && console.debug(`Connecting worker ${this.serial} to ${hostname}:${port}; backoff will be ${(config.config.connectBackoff/1000).toFixed(1)}s`);
-    // only bind finishConnect() the first time, or things go badly
-    socket.connect(port, hostname);
-    
-    if (connectTimer)
-      return;
-    
-    connectTimer = setTimeout(() => {
-      connectTimer = false;
-      debugging('lifecycle') && console.error(`! Connect timeout of ${(config.connectBackoff/1000).toFixed(1)}s expired for worker ${this.serial}.`);
-      config.connectBackoff = Math.min(config.backoffMax, config.connectBackoff * config.backoffFactor);
-      
-      startConnecting();
-    }, config.connectBackoff);
-  };
-  
   /** Send a message over the network to a standalone worker */
   this.postMessage = function standaloneWorker$$Worker$postMessage (message) {
     var wrappedMessage = this.serialize({ type: 'workerMessage', message: message }) + '\n'
@@ -329,7 +293,7 @@ exports.Worker = function standaloneWorker$$Worker (code, options) {
   }
 
   /** Tell the worker to die.  The worker should respond with a message back of
-   *  type DIE:, which in turn eventuallys triggers shutdown. fuck
+   *  type DIE:, which in turn eventuallys triggers shutdown.
    */
   this.terminate = function standaloneWorker$$Worker$terminate () {
     var wrappedMessage = this.serialize({ type: 'die' }) + '\n'
