@@ -111,7 +111,7 @@ exports.Worker = function standaloneWorker$$Worker (code, options) {
                       e.code === 'ECONNREFUSED' ? e.message : e);
     }.bind(this));
   } else {
-    beginSession.bind(this)();
+    setImmediate(beginSession.bind(this));
   }
   
   this.addEventListener = ee.addListener.bind(ee)
@@ -137,7 +137,8 @@ exports.Worker = function standaloneWorker$$Worker (code, options) {
     }
 
     readStream.setEncoding('utf-8');
-    writeStream.setEncoding('utf-8');
+    if (writeStream.setEncoding)
+      writeStream.setEncoding('utf-8');
     debugging() && console.debug('Connected ' + pendingWrites.length + ' pending messages.');
 
     /* We buffer writes in pendingWrites between the call to connect() and
