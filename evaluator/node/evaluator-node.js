@@ -52,8 +52,6 @@ exports.Evaluator = function Evaluator(inputStream, outputStream, bootstrapCodeF
   outputStream.setEncoding('utf-8');
   inputStream.setEncoding('utf-8');
 
-  outputStream.write('running evaluator-node XXX\n');
-
   /* Add non-standard JavaScript global properties */
   this.sandboxGlobal.self      = this.sandboxGlobal;
   this.sandboxGlobal.die       = ()        => { this.destroy(); };
