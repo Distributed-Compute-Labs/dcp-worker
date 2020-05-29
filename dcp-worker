@@ -78,9 +78,10 @@ async function startWorking(options) {
   const compute = require('dcp/compute');
   const dcpConfig = require('dcp/dcp-config');
   const wallet = require('dcp/wallet');
+  const Worker = require('dcp/worker');
 
-  const { Worker } = require('./lib/standaloneWorker');
-  const { startSupervisorLogger } = require('./lib/startSupervisorLogger');
+  const { Worker: StandaloneWorker } = require('./lib/standaloneWorker');
+  const { startWorkerLogger } = require('./lib/startWorkerLogger');
 
   const { getIdentityKeystore, getAccountKeystore } = require('dcp/dcp-cli');
 
@@ -90,15 +91,16 @@ async function startWorking(options) {
   wallet.addId(identityKeystore);
 
   const accountKeystore = await getAccountKeystore();
-  // don't need to unlock the bank ks because we only need the address
-  wallet.add(accountKeystore);
 
-  compute.supervisor.maxWorkingWorkers = options.cores;
-  compute.supervisor.options.distributedWorkerOptions = {
-    WorkerConstructor: Worker,
-  };
+  const worker = new Worker({
+    maxWorkingWorkers: options.cores,
+    paymentAddress: accountKeystore.address,
+    sandboxOptions: {
+      SandboxConstructor: StandaloneWorker,
+    }
+  });
 
-  startSupervisorLogger(compute.supervisor, {
+  startWorkerLogger(worker, {
     verbose: options.verbose,
     outputMode: options.outputMode,
   });
@@ -108,10 +110,10 @@ async function startWorking(options) {
   console.log(` . Earned funds will be deposited in account ${accountKeystore.address} in bank ${dcpConfig.bank.location.href}`);
   console.log(` . Identity is ${identityKeystore.address}`);
 
-  compute.work();
+  worker.start();
 
   await new Promise(resolve => process.on('SIGQUIT', resolve));
 
   console.log('\n*** caught SIGQUIT; exiting...\n');
-  await compute.supervisor.stopWork(true);
+  await worker.stop(true);
 }
