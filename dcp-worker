@@ -6,11 +6,16 @@
  *  @author     Ryan Rossiter, ryan@kingsds.network
  *  @date       April 2020
  */
+'use strict';
 
 const process = require('process');
 const os = require('os');
 
 const DEFAULT_CORES = os.cpus().length - 1;
+
+try {
+  var niim = require('niim'); /* debugger? */
+} catch(e) {};
 
 async function main () {
   await require('dcp-client').init(process.argv);
@@ -35,7 +40,7 @@ async function main () {
         alias: 'o',
         describe: 'Set the output mode',
         type: 'string',
-        default: 'detect',
+        default: niim ? 'console' : 'detect',
         choices: ['detect', 'console', 'dashboard'],
       }
     })
