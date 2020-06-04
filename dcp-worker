@@ -22,8 +22,12 @@ async function main () {
 
   const argv = require('dcp/dcp-cli')
   .base('Standalone NodeJS DCP Worker')
-  .command('start',
-    'Start the worker.', {
+  .command('start [paymentAddress]',
+    'Start the worker.', yargs => yargs
+    .positional('paymentAddress', {
+      describe: 'The address to deposit funds into, will use the default bank keystore if not provided.'
+    })
+    .options({
       cores: {
         alias: 'c',
         describe: 'Number of cores to work with',
@@ -42,8 +46,21 @@ async function main () {
         type: 'string',
         default: niim ? 'console' : 'detect',
         choices: ['detect', 'console', 'dashboard'],
+      },
+      daemonHostname: {
+        alias: 'dh',
+        describe: 'Inet Daemon hostname',
+        type: 'string',
+        default: 'localhost',
+      },
+      daemonPort: {
+        alias: 'dp',
+        describe: 'Inet Daemon port',
+        type: 'number',
+        default: 9000,
       }
     })
+  )
   .demandCommand(1)
   .strict().argv;
 
@@ -70,12 +87,14 @@ main()
 /**
  * 
  * @param {object} options
+ * @param {string} options.paymentAddress
  * @param {number} options.cores - Number of cores to work with
  * @param {boolean} options.verbose - Verbose output
  * @param {string} options.outputMode - Passed to startSupervisorLogger to determine which outputMode to use
+ * @param {string} options.daemonHostname - Inet daemon hostname
+ * @param {number} options.daemonPort - Inet daemon port
  */
 async function startWorking(options) {
-  const compute = require('dcp/compute');
   const dcpConfig = require('dcp/dcp-config');
   const wallet = require('dcp/wallet');
   const Worker = require('dcp/worker');
@@ -83,20 +102,25 @@ async function startWorking(options) {
   const { Worker: StandaloneWorker } = require('./lib/standaloneWorker');
   const { startWorkerLogger } = require('./lib/startWorkerLogger');
 
-  const { getIdentityKeystore, getAccountKeystore } = require('dcp/dcp-cli');
-
-  const identityKeystore = await getIdentityKeystore();
+  const identityKeystore = await wallet.getId();
   // unlock the id keystore before starting the worker
   await identityKeystore.unlock(null, 5 * 60 /* 5 minutes */, true);
-  wallet.addId(identityKeystore);
 
-  const accountKeystore = await getAccountKeystore();
+  let paymentAddress;
+  if (options.paymentAddress) {
+    paymentAddress = new wallet.Address(options.paymentAddress);
+  } else {
+    paymentAddress = (await wallet.get()).address;
+  }
 
   const worker = new Worker({
     maxWorkingWorkers: options.cores,
-    paymentAddress: accountKeystore.address,
+    paymentAddress,
+    watchdogInterval: process.env.TEST_HARNESS && 1000, // speed up the fetch interval when running from tests
     sandboxOptions: {
-      SandboxConstructor: StandaloneWorker,
+      SandboxConstructor: function (...args) {
+        return new StandaloneWorker(args[0], args[1], options.daemonHostname, options.daemonPort);
+      },
     }
   });
 
@@ -105,9 +129,14 @@ async function startWorking(options) {
     outputMode: options.outputMode,
   });
 
+  if (process.env.TEST_HARNESS) {
+    const { bindToTestHarness } = require('./lib/bindToTestHarness');
+    bindToTestHarness(worker);
+  }
+
   console.log(` * Starting DCP Worker`);
   console.log(` . Configured for scheduler ${dcpConfig.scheduler.location.href}`);
-  console.log(` . Earned funds will be deposited in account ${accountKeystore.address} in bank ${dcpConfig.bank.location.href}`);
+  console.log(` . Earned funds will be deposited in account ${paymentAddress} in bank ${dcpConfig.bank.location.href}`);
   console.log(` . Identity is ${identityKeystore.address}`);
 
   worker.start();
