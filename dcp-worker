@@ -13,10 +13,6 @@ const os = require('os');
 
 const DEFAULT_CORES = os.cpus().length - 1;
 
-try {
-  var niim = require('niim'); /* debugger? */
-} catch(e) {};
-
 async function main () {
   await require('dcp-client').init(process.argv);
 
@@ -44,7 +40,7 @@ async function main () {
         alias: 'o',
         describe: 'Set the output mode',
         type: 'string',
-        default: niim ? 'console' : 'detect',
+        default: 'detect',
         choices: ['detect', 'console', 'dashboard'],
       },
       daemonHostname: {
@@ -118,8 +114,11 @@ async function startWorking(options) {
     paymentAddress,
     watchdogInterval: process.env.TEST_HARNESS && 1000, // speed up the fetch interval when running from tests
     sandboxOptions: {
-      SandboxConstructor: function (...args) {
-        return new StandaloneWorker(args[0], args[1], options.daemonHostname, options.daemonPort);
+      SandboxConstructor: function (code) {
+        return new StandaloneWorker(code, {
+          hostname: options.daemonHostname,
+          port: options.daemonPort,
+        });
       },
     }
   });
