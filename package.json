@@ -1,21 +1,22 @@
 {
   "name": "dcp-worker",
-  "version": "1.0.1-a",
+  "version": "1.0.2",
   "description": "JavaScript portion of DCP Workers for NodeJS",
   "main": "index.js",
   "bin": {
     "dcp-worker": "dcp-worker"
   },
   "scripts": {
+    "postpublish": "PACKAGE_VERSION=$(cat package.json | grep \\\"version\\\" | head -1 | awk -F: '{ print $2 }' | sed 's/[\",]//g' | tr -d '[[:space:]]') && git tag v$PACKAGE_VERSION && git push --tags",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Kings Distributed Systems",
   "license": "MIT",
   "dependencies": {
     "blessed": "^0.1.81",
-    "blessed-contrib": "^4.8.19",
-    "chalk": "^4.0.0",
-    "dcp-client": "^3.1.1-a"
+    "blessed-contrib": "^4.8.20",
+    "chalk": "^4.1.0",
+    "dcp-client": "^3.1.1-c"
   },
   "directories": {
     "lib": "lib"
@@ -23,13 +24,13 @@
   "devDependencies": {},
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-worker.git"
+    "url": "git@github.com:Distributed-Compute-Labs/dcp-worker.git"
   },
   "keywords": [
     "dcp"
   ],
   "bugs": {
-    "url": "https://gitlab.com/Distributed-Compute-Protocol/dcp-worker/issues"
+    "url": "https://github.com/Distributed-Compute-Labs/dcp-worker/issues"
   },
-  "homepage": "https://gitlab.com/Distributed-Compute-Protocol/dcp-worker#readme"
+  "homepage": "https://github.com/Distributed-Compute-Labs/dcp-worker#dcp-worker"
 }
