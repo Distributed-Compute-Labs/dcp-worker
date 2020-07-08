@@ -31,8 +31,8 @@ var debug = process.env.DEBUG || ''
 var counter = 0
 
 // console.log(process.env)
-require('dcp-rtlink/rtLink').link(module.paths)
-require('config').load()
+require('dcp-rtlink/rtLink').init();
+require('dcp/config').load();
 
 console.log('DCP inetd starting...')
 
