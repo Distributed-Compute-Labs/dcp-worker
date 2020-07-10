@@ -32,7 +32,7 @@ var counter = 0
 
 // console.log(process.env)
 require('dcp-rtlink/rtLink').init();
-require('dcp/config').load();
+require('dcp/node-libs/config').load();
 
 console.log('DCP inetd starting...')
 
