@@ -110,7 +110,7 @@ async function startWorking(options) {
   }
 
   const worker = new Worker({
-    maxWorkingWorkers: options.cores,
+    maxWorkingSandboxes: options.cores,
     paymentAddress,
     watchdogInterval: process.env.TEST_HARNESS && 1000, // speed up the fetch interval when running from tests
     sandboxOptions: {
