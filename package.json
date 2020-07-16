@@ -13,9 +13,9 @@
   "license": "MIT",
   "dependencies": {
     "blessed": "^0.1.81",
-    "blessed-contrib": "^4.8.19",
-    "chalk": "^4.0.0",
-    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#f4fc5652f37cbbf5bd426f8fc35e4c5b8068e7ed"
+    "blessed-contrib": "^4.8.20",
+    "chalk": "^4.1.0",
+    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#265d2ac2bdd48d1017400df92aca330841b97e7b"
   },
   "directories": {
     "lib": "lib"
