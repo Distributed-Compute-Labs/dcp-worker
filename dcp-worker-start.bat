@@ -19,5 +19,5 @@ if NOT "%PaymentAddress%"=="" (
 )
 
 pushd "%~dp0"
-echo node dcp-worker start %PaymentAddressArgument% %SchedulerURLArgument%
+node dcp-worker start %PaymentAddressArgument% %SchedulerURLArgument%
 popd
