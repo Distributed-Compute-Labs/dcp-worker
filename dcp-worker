@@ -95,8 +95,10 @@ async function startWorking(options) {
   const wallet = require('dcp/wallet');
   const Worker = require('dcp/worker');
 
-  const { Worker: StandaloneWorker } = require('./lib/standaloneWorker');
+  const { Worker: StandaloneWorker, config: saWorkerConfig } = require('./lib/standaloneWorker');
   const { startWorkerLogger } = require('./lib/startWorkerLogger');
+
+  saWorkerConfig.quiet = true;
 
   const identityKeystore = await wallet.getId();
   // unlock the id keystore before starting the worker
