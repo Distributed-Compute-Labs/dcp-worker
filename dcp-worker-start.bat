@@ -15,7 +15,7 @@ FOR /F "usebackq skip=2 tokens=1,2,3*" %%A IN (`REG QUERY "HKCU\SOFTWARE\Kings D
 )
 set PaymentAddressArgument=
 if NOT "%PaymentAddress%"=="" (
-  set PaymentAddressArgument="%PaymentAddress%"
+  set PaymentAddressArgument="0x%PaymentAddress%"
 )
 
 pushd "%~dp0"
