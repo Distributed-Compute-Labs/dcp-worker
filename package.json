@@ -15,7 +15,7 @@
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.8.20",
     "chalk": "^4.1.0",
-    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#1839feac7526d581d4ec244d00c5102cf9f335dd"
+    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#9dc444282c1021e76c8d76b3464a6eb193ba0347"
   },
   "directories": {
     "lib": "lib"
