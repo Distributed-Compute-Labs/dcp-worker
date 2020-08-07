@@ -54,6 +54,12 @@ async function main () {
         describe: 'Inet Daemon port',
         type: 'number',
         default: 9000,
+      },
+      priorityOnly: {
+        alias: 'p',
+        describe: 'Set the priority mode',
+        type: 'boolean',
+        default: false
       }
     })
   )
@@ -112,6 +118,7 @@ async function startWorking(options) {
   const worker = new Worker({
     maxWorkingSandboxes: options.cores,
     paymentAddress,
+    priorityOnly,
     watchdogInterval: process.env.TEST_HARNESS && 1000, // speed up the fetch interval when running from tests
     sandboxOptions: {
       SandboxConstructor: function (code) {
