@@ -74,6 +74,7 @@ async function main() {
       reportInterval: {
         describe: 'If set, output a status summary every [interval] seconds',
         type: 'number',
+        group: 'Output options',
       },
       
       logfile: {
