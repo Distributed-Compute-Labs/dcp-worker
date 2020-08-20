@@ -76,6 +76,10 @@ async function main() {
         type: 'number',
         group: 'Output options',
       },
+      eventDebug: {
+        hide: true,
+        describe: 'If set, dump all sandbox and worker events',
+      },
       
       logfile: {
         describe: 'Path to log file (if --output=console)',
@@ -144,6 +148,11 @@ async function main() {
     paymentAddress = (await wallet.get()).address;
   }
 
+  const exitGuard = {};
+  exitGuard.promise = new Promise(resolve => {
+    exitGuard.exit = resolve;
+  });
+
   const worker = new Worker({
     maxWorkingSandboxes: options.cores,
     paymentAddress,
@@ -153,11 +162,17 @@ async function main() {
         return new StandaloneWorker(code, {
           hostname: options.daemonHostname,
           port: options.daemonPort,
+          onsocketerror: (error, worker) => {
+            if (worker.serial > 1 && error.code === 'ECONNREFUSED') {
+              console.error('167: evaluator server has gone away; terminating worker.');
+              exitGuard.exit(error);
+            }
+          }
         });
       },
-    }
+    },
   });
-
+  
   if (process.env.TEST_HARNESS) {
     const { bindToTestHarness } = require('./lib/bindToTestHarness');
     bindToTestHarness(worker);
@@ -165,7 +180,11 @@ async function main() {
 
   console.log(` . Configured for scheduler ${dcpConfig.scheduler.location.href}`);
   console.log(` . Earned funds will be deposited in account ${paymentAddress} in bank ${dcpConfig.bank.location.href}`);
-  console.log(` . Identity is ${identityKeystore.address}`);
+  console.log(` . Identity is ${identityKeystore.address} ${identityKeystore.label && `(${identityKeystore.label})`}`);
+  if (options.verbose)
+    console.log(` . Verbosity level: ${options.verbose}`);
+  if (options.eventDebug)
+    console.log(` . Event debug on`);
   
   // replace console.log with the appropriate handler
   const consolePatch = require('./lib/console-patch');
@@ -195,8 +214,10 @@ async function main() {
       // do nothing, use the default console
   }
 
-  // worker.debug = true;
-  // worker.supervisor.debug = true;
+  if (options.eventDebug) {
+    worker.debug = true;
+    worker.supervisor.debug = true;
+  }
   
   if (options.verbose >= 2) {
     worker.on('payment', ev => {
@@ -267,17 +288,13 @@ async function main() {
     noise.unref();
   }
   
-  const exitGuard = {};
-  exitGuard.promise = new Promise(resolve => {
-    exitGuard.exit = resolve;
-  });
-
   process.on('SIGQUIT', () => {
     console.log('\n*** caught SIGQUIT; exiting...\n');
     exitGuard.exit('SIGQUIT');
   });
 
-  await exitGuard.promise;
+  let exitcode = 0;
+  await exitGuard.promise.then(result => exitcode = result);
   
   await worker.stop(true);
   
