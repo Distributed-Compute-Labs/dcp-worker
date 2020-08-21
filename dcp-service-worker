@@ -323,7 +323,7 @@ async function main() {
       const stale = (el < 1000) ? '' : `(last update: ${toInterval(el)})`;
       // const stale = el;
       
-      console.log(`  ${String(sb.id).padStart(3)}: ${jobName}\t${t} ${Number(sb.progress).toFixed(0)}% ${stale}`);
+      console.log(` ${String(sb.id).padStart(4)}: ${sb.jobAddress} ${jobName.padEnd(34)} `+ `${t} ${Number(sb.progress).toFixed(0)}% ${stale}`.padStart(13));
     });
     
     console.log('Slices:');
