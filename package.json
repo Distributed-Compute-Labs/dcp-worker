@@ -31,5 +31,8 @@
   "bugs": {
     "url": "https://gitlab.com/Distributed-Compute-Protocol/dcp-worker/issues"
   },
-  "homepage": "https://gitlab.com/Distributed-Compute-Protocol/dcp-worker#readme"
+  "homepage": "https://gitlab.com/Distributed-Compute-Protocol/dcp-worker#readme",
+  "optionalDependencies": {
+    "syslog-client": "^1.1.1"
+  }
 }
