@@ -1,0 +1,342 @@
+#! /usr/bin/env node
+/**
+ *  @file       dcp-service-worker
+ *              Standalone NodeJS DCP Worker
+ *
+ *  @author     Ryan Rossiter, ryan@kingsds.network
+ *              Eddie Roosenmaallen, eddie@kingsds.network
+ *  @date       April 2020
+ */
+'use strict';
+
+const process = require('process');
+const os = require('os');
+
+const DEFAULT_CORES = os.cpus().length - 1;
+
+console.log(` * Starting DCP Service Worker`);
+
+require('dcp-client').init(process.argv)
+.then(main)
+.then(() => process.exit(0))
+.catch(e => {
+  console.error("Script failed:");
+  console.error(e);
+  process.exit(1);
+});
+
+async function main() {
+  const options = require('dcp/dcp-cli')
+    .base('DCP Service Worker')
+    .options({
+      cores: {
+        alias: ['c', 'defaultSandboxes'],
+        describe: 'Number of cores to work with',
+        type: 'number',
+        default: DEFAULT_CORES,
+      },
+      evaluatorHostname: {
+        alias: ['dh', 'eh', 'daemonHost'],
+        describe: 'Evaluator Daemon hostname',
+        type: 'string',
+        default: 'localhost',
+      },
+      evaluatorPort: {
+        alias: ['dp', 'ep', 'daemonPort'],
+        describe: 'Evaluator Daemon port',
+        type: 'number',
+        default: 9000,
+      },
+      
+      identityKey: {
+        describe: 'Identity key, in hex format',
+        type: 'string',
+        group: 'Identity options',
+      },
+      identityKeystore: {
+        describe: 'Identity keystore, in json format',
+        type: 'string',
+        group: 'Identity options',
+      },
+      
+      output: {
+        alias: 'o',
+        describe: 'Specify the output mode',
+        type: 'string',
+        choices: ['console', 'syslog', 'file', /*NYI: 'multi-file', 'event-log'*/],
+        group: 'Output options',
+      },
+      verbose: {
+        alias: 'v',
+        describe: 'Enable verbose output',
+        type: 'count',
+        group: 'Output options',
+      },
+      reportInterval: {
+        describe: 'If set, output a status summary every [interval] seconds',
+        type: 'number',
+        group: 'Output options',
+      },
+      eventDebug: {
+        hide: true,
+        describe: 'If set, dump all sandbox and worker events',
+      },
+      
+      logfile: {
+        describe: 'Path to log file (if --output=console)',
+        type: 'string',
+        group: 'Log File output options',
+      },
+      
+      syslogAddress: {
+        describe: 'Address of rsyslog server (if --output=syslog)',
+        type: 'string',
+        group: 'Syslog output options',
+      },
+      syslogTransport: {
+        describe: 'Transport to connect to rsyslog daemon (if --output=syslog)',
+        type: 'string',
+        choices: ['udp','tcp'],
+        group: 'Syslog output options',
+      },
+      syslogPort: {
+        describe: 'UDP/TCP port of rsyslog server',
+        type: 'number',
+        group: 'Syslog output options',
+      },
+    })
+    .strict().argv;
+  
+  const addressFromCLI = options._.find(opt => {
+    return (typeof opt === 'string'
+      && opt.match(/^(0x)?[0-9a-fA-F]{40}$/));
+  });
+  
+  if (!options.paymentAddress && !!addressFromCLI) {
+    options.paymentAddress = addressFromCLI;
+  }
+  
+  const dcpConfig = require('dcp/dcp-config');
+  const wallet = require('dcp/wallet');
+  const Worker = require('dcp/worker');
+
+  const { Worker: StandaloneWorker } = require('./lib/standaloneWorker');
+  
+  const saWorkerConfig = require('./lib/standaloneWorker').config;
+  
+  saWorkerConfig.connectBackoff.maxInterval = 60 * 1000;  // max backoff is 1m for service worker
+  
+  let identityKeystore = false;
+
+  // Different ways to get the identity
+  if (options.identityKey) {
+    identityKeystore = await new wallet.Keystore(options.identityKey, '');
+  }
+  else if (options.identityKeystore) {
+    identityKeystore = await new wallet.Keystore(JSON.parse(options.identityKeystore), '');
+  }
+  else {
+    identityKeystore = await wallet.getId();
+  }
+
+  // unlock the id keystore before starting the worker
+  await identityKeystore.unlock(null, 5 * 60 /* 5 minutes */, true);
+  
+  let paymentAddress;
+  if (options.paymentAddress) {
+    paymentAddress = new wallet.Address(options.paymentAddress);
+  } else {
+    paymentAddress = (await wallet.get()).address;
+  }
+
+  const exitGuard = {};
+  exitGuard.promise = new Promise(resolve => {
+    exitGuard.exit = resolve;
+  });
+
+  const worker = new Worker({
+    maxWorkingSandboxes: options.cores,
+    paymentAddress,
+    watchdogInterval: process.env.TEST_HARNESS && 1000, // speed up the fetch interval when running from tests
+    sandboxOptions: {
+      SandboxConstructor: function (code) {
+        return new StandaloneWorker(code, {
+          hostname: options.daemonHostname,
+          port: options.daemonPort,
+          onsocketerror: (error, worker) => {
+            if (worker.serial > 1 && error.code === 'ECONNREFUSED') {
+              console.error('167: evaluator server has gone away; terminating worker.');
+              exitGuard.exit(error);
+            }
+          }
+        });
+      },
+    },
+  });
+  
+  if (process.env.TEST_HARNESS) {
+    const { bindToTestHarness } = require('./lib/bindToTestHarness');
+    bindToTestHarness(worker);
+  }
+
+  console.log(` . Configured for scheduler ${dcpConfig.scheduler.location.href}`);
+  console.log(` . Earned funds will be deposited in account ${paymentAddress} in bank ${dcpConfig.bank.location.href}`);
+  console.log(` . Identity is ${identityKeystore.address} ${identityKeystore.label && `(${identityKeystore.label})`}`);
+  if (options.verbose)
+    console.log(` . Verbosity level: ${options.verbose}`);
+  if (options.eventDebug)
+    console.log(` . Event debug on`);
+  
+  // replace console.log with the appropriate handler
+  const consolePatch = require('./lib/console-patch');
+  
+  switch(options.output) {
+    case 'file':
+      consolePatch.patch(new consolePatch.Consoles.LogfileConsole(options.logfile || './worker.log'));
+      break;
+    case 'syslog':
+      // @todo: sort out any syslog options
+      consolePatch.patch(new consolePatch.Consoles.SyslogConsole(
+        options.syslogAddress || '127.0.0.1',
+        {
+          transport: options.syslogTransport === 'udp' ? require('syslog-client').Transport.Udp : require('syslog-client').Transport.Tcp,
+          port: options.syslogPort || undefined,
+        }
+      ));
+      break;
+    // NYI: Adding windows-eventlog to the project seems to prevent it
+    //  building on any platform.
+    // case 'event-log':
+    //   // @todo: is there any Window sconfig to do here?
+    //   consolePatch.patch(new consolePatch.Consoles.EventLogConsole());
+    //   break;
+    case 'console':
+    default:
+      // do nothing, use the default console
+  }
+
+  if (options.eventDebug) {
+    worker.debug = true;
+    worker.supervisor.debug = true;
+  }
+  
+  if (options.verbose >= 2) {
+    worker.on('payment', ev => {
+      console.log(' * worker::payment', ev.payment, ev.accepted ? 'accepted' : ev.reason);
+    });
+    worker.on('fetchstart', () => console.log(' * worker::fetchstart'));
+    // worker.on('fetch', () => console.log(' * worker::fetch'));
+    worker.on('fetchend', () => console.log(' * worker::fetchend'));
+  }
+  
+  if (options.verbose >= 1)
+    worker.on('fetchError', error => console.error(' * worker::fetchError', error));
+  
+  // Attach sandbox-specific listeners
+  worker.on('sandbox', sandbox => {
+    const sbId = sandbox.id;
+    const sbKey = `sandbox ${sbId}`;
+    
+    if (options.verbose >= 1)
+      console.log(' * worker::sandbox', sbId);
+    
+    if (options.verbose >= 2) {
+      sandbox.on('slicestart', ev => {
+        const { job, sandbox: { jobAddress, requiresGPU } } = ev;
+        console.log(
+          ` * ${sbKey}::slicestart`,
+          job.publicName,
+          jobAddress,
+          requiresGPU ? 'GPU' : 'CPU-only'
+        );
+      });
+      
+      sandbox.on('complete', ev => {
+        const { result } = ev;
+        console.log(
+          ` * ${sbKey}::complete`,
+          (result instanceof Error) ? result.message : 'ok'
+        );
+      });
+    }
+    
+    sandbox.on('error', error => {
+      const { name, code, message, stack } = error;
+      console.error(
+        ` * ${sbKey}::error`,
+        {
+          name,
+          code,
+          error,
+          message,
+        },
+      );
+    });
+    
+    sandbox.on('workerStop', ev => {
+      console.error(
+        ` * ${sbKey}::workerStop`,
+      );
+    });
+  });
+  
+  worker.start();
+  
+  process.on('SIGUSR1', () => printReport());
+  
+  if (options.reportInterval) {
+    const noise = setInterval(()=>printReport(),  options.reportInterval * 1000);
+    noise.unref();
+  }
+  
+  process.on('SIGQUIT', () => {
+    console.log('\n*** caught SIGQUIT; exiting...\n');
+    exitGuard.exit('SIGQUIT');
+  });
+
+  let exitcode = 0;
+  await exitGuard.promise.then(result => exitcode = result);
+  
+  await worker.stop(true);
+  
+  function printReport() {
+    const sup = worker.supervisor;
+
+    console.log('='.repeat(78));
+
+    console.log(Date());
+    console.log('Sandboxes:');
+    console.log(`  working:     ${sup.workingSandboxes.length} / ${options.cores} (${sup.GPUsAssigned} assigned GPUs)`);
+    console.log(`  initialized: ${sup.initializedSandboxes.length}`);
+    console.log(`  readied:     ${sup.readiedSandboxes.length}`);
+    console.log(`  terminated:  ${sup.terminatedSandboxes.length}`);
+    console.log(`  * ALL:       ${sup.sandboxes.length}`);
+    
+    console.log('Progress:');
+    sup.workingSandboxes.forEach(sb => {
+      const jobName = sb.job && sb.job.public && sb.job.public.name || `idek (${sb.jobAddress})`;
+      let el = Date.now() - sb.sliceStartTime;
+      const t = toInterval(el);
+      
+      el = sb.progressReports && sb.progressReports.last
+        ? Date.now() - (sb.sliceStartTime + sb.progressReports.last.timestamp)
+        : 0;
+      const stale = (el < 1000) ? '' : `(last update: ${toInterval(el)})`;
+      // const stale = el;
+      
+      console.log(` ${String(sb.id).padStart(4)}: ${sb.jobAddress} ${jobName.padEnd(34)} `+ `${t} ${Number(sb.progress).toFixed(0)}% ${stale}`.padStart(13));
+    });
+    
+    console.log('Slices:');
+    console.log(`  working:     ${sup.workingSlices.length}`);
+    console.log(`  queued:      ${sup.queuedSlices.length}`);
+
+    console.log('='.repeat(78));
+  }
+  
+  function toInterval(el) {
+    const m = Math.floor(el / 1000 / 60).toString(10);
+    const s = Math.floor((el / 1000) % 60).toString(10).padStart(2, '0');
+    return `${m}:${s}`;
+  }
+}

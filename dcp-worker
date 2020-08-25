@@ -54,6 +54,12 @@ async function main () {
         describe: 'Inet Daemon port',
         type: 'number',
         default: 9000,
+      },
+      priorityOnly: {
+        alias: 'p',
+        describe: 'Set the priority mode',
+        type: 'boolean',
+        default: false
       }
     })
   )
@@ -89,6 +95,7 @@ main()
  * @param {string} options.outputMode - Passed to startSupervisorLogger to determine which outputMode to use
  * @param {string} options.daemonHostname - Inet daemon hostname
  * @param {number} options.daemonPort - Inet daemon port
+ * @param {boolean} options.priorityOnly - Whether this worker should only work on priority jobs
  */
 async function startWorking(options) {
   const dcpConfig = require('dcp/dcp-config');
@@ -114,6 +121,7 @@ async function startWorking(options) {
   const worker = new Worker({
     maxWorkingSandboxes: options.cores,
     paymentAddress,
+    priorityOnly: options.priorityOnly,
     watchdogInterval: process.env.TEST_HARNESS && 1000, // speed up the fetch interval when running from tests
     sandboxOptions: {
       SandboxConstructor: function (code) {
