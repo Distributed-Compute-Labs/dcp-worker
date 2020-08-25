@@ -122,8 +122,8 @@ async function startWorking(options) {
     priorityOnly: options.priorityOnly,
     watchdogInterval: process.env.TEST_HARNESS && 1000, // speed up the fetch interval when running from tests
     sandboxOptions: {
-      SandboxConstructor: function (dependancyResolver) {
-        return new StandaloneWorker(dependancyResolver, {
+      SandboxConstructor: function (opts) {
+        return new StandaloneWorker(opts, {
           hostname: options.daemonHostname,
           port: options.daemonPort,
         });
