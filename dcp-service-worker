@@ -1,9 +1,10 @@
 #! /usr/bin/env node
 /**
- *  @file       dcp-worker.js
+ *  @file       dcp-service-worker
  *              Standalone NodeJS DCP Worker
  *
  *  @author     Ryan Rossiter, ryan@kingsds.network
+ *              Eddie Roosenmaallen, eddie@kingsds.network
  *  @date       April 2020
  */
 'use strict';
@@ -34,14 +35,14 @@ async function main() {
         type: 'number',
         default: DEFAULT_CORES,
       },
-      daemonHostname: {
-        alias: 'dh',
+      evaluatorHostname: {
+        alias: ['dh', 'eh', 'daemonHost'],
         describe: 'Evaluator Daemon hostname',
         type: 'string',
         default: 'localhost',
       },
-      daemonPort: {
-        alias: 'dp',
+      evaluatorPort: {
+        alias: ['dp', 'ep', 'daemonPort'],
         describe: 'Evaluator Daemon port',
         type: 'number',
         default: 9000,
