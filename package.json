@@ -4,6 +4,7 @@
   "description": "JavaScript portion of DCP Workers for NodeJS",
   "main": "index.js",
   "bin": {
+    "dcp-service-worker": "dcp-service-worker",
     "dcp-worker": "dcp-worker"
   },
   "scripts": {
