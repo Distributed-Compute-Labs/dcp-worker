@@ -1,9 +1,10 @@
 {
   "name": "dcp-worker",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "JavaScript portion of DCP Workers for NodeJS",
   "main": "index.js",
   "bin": {
+    "dcp-service-worker": "dcp-service-worker",
     "dcp-worker": "dcp-worker"
   },
   "scripts": {
@@ -16,7 +17,7 @@
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.8.20",
     "chalk": "^4.1.0",
-    "dcp-client": "^3.1.14"
+    "dcp-client": "^3.1.16"
   },
   "directories": {
     "lib": "lib"
