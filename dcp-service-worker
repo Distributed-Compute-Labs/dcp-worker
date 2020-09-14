@@ -157,11 +157,11 @@ async function main() {
   const worker = new Worker({
     maxWorkingSandboxes: options.cores,
     paymentAddress,
+    priorityOnly: options.priorityOnly,
     watchdogInterval: process.env.TEST_HARNESS && 1000, // speed up the fetch interval when running from tests
     sandboxOptions: {
       SandboxConstructor: function (opts) {
-        return new StandaloneWorker({
-          ...opts, 
+        return new StandaloneWorker({...opts, 
           hostname: options.daemonHostname,
           port: options.daemonPort,
           onsocketerror: (error, worker) => {
@@ -187,6 +187,8 @@ async function main() {
     console.log(` . Verbosity level: ${options.verbose}`);
   if (options.eventDebug)
     console.log(` . Event debug on`);
+  
+  console.log(' . output mode: ' + options.output);
   
   // replace console.log with the appropriate handler
   const consolePatch = require('./lib/console-patch');
@@ -308,7 +310,7 @@ async function main() {
     console.log(Date());
     console.log('Sandboxes:');
     console.log(`  working:     ${sup.workingSandboxes.length} / ${options.cores} (${sup.GPUsAssigned} assigned GPUs)`);
-    console.log(`  initialized: ${sup.initializedSandboxes.length}`);
+    console.log(`  assigned:    ${sup.assignedSandboxes.length}`);
     console.log(`  readied:     ${sup.readiedSandboxes.length}`);
     console.log(`  terminated:  ${sup.terminatedSandboxes.length}`);
     console.log(`  * ALL:       ${sup.sandboxes.length}`);
