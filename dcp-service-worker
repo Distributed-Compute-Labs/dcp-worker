@@ -159,8 +159,9 @@ async function main() {
     paymentAddress,
     watchdogInterval: process.env.TEST_HARNESS && 1000, // speed up the fetch interval when running from tests
     sandboxOptions: {
-      SandboxConstructor: function (code) {
-        return new StandaloneWorker(code, {
+      SandboxConstructor: function (opts) {
+        return new StandaloneWorker({
+          ...opts, 
           hostname: options.daemonHostname,
           port: options.daemonPort,
           onsocketerror: (error, worker) => {
