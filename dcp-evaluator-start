@@ -1,37 +1,69 @@
 #! /usr/bin/env node
+/** @file       dcp-evaluator-start
+ *  @author     Eddie Roosenmaallen, eddie@kingsds.network
+ *  @date       September 2020
+ *  
+ *  This script starts the DCP Native Evaluator in server mode, with the 
+ *  appropriate list of worker startup files queued up
+ */
 
 const path = require('path');
+
 
 const dcp = require('dcp-client').initSync();
 const options = require('dcp/dcp-cli')
   .base('Evaluator frontend')
   .option('prefix', {
-    alias: 'p',
     desc: 'Path under which native components are installed',
     default: '/opt/dcp',
   })
+  .option('port', {
+    alias: ['p', 'evaluatorPort', 'daemonPort'],
+    desc: 'Port to listen for worker connections',
+    default: '9000',
+  })
   .argv;
-  
-const config = require('dcp/dcp-config').worker.nativeEvaluator;
 
-// If no startup files, bail
-if (!config) {
+
+const config = require('dcp/dcp-config').worker;
+
+// If no v4 startup files, bail
+if (!config || !config.nativeEvaluator || !config.nativeEvaluator.setUpFiles) {
   console.error('Missing configuration');
   console.log('The current configuration does not support the v4 native evaluator.');
   process.exit(1);
 }
 
-const setupFiles = config.setUpFiles;
+const setUpFiles = config.nativeEvaluator.setUpFiles;
 
-console.log(config);
-
-const cl = path.join(options.prefix, 'bin', 'dcp-evaluator');
+const bin = path.join(options.prefix, 'bin', 'dcp-evaluator');
 const args = [
   '-l', path.join(options.prefix, 'libexec', 'evaluator'),
+  '--port', options.port,
 ];
 
-for (let n=0; setupFiles[n]; n++) {
-  args.push(path.resolve(path.join('.', setupFiles[n].replace(/^dcp-worker/, '.'))));
+// web config doesn't nicely handle arrays, so setUpFiles.forEach is no-go;
+// this hack works with either a real array, or an arrayish-looking ES object
+// such as we get in the bundled config.
+for (let n=0; setUpFiles[n]; n++) {
+  args.push(require.resolve(path.join('.', setUpFiles[n]).replace(/^dcp-worker/, '.')));
 }
 
-console.log('Starting up:', cl, args);
+
+// Log what we're about to do:
+console.log('DCP Evaluator Server');
+console.log('Evaluator binary at: ', bin);
+console.log('Library path at:     ', args[1]);
+console.log('Listening on port:   ', args[3]);
+console.log('Worker environment:  ');
+args.slice(4).forEach(f => {
+  console.log('\t' + f);
+});
+
+// Do it
+const ran = require('child_process').spawnSync(bin, args);
+
+// How'd it go?
+console.log('Evaluator server process exited');
+console.log(ran.status === 0 ? 'OK' : ran.stderr.toString());
+process.exit(ran.status);
