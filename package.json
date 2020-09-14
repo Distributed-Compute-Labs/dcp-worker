@@ -30,6 +30,7 @@
   "dependencies": {
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.8.20",
+    "bravojs": "^1.0.15",
     "chalk": "^4.1.0",
     "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#0eb8d7050bd0a0edc2aafcdd3a4a36c4cd558eef"
   }

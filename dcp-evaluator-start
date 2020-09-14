@@ -1,0 +1,37 @@
+#! /usr/bin/env node
+
+const path = require('path');
+
+const dcp = require('dcp-client').initSync();
+const options = require('dcp/dcp-cli')
+  .base('Evaluator frontend')
+  .option('prefix', {
+    alias: 'p',
+    desc: 'Path under which native components are installed',
+    default: '/opt/dcp',
+  })
+  .argv;
+  
+const config = require('dcp/dcp-config').worker.nativeEvaluator;
+
+// If no startup files, bail
+if (!config) {
+  console.error('Missing configuration');
+  console.log('The current configuration does not support the v4 native evaluator.');
+  process.exit(1);
+}
+
+const setupFiles = config.setUpFiles;
+
+console.log(config);
+
+const cl = path.join(options.prefix, 'bin', 'dcp-evaluator');
+const args = [
+  '-l', path.join(options.prefix, 'libexec', 'evaluator'),
+];
+
+for (let n=0; setupFiles[n]; n++) {
+  args.push(path.resolve(path.join('.', setupFiles[n].replace(/^dcp-worker/, '.'))));
+}
+
+console.log('Starting up:', cl, args);
