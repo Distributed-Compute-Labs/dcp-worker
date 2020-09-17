@@ -59,8 +59,9 @@ Object.entries(dcpConfig.inetDaemon).forEach(function (param) {
   })
 
   function handleConnection (socket) {
-    if (debug.indexOf('verbose') !== -1) { console.log('New connection; spawning ', config.process, config.arguments) }
-    var child = require('child_process').spawn(config.process, config.arguments || [])
+    const setUpFiles = config.setUpFiles.map(require.resolve);
+    if (debug.indexOf('verbose') !== -1) { console.log('New connection; spawning ', config.process, setUpFiles) }
+    var child = require('child_process').spawn(config.process, [...setUpFiles, ...config.arguments]);
     child.index = counter++
 
     if (debug) { console.log('Spawned a new worker process, PID:', child.pid, 'Index:', child.index) }
