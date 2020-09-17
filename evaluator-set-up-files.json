@@ -1,0 +1,38 @@
+{
+  "node": [
+    "dcp-worker/lib/evaluator-lib/sa-ww-simulation.js",
+    "dcp-worker/lib/evaluator-lib/script-load-wrapper.js",
+    "dcp-worker/lib/evaluator-lib/primitive-timers.js",
+    "dcp-worker/lib/evaluator-lib/event-loop-virtualization.js",
+    "dcp-worker/lib/evaluator-lib/access-lists.js",
+    "dcp-worker/lib/evaluator-lib/bravojs-init.js",
+    "bravojs/bravo.js",
+    "dcp-worker/lib/evaluator-lib/bravojs-env.js",
+    "dcp-worker/lib/evaluator-lib/calculate-capabilities.js",
+    "dcp-worker/lib/evaluator-lib/bootstrap.js"
+  ],
+
+  "browser": [
+    "dcp-worker/lib/evaluator-lib/script-load-wrapper.js",
+    "dcp-worker/lib/evaluator-lib/primitive-timers.js",
+    "dcp-worker/lib/evaluator-lib/event-loop-virtualization.js",
+    "dcp-worker/lib/evaluator-lib/access-lists.js",
+    "dcp-worker/lib/evaluator-lib/bravojs-init.js",
+    "bravojs/bravo.js",
+    "dcp-worker/lib/evaluator-lib/bravojs-env.js",
+    "dcp-worker/lib/evaluator-lib/calculate-capabilities.js",
+    "dcp-worker/lib/evaluator-lib/bootstrap.js"
+  ],
+
+  "native": [
+    "dcp-worker/lib/evaluator-lib/sa-ww-simulation",
+    "dcp-worker/lib/evaluator-lib/script-load-wrapper",
+    "dcp-worker/lib/evaluator-lib/event-loop-virtualization",
+    "dcp-worker/lib/evaluator-lib/access-lists",
+    "dcp-worker/lib/evaluator-lib/bravojs-init",
+    "bravojs/bravo",
+    "dcp-worker/lib/evaluator-lib/bravojs-env",
+    "dcp-worker/lib/evaluator-lib/calculate-capabilities",
+    "dcp-worker/lib/evaluator-lib/bootstrap"
+  ]
+}
