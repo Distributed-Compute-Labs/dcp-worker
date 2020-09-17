@@ -18,6 +18,7 @@
   "main": "index.js",
   "bin": {
     "dcp-service-worker": "dcp-service-worker",
+    "dcp-evaluator-start": "dcp-evaluator-start",
     "dcp-worker": "dcp-worker"
   },
   "directories": {
