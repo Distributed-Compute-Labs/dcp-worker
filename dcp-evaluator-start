@@ -25,13 +25,29 @@ const options = require('dcp/dcp-cli')
   .argv;
 
 
-const config = require('dcp/dcp-config').worker;
+const config = require('dcp/dcp-config').worker || {};
 
 // If no v4 startup files, bail
 if (!config || !config.nativeEvaluator || !config.nativeEvaluator.setUpFiles) {
-  console.error('Missing configuration');
-  console.log('The current configuration does not support the v4 native evaluator.');
-  process.exit(1);
+  // console.error('Missing configuration');
+  // console.log('The current configuration does not support the v4 native evaluator.');
+  // process.exit(1);
+
+  // @hack: if not provided by the server, provide a reasonable default worker
+  // @configuration:
+  config.nativeEvaluator = {
+    "setUpFiles": [
+      "dcp-worker/lib/evaluator-lib/sa-ww-simulation",
+      "dcp-worker/lib/evaluator-lib/script-load-wrapper",
+      "dcp-worker/lib/evaluator-lib/event-loop-virtualization",
+      "dcp-worker/lib/evaluator-lib/access-lists",
+      "dcp-worker/lib/evaluator-lib/bravojs-init",
+      "bravojs/bravo",
+      "dcp-worker/lib/evaluator-lib/bravojs-env",
+      "dcp-worker/lib/evaluator-lib/calculate-capabilities",
+      "dcp-worker/lib/evaluator-lib/bootstrap"
+    ]
+  };
 }
 
 const setUpFiles = config.nativeEvaluator.setUpFiles;
