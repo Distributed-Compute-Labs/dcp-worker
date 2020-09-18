@@ -26,7 +26,8 @@
   },
   "scripts": {
     "start": "node dcp-worker start",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "node generate-native-env-script"
   },
   "dependencies": {
     "blessed": "^0.1.81",
