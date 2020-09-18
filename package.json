@@ -34,7 +34,7 @@
     "blessed-contrib": "^4.8.20",
     "bravojs": "^1.0.15",
     "chalk": "^4.1.0",
-    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#1a925414e779a3100f3fd5156e71b8dc498bc0b2",
+    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#develop",
     "syslog-client": "^1.1.1"
   }
 }
