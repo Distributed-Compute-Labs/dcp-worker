@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "1.0.13",
+  "version": "1.1.0",
   "description": "JavaScript portion of DCP Workers for NodeJS",
   "keywords": [
     "dcp"
@@ -34,7 +34,7 @@
     "blessed-contrib": "^4.8.20",
     "bravojs": "^1.0.15",
     "chalk": "^4.1.0",
-    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#develop",
+    "dcp-client": "github:Distributed-Compute-Labs/dcp-client#prod-20200917",
     "syslog-client": "^1.1.1"
   }
 }
