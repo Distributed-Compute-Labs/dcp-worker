@@ -18,7 +18,7 @@ console.log(` * Starting DCP Service Worker`);
 
 require('dcp-client').init(process.argv)
 .then(main)
-.then(() => process.exit(0))
+.then((exitcode = 0) => process.exit(exitcode))
 .catch(e => {
   console.error("Script failed:");
   console.error(e);
@@ -154,25 +154,34 @@ async function main() {
     exitGuard.exit = resolve;
   });
 
+  let workerHasStarted = false;
   const worker = new Worker({
     maxWorkingSandboxes: options.cores,
     paymentAddress,
+    priorityOnly: options.priorityOnly,
     watchdogInterval: process.env.TEST_HARNESS && 1000, // speed up the fetch interval when running from tests
     sandboxOptions: {
-      SandboxConstructor: function (code) {
-        return new StandaloneWorker(code, {
+      SandboxConstructor: function (opts) {
+        return new StandaloneWorker({...opts, 
           hostname: options.daemonHostname,
           port: options.daemonPort,
           onsocketerror: (error, worker) => {
-            if (worker.serial > 1 && error.code === 'ECONNREFUSED') {
+            // If we've been connected to the evalserver, then we should
+            // return any work we have, and exit
+            if (workerHasStarted) {
               console.error('167: evaluator server has gone away; terminating worker.');
-              exitGuard.exit(error);
+              exitGuard.exit(12); // error code 0x0C indicates "worker should restart"
             }
           }
         });
       },
     },
   });
+  
+  // Set the flag to indicate we've seen the evalserver
+  worker.once('fetch', () => {
+    workerHasStarted = true;
+  })
   
   if (process.env.TEST_HARNESS) {
     const { bindToTestHarness } = require('./lib/bindToTestHarness');
@@ -186,6 +195,8 @@ async function main() {
     console.log(` . Verbosity level: ${options.verbose}`);
   if (options.eventDebug)
     console.log(` . Event debug on`);
+  
+  console.log(' . output mode: ' + options.output);
   
   // replace console.log with the appropriate handler
   const consolePatch = require('./lib/console-patch');
@@ -297,7 +308,16 @@ async function main() {
   let exitcode = 0;
   await exitGuard.promise.then(result => exitcode = result);
   
-  await worker.stop(true);
+  await worker.stop(true)
+  .catch(error => {
+    // Trap crash-causing schedmsg error
+    if (error.message.includes('Can\'t stop SchedMsg'))
+      return;
+    
+    throw error;
+  });
+  
+  return exitcode;
   
   function printReport() {
     const sup = worker.supervisor;
@@ -307,7 +327,7 @@ async function main() {
     console.log(Date());
     console.log('Sandboxes:');
     console.log(`  working:     ${sup.workingSandboxes.length} / ${options.cores} (${sup.GPUsAssigned} assigned GPUs)`);
-    console.log(`  initialized: ${sup.initializedSandboxes.length}`);
+    console.log(`  assigned:    ${sup.assignedSandboxes.length}`);
     console.log(`  readied:     ${sup.readiedSandboxes.length}`);
     console.log(`  terminated:  ${sup.terminatedSandboxes.length}`);
     console.log(`  * ALL:       ${sup.sandboxes.length}`);
