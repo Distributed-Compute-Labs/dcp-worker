@@ -37,15 +37,15 @@ if (!config || !config.nativeEvaluator || !config.nativeEvaluator.setUpFiles) {
   // @configuration:
   config.nativeEvaluator = {
     "setUpFiles": [
-      "dcp-worker/lib/evaluator-lib/sa-ww-simulation",
-      "dcp-worker/lib/evaluator-lib/script-load-wrapper",
-      "dcp-worker/lib/evaluator-lib/event-loop-virtualization",
-      "dcp-worker/lib/evaluator-lib/access-lists",
-      "dcp-worker/lib/evaluator-lib/bravojs-init",
+      "dcp-worker/libexec/evaluator/sa-ww-simulation",
+      "dcp-worker/libexec/evaluator/script-load-wrapper",
+      "dcp-worker/libexec/evaluator/event-loop-virtualization",
+      "dcp-worker/libexec/evaluator/access-lists",
+      "dcp-worker/libexec/evaluator/bravojs-init",
       "bravojs/bravo",
-      "dcp-worker/lib/evaluator-lib/bravojs-env",
-      "dcp-worker/lib/evaluator-lib/calculate-capabilities",
-      "dcp-worker/lib/evaluator-lib/bootstrap"
+      "dcp-worker/libexec/evaluator/bravojs-env",
+      "dcp-worker/libexec/evaluator/calculate-capabilities",
+      "dcp-worker/libexec/evaluator/bootstrap"
     ]
   };
 }
