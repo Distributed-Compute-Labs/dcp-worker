@@ -28,7 +28,7 @@ const options = require('dcp/dcp-cli')
 const config = require('dcp/dcp-config').worker || {};
 
 // If no v4 startup files, bail
-if (!config || !config.nativeEvaluator || !config.nativeEvaluator.setUpFiles) {
+if (!config || !config.nativeEvaluator || !config.nativeEvaluator.setupFiles) {
   // console.error('Missing configuration');
   // console.log('The current configuration does not support the v4 native evaluator.');
   // process.exit(1);
@@ -36,7 +36,7 @@ if (!config || !config.nativeEvaluator || !config.nativeEvaluator.setUpFiles) {
   // @hack: if not provided by the server, provide a reasonable default worker
   // @configuration:
   config.nativeEvaluator = {
-    "setUpFiles": [
+    "setupFiles": [
       "dcp-worker/libexec/evaluator/sa-ww-simulation",
       "dcp-worker/libexec/evaluator/script-load-wrapper",
       "dcp-worker/libexec/evaluator/event-loop-virtualization",
@@ -50,7 +50,7 @@ if (!config || !config.nativeEvaluator || !config.nativeEvaluator.setUpFiles) {
   };
 }
 
-const setUpFiles = config.nativeEvaluator.setUpFiles;
+const setupFiles = config.nativeEvaluator.setupFiles;
 
 const bin = path.join(options.prefix, 'bin', 'dcp-evaluator');
 const args = [
@@ -58,11 +58,11 @@ const args = [
   '--port', options.port,
 ];
 
-// web config doesn't nicely handle arrays, so setUpFiles.forEach is no-go;
+// web config doesn't nicely handle arrays, so setupFiles.forEach is no-go;
 // this hack works with either a real array, or an arrayish-looking ES object
 // such as we get in the bundled config.
-for (let n=0; setUpFiles[n]; n++) {
-  args.push(require.resolve(path.join('.', setUpFiles[n]).replace(/^dcp-worker/, '.')));
+for (let n=0; setupFiles[n]; n++) {
+  args.push(require.resolve(path.join('.', setupFiles[n]).replace(/^dcp-worker/, '.')));
 }
 
 
