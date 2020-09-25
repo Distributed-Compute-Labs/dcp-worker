@@ -26,29 +26,29 @@ const options = require('dcp/dcp-cli')
 
 
 const config = require('dcp/dcp-config').worker || {};
-
+console.log("This is now the start config ", config)
 // If no v4 startup files, bail
-if (!config || !config.nativeEvaluator || !config.nativeEvaluator.setupFiles) {
-  // console.error('Missing configuration');
-  // console.log('The current configuration does not support the v4 native evaluator.');
-  // process.exit(1);
+// if (!config || !config.nativeEvaluator || !config.nativeEvaluator.setupFiles) {
+//   // console.error('Missing configuration');
+//   // console.log('The current configuration does not support the v4 native evaluator.');
+//   // process.exit(1);
 
-  // @hack: if not provided by the server, provide a reasonable default worker
-  // @configuration:
-  config.nativeEvaluator = {
-    "setupFiles": [
-      "dcp-worker/libexec/evaluator/sa-ww-simulation",
-      "dcp-worker/libexec/evaluator/script-load-wrapper",
-      "dcp-worker/libexec/evaluator/event-loop-virtualization",
-      "dcp-worker/libexec/evaluator/access-lists",
-      "dcp-worker/libexec/evaluator/bravojs-init",
-      "bravojs/bravo",
-      "dcp-worker/libexec/evaluator/bravojs-env",
-      "dcp-worker/libexec/evaluator/calculate-capabilities",
-      "dcp-worker/libexec/evaluator/bootstrap"
-    ]
-  };
-}
+//   // @hack: if not provided by the server, provide a reasonable default worker
+//   // @configuration:
+//   config.nativeEvaluator = {
+//     "setupFiles": [
+//       "dcp-worker/libexec/evaluator/sa-ww-simulation",
+//       "dcp-worker/libexec/evaluator/script-load-wrapper",
+//       "dcp-worker/libexec/evaluator/event-loop-virtualization",
+//       "dcp-worker/libexec/evaluator/access-lists",
+//       "dcp-worker/libexec/evaluator/bravojs-init",
+//       "bravojs/bravo",
+//       "dcp-worker/libexec/evaluator/bravojs-env",
+//       "dcp-worker/libexec/evaluator/calculate-capabilities",
+//       "dcp-worker/libexec/evaluator/bootstrap"
+//     ]
+//   };
+// }
 
 const setupFiles = config.nativeEvaluator.setupFiles;
 
@@ -61,8 +61,16 @@ const args = [
 // web config doesn't nicely handle arrays, so setupFiles.forEach is no-go;
 // this hack works with either a real array, or an arrayish-looking ES object
 // such as we get in the bundled config.
+let patt = ' '
 for (let n=0; setupFiles[n]; n++) {
-  args.push(require.resolve(path.join('.', setupFiles[n]).replace(/^dcp-worker/, '.')));
+  if (/(^[.])|(\/)/.test(setupFiles[n])){
+    args.push(require.resolve(path.join('..',setupFiles[n]));
+  } else {
+    //'dcp-worker/lib/evaluator-lib/bravojs-env.js'
+    //realativePath = path.join(lib)?>
+    args.push(require(path.resolve('libexec', 'evaluator', setupFiles[n]));
+  }
+  //args.push(require.resolve(path.join('.', setupFiles[n]).replace(/^dcp-worker/, '.')));
 }
 
 
