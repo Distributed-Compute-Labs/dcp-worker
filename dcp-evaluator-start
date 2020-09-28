@@ -26,9 +26,12 @@ const options = require('dcp/dcp-cli')
 
 
 const config = require('dcp/dcp-config').worker || {};
+
+console.log(require.resolve('dcp/dcp-config'))
 console.log("This is now the start config ", config)
 
-const setupFiles = config.nativeEvaluator.setupFiles;
+const setupFiles = config.evaluatorSetupFiles.native;
+console.log(setupFiles)
 
 const bin = path.join(options.prefix, 'bin', 'dcp-evaluator');
 const args = [
@@ -39,16 +42,14 @@ const args = [
 // web config doesn't nicely handle arrays, so setupFiles.forEach is no-go;
 // this hack works with either a real array, or an arrayish-looking ES object
 // such as we get in the bundled config.
-let patt = ' '
 for (let n=0; setupFiles[n]; n++) {
   // If the path is a realative path nodemodule (ie bravajs)
   if (/(^[.])|(\/)/.test(setupFiles[n])){ 
-    args.push(require.resolve(path.join('..',setupFiles[n])));
+    args.push(require.resolve(setupFiles[n]))
   } else {
-    args.push(require(path.resolve('libexec', 'evaluator', setupFiles[n])));
+    args.push(require.resolve(path.join('..','dcp-worker','libexec', 'evaluator', setupFiles[n])));
   }
 }
-
 
 // Log what we're about to do:
 console.log('DCP Evaluator Server');
@@ -62,7 +63,7 @@ args.slice(4).forEach(f => {
 
 // Do it
 const ran = require('child_process').spawnSync(bin, args);
-
+console.log(ran)
 // How'd it go?
 console.log('Evaluator server process exited');
 console.log(ran.status === 0 ? 'OK' : ran.stderr.toString());
