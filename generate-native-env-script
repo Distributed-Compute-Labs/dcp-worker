@@ -10,18 +10,22 @@
  */
 
 const fs = require('fs'); 
+var path = require('path');
 const evaluatorSetupFiles = require('./evaluator-setup-files'); //Changed from a .json to a js to support exports.object
 const OUTPUT_FILENAME = 'native-evaluator-env.js';
-
 const fileContents = evaluatorSetupFiles.native.map((fileName) => {
-  const localModulePath = fileName.replace(/^dcp-worker/, '.');
-  const path = require.resolve(localModulePath);
+  var filePath; 
+  if (/(^[.])|(\/)/.test(fileName)){
+    filePath= require.resolve(fileName);
+  } else {
+    filePath = require.resolve(path.join('..', 'dcp-worker','libexec', 'evaluator', fileName));
+  }
 
-  if (!path) {
+  if (!filePath) {
     throw new Error(`Failed to resolve module path: ${fileName}`);
   }
 
-  return fs.readFileSync(path, { encoding: 'utf8' });
+  return fs.readFileSync(filePath, { encoding: 'utf8' });
 });
 
 fs.writeFileSync(OUTPUT_FILENAME, ';' + fileContents.join(';'), { encoding: 'utf8' });
