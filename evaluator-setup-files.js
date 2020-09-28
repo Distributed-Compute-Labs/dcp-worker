@@ -28,7 +28,7 @@ exports.native = [
     "event-loop-virtualization",
     "access-lists",
     "bravojs-init",
-    "bravojs/bravo",
+    "bravojs/bravo.js",
     "bravojs-env",
     "calculate-capabilities",
     "bootstrap"
