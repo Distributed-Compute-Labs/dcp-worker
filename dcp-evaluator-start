@@ -11,7 +11,6 @@ const path = require('path');
 
 
 const dcp = require('dcp-client').initSync();
-console.log('Finished initsync:', dcp)
 const options = require('dcp/dcp-cli')
   .base('Evaluator frontend')
   .option('prefix', {
@@ -27,6 +26,7 @@ const options = require('dcp/dcp-cli')
 
 
 const config = require('dcp/dcp-config').worker || {};
+console.log('DCP-Woker config:', config)
 
 // If no v4 startup files, bail
 if (!config || !config.nativeEvaluator || !config.nativeEvaluator.setUpFiles) {
