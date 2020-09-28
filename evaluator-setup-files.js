@@ -6,7 +6,7 @@ exports.node = [
     "access-lists",
     "bravojs-init",
     "bravojs/bravo.js",
-    "bravojs-env.js",
+    "bravojs-env",
     "calculate-capabilities",
     "bootstrap"
   ];
@@ -17,7 +17,7 @@ exports.browser = [
     "access-lists",
     "bravojs-init",
     "bravojs/bravo.js",
-    "bravojs-env.js",
+    "bravojs-env",
     "calculate-capabilities",
     "bootstrap"
 ];
