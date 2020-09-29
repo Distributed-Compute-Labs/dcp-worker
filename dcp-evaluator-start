@@ -25,8 +25,35 @@ const options = require('dcp/dcp-cli')
   .argv;
 
 
-const config = require('dcp/dcp-config').worker || {};
-console.log('DCP-Woker config:', config)
+// OLD CODE
+// const config = require('dcp/dcp-config').worker || {};
+
+const dcpConfig = require('dcp/dcp-config');
+const schedulerConfig = dcpConfig.scheduler;
+
+// check for old versions of the config
+if (schedulerConfig.worker === undefined) {
+  schedulerConfig.worker = {};
+  schedulerConfig.worker.operations = '0.0.0'
+  if (dcpConfig.worker.nativeEvaluator !== undefined){
+    schedulerConfig.worker.types = ['v4']
+  } 
+  else {
+    schedulerConfig.worker.types = ['v3']
+  } 
+}
+
+if (!Object.values(schedulerConfig.worker.types).includes('v4') || 
+    !require('semver').satisfies(schedulerConfig.worker.operations, '^0.0.0')) {
+  console.error('Please upgrade');
+  console.log('This scheduler is not capable of running worker v4.');
+  process.exit(1);
+}
+
+console.log(`Scheduler supports worker type(s) ${Object.values(schedulerConfig.worker.types)} and operation ${schedulerConfig.worker.operations}`)
+
+// don't break the rest of the code:
+const config = dcpConfig.worker || {};
 
 // If no v4 startup files, bail
 if (!config || !config.nativeEvaluator || !config.nativeEvaluator.setUpFiles) {
@@ -81,6 +108,6 @@ args.slice(4).forEach(f => {
 const ran = require('child_process').spawnSync(bin, args);
 
 // How'd it go?
-console.log('Evaluator server process exited');
+console.log('Evaluator server process exited:', ran);
 console.log(ran.status === 0 ? 'OK' : ran.stderr.toString());
 process.exit(ran.status);
