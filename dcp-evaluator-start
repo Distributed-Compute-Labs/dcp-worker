@@ -108,6 +108,6 @@ args.slice(4).forEach(f => {
 const ran = require('child_process').spawnSync(bin, args);
 
 // How'd it go?
-console.log('Evaluator server process exited:', ran);
+console.log('Evaluator server process exited');
 console.log(ran.status === 0 ? 'OK' : ran.stderr.toString());
 process.exit(ran.status);
