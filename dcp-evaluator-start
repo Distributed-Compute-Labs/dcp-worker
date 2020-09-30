@@ -11,31 +11,51 @@ const path = require('path');
 
 
 const dcp = require('dcp-client').initSync();
+
 const options = require('dcp/dcp-cli')
   .base('Evaluator frontend')
   .option('prefix', {
     desc: 'Path under which native components are installed',
-    default: '/opt/dcp',
+    default: path.dirname(process.argv[1]),
   })
   .option('port', {
     alias: ['p', 'evaluatorPort', 'daemonPort'],
     desc: 'Port to listen for worker connections',
     default: '9000',
   })
+  .option('evaluator', {
+    alias: ['e', 'evaluator'], 
+    desc: 'Type of evaluator to execute',
+    default: path.join(path.dirname(process.argv[1]), 'bin', 'dcp-evaluator'),
+  })
+  .option('evaluator-libexec-dir', {
+    desc: 'Location of evaluator-specific library files', 
+    default: path.join(path.dirname(process.argv[1]), 'libexec','evaluator'),
+  })
+  .option('setup-libexec-dir', {
+    desc: 'Location of set up files', 
+    default: path.join(path.dirname(process.argv[1]), 'libexec','evaluator'),
+  })
+  .option('setup-file-index', {
+    desc: 'Central authority for defining setup files for different workers', 
+    default: './evaluator-setup-files',
+  })
+  .option('evaluator-type', {
+    desc: 'Which type of export of the setup-file-index to use',
+    default: 'native'  
+  })
   .argv;
 
 
-const config = require('dcp/dcp-config').worker || {};
+//Overides the dcp-default-config of evaluator setup files, this is the central authority for setup files 
+//config.evaluatorSetupFiles = require(path.join(options.prefix, 'dcp-worker', options.setupFileIndex)) 
 
-console.log(require.resolve('dcp/dcp-config'))
-console.log("This is now the start config ", config)
-
-const setupFiles = config.evaluatorSetupFiles.native;
-console.log(setupFiles)
-
+// Requires the list of files module (evaluator-setup-files.js) and then chooses what export evaluator (options.evaluatorType)
+//console.log('Process at argv', process.argv[0])
+const setupFiles = require(path.join(path.dirname(process.argv[1]), options.setupFileIndex))[options.evaluatorType]
 const bin = path.join(options.prefix, 'bin', 'dcp-evaluator');
 const args = [
-  '-l', path.join(options.prefix, 'libexec', 'evaluator'),
+  '-l', path.join(options.prefix, 'libexec','evaluator') ,
   '--port', options.port,
 ];
 
@@ -47,7 +67,7 @@ for (let n=0; setupFiles[n]; n++) {
   if (/(^[.])|(\/)/.test(setupFiles[n])){ 
     args.push(require.resolve(setupFiles[n]))
   } else {
-    args.push(require.resolve(path.join('..','dcp-worker','libexec', 'evaluator', setupFiles[n])));
+    args.push(require.resolve(path.join(options.setupLibexecDir, setupFiles[n])));
   }
 }
 
@@ -61,9 +81,13 @@ args.slice(4).forEach(f => {
   console.log('\t' + f);
 });
 
+console.log('This is options: ', options)
+if(options.evaluatorType == "node"){
+  console.log(args)
+  process.exit();
+}
 // Do it
 const ran = require('child_process').spawnSync(bin, args);
-console.log(ran)
 // How'd it go?
 console.log('Evaluator server process exited');
 console.log(ran.status === 0 ? 'OK' : ran.stderr.toString());
