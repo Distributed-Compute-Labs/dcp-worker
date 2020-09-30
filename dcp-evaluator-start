@@ -71,6 +71,12 @@ for (let n=0; setupFiles[n]; n++) {
   }
 }
 
+if(options.evaluatorType ==='node'){
+  for (arg of args){
+    console.log(arg)
+  }
+  process.exit();
+}
 // Log what we're about to do:
 console.log('DCP Evaluator Server');
 console.log('Evaluator binary at: ', bin);
@@ -81,11 +87,6 @@ args.slice(4).forEach(f => {
   console.log('\t' + f);
 });
 
-console.log('This is options: ', options)
-if(options.evaluatorType == "node"){
-  console.log(args)
-  process.exit();
-}
 // Do it
 const ran = require('child_process').spawnSync(bin, args);
 // How'd it go?
