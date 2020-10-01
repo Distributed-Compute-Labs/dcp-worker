@@ -47,12 +47,8 @@ const options = require('dcp/dcp-cli')
   .argv;
 
 
-//Overides the dcp-default-config of evaluator setup files, this is the central authority for setup files 
-//config.evaluatorSetupFiles = require(path.join(options.prefix, 'dcp-worker', options.setupFileIndex)) 
-
 // Requires the list of files module (evaluator-setup-files.js) and then chooses what export evaluator (options.evaluatorType)
-//console.log('Process at argv', process.argv[0])
-const setupFiles = require(path.join(path.dirname(process.argv[1]), options.setupFileIndex))[options.evaluatorType]
+const setupFiles = require(path.join(prefix, options.setupFileIndex))[options.evaluatorType]
 const bin = path.join(options.prefix, 'bin', 'dcp-evaluator');
 const args = [
   '-l', path.join(options.prefix, 'libexec','evaluator') ,
@@ -63,7 +59,7 @@ const args = [
 // this hack works with either a real array, or an arrayish-looking ES object
 // such as we get in the bundled config.
 for (let n=0; setupFiles[n]; n++) {
-  // If the path is a realative path nodemodule (ie bravajs)
+  // If the path is a realative path nodemodule (i.e. bravajs)
   if (/(^[.])|(\/)/.test(setupFiles[n])){ 
     args.push(require.resolve(setupFiles[n]))
   } else {
@@ -71,12 +67,14 @@ for (let n=0; setupFiles[n]; n++) {
   }
 }
 
-if(options.evaluatorType ==='node'){
+// Spits out the list of files for a node evaluator instead of spinning up an evaluator 
+if(options.evaluatorType === 'node'){
   for (arg of args){
     console.log(arg)
   }
   process.exit();
 }
+
 // Log what we're about to do:
 console.log('DCP Evaluator Server');
 console.log('Evaluator binary at: ', bin);
