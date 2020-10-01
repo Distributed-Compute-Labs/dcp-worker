@@ -32,10 +32,10 @@ const dcpConfig = require('dcp/dcp-config');
 const schedulerConfig = dcpConfig.scheduler;
 
 // check for old versions of the config
-if (schedulerConfig.worker === undefined) {
+if (!schedulerConfig.worker) {
   schedulerConfig.worker = {};
   schedulerConfig.worker.operations = '0.0.0'
-  if (dcpConfig.worker.nativeEvaluator !== undefined){
+  if (dcpConfig.worker.nativeEvaluator){
     schedulerConfig.worker.types = ['v4']
   } 
   else {
@@ -44,13 +44,13 @@ if (schedulerConfig.worker === undefined) {
 }
 
 if (!Object.values(schedulerConfig.worker.types).includes('v4') || 
-    !require('semver').satisfies(schedulerConfig.worker.operations, '^0.0.0')) {
+    !require('semver').satisfies(schedulerConfig.worker.operations, '^1.0.0')) {
   console.error('Please upgrade');
-  console.log('This scheduler is not capable of running worker v4.');
+  console.log('The selected scheduler is not capable of running this worker version.');
   process.exit(1);
 }
 
-console.log(`Scheduler supports worker type(s) ${Object.values(schedulerConfig.worker.types)} and operation ${schedulerConfig.worker.operations}`)
+console.log(`The current scheduler supports worker type(s) ${Object.values(schedulerConfig.worker.types)} and operation ${schedulerConfig.worker.operations}`)
 
 // don't break the rest of the code:
 const config = dcpConfig.worker || {};
