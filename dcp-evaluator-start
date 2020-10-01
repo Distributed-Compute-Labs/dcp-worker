@@ -48,7 +48,34 @@ const options = require('dcp/dcp-cli')
 
 
 // Requires the list of files module (evaluator-setup-files.js) and then chooses what export evaluator (options.evaluatorType)
-const setupFiles = require(path.join(prefix, options.setupFileIndex))[options.evaluatorType]
+const setupFiles = require(options.setupFileIndex)[options.evaluatorType]
+
+const dcpConfig = require('dcp/dcp-config');
+const schedulerConfig = dcpConfig.scheduler;
+
+// check for old versions of the config
+if (!schedulerConfig.worker) {
+  schedulerConfig.worker = {};
+  schedulerConfig.worker.operations = '0.0.0'
+  if (dcpConfig.worker.nativeEvaluator){
+    schedulerConfig.worker.types = ['v4']
+  } 
+  else {
+    schedulerConfig.worker.types = ['v3']
+  } 
+}
+
+if (!Object.values(schedulerConfig.worker.types).includes('v4') || 
+    !require('semver').satisfies(schedulerConfig.worker.operations, '^1.0.0')) {
+  console.error('Please upgrade');
+  console.log('The selected scheduler is not capable of running this worker version.');
+  process.exit(1);
+}
+
+console.log(`The current scheduler supports worker type(s) ${Object.values(schedulerConfig.worker.types)} and operation ${schedulerConfig.worker.operations}`)
+
+// don't break the rest of the code:
+const config = dcpConfig.worker || {};
 const bin = path.join(options.prefix, 'bin', 'dcp-evaluator');
 const args = [
   '-l', path.join(options.prefix, 'libexec','evaluator') ,
