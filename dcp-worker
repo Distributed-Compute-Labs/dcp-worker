@@ -102,8 +102,8 @@ async function startWorking(options) {
   const wallet = require('dcp/wallet');
   const Worker = require('dcp/worker');
 
-  const { Worker: StandaloneWorker } = require('./lib/standaloneWorker');
-  const { startWorkerLogger } = require('./lib/startWorkerLogger');
+  const { Worker: StandaloneWorker } = require('./libexec/standaloneWorker');
+  const { startWorkerLogger } = require('./libexec/startWorkerLogger');
 
   const identityKeystore = await wallet.getId();
   // unlock the id keystore before starting the worker
@@ -137,7 +137,7 @@ async function startWorking(options) {
   });
 
   if (process.env.TEST_HARNESS) {
-    const { bindToTestHarness } = require('./lib/bindToTestHarness');
+    const { bindToTestHarness } = require('./libexec/bindToTestHarness');
     bindToTestHarness(worker);
   }
 
