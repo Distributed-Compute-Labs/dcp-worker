@@ -11,7 +11,6 @@ const path = require('path');
 
 
 const dcp = require('dcp-client').initSync();
-
 const options = require('dcp/dcp-cli')
   .base('Evaluator frontend')
   .option('prefix', {
@@ -56,7 +55,7 @@ const schedulerConfig = dcpConfig.scheduler;
 // check for old versions of the config
 if (!schedulerConfig.worker) {
   schedulerConfig.worker = {};
-  schedulerConfig.worker.operations = '0.0.0'
+  schedulerConfig.worker.operations = '1.0.0'
   if (dcpConfig.worker.nativeEvaluator){
     schedulerConfig.worker.types = ['v4']
   } 
@@ -96,9 +95,11 @@ for (let n=0; setupFiles[n]; n++) {
 
 // Spits out the list of files for a node evaluator instead of spinning up an evaluator 
 if(options.evaluatorType === 'node'){
+  console.log('{')
   for (arg of args){
     console.log(arg)
   }
+  console.log('}')
   process.exit();
 }
 
