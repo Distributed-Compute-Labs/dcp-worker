@@ -117,5 +117,18 @@ args.slice(4).forEach(f => {
 const ran = require('child_process').spawnSync(bin, args);
 // How'd it go?
 console.log('Evaluator server process exited');
-console.log(ran.status === 0 ? 'OK' : ran.stderr.toString());
-process.exit(ran.status);
+
+if (ran && ran.status === 0) {
+  console.log('OK');
+  process.exit(0);
+}
+else {
+  if ((typeof ran !== 'object') || (typeof ran.stderr !== 'object')) {
+    console.error('Unexpected return from evaluator:', ran);
+    process.exit(2);
+  }
+  else {
+    console.error('Unhandled error from evaluator:', ran.stderr.toString());
+    process.exit(ran.status || 1);
+  }
+}
