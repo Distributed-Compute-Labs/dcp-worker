@@ -14,7 +14,8 @@ const os = require('os');
 const DEFAULT_CORES = os.cpus().length - 1;
 
 async function main () {
-  await require('dcp-client').init(process.argv);
+  const autoUpdate = process.argv.includes("--autoUpdate");
+  await require('dcp-client').init({autoUpdate});
 
   const argv = require('dcp/dcp-cli')
   .base('Standalone NodeJS DCP Worker')
