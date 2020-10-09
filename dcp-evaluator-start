@@ -54,9 +54,13 @@ const setUpFiles = config.nativeEvaluator.setUpFiles;
 
 const bin = path.join(options.prefix, 'bin', 'dcp-evaluator');
 const args = [
-  '-l', path.join(options.prefix, 'libexec', 'evaluator'),
-  '--port', options.port,
+  '-l', path.join(options.prefix, 'libexec', 'evaluator')
 ];
+
+// port is skippable by passing 0
+if (options.port !== '0') {
+  args.push('--port', options.port);
+}
 
 // web config doesn't nicely handle arrays, so setUpFiles.forEach is no-go;
 // this hack works with either a real array, or an arrayish-looking ES object
