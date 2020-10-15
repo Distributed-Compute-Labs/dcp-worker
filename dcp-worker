@@ -70,7 +70,7 @@ async function main () {
       reportFile: {
         describe: 'Set the file path to write report summaries to (only used by the report outputMode)',
         type: 'string',
-        default: './report.txt',
+        default: './report.tsv',
       }
     })
   )
