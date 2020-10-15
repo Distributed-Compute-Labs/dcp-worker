@@ -94,20 +94,21 @@ exports.Worker = function standaloneWorker$$Worker (options) {
     delete options.readStream;
     delete options.writeStream;
   }
-  
+
   if (!readStream) {
     /* No supplied streams - reach out and connect over TCP/IP */
     let socket = readStream = writeStream = new (require('net')).Socket();
     let hostname = options.hostname || exports.config.hostname;
     let port     = options.port     || exports.config.port;
     let connecting = true;
-    
+      
     debugging('lifecycle') && console.debug('Connecting to', hostname + ':' + port);
     connectTimer = setBackoffInterval(function saWorker$$connect$backoff() {
       if (!connecting)
         socket.connect(port, hostname)
     }, exports.config.connectBackoff);
 
+    socket.setNoDelay(dcpConfig.worker ? dcpConfig.worker.nagle : true);
     socket.connect(port, hostname);
     socket.on('connect', beginSession.bind(this));
     socket.on('error', function saWorker$$socket$errorHandler(e) {
@@ -128,6 +129,33 @@ exports.Worker = function standaloneWorker$$Worker (options) {
   this.serialize = JSON.stringify
   this.deserialize = JSON.parse
 
+  function writeOrQueue(string) {
+    /* We queue writes in pendingWrites between the call to connect() and
+     * the actual establishment of the TCP socket. Once connected, we drain that
+     * queue into the write queue in Node's net module. 
+     */
+    let realWrite = writeOrQueue.realWrite;
+    let pendingWrites = writeOrQueue.pendingWrites;
+        
+    if (!connected) {
+      pendingWrites.push(string);
+      return;
+    }
+    
+    while (pendingWrites.length && !writeStream.destroyed) {
+      realWrite(pendingWrites.shift());
+    }
+
+    if (writeStream.destroyed)
+      throw new Error('Write stream has been destroyed');
+
+    if (string !== null) /* pass to flush pending */
+      realWrite(string);
+  }
+  writeOrQueue.pendingWrites = [];
+  writeOrQueue.realWrite = writeStream.write.bind(writeStream);
+  delete writeOrQueue.write;
+  
   function beginSession () {
     connected = true
     clearBackoffInterval(connectTimer);
@@ -146,13 +174,7 @@ exports.Worker = function standaloneWorker$$Worker (options) {
       writeStream.setEncoding('utf-8');
     debugging() && console.debug('Connected ' + pendingWrites.length + ' pending messages.');
 
-    /* We buffer writes in pendingWrites between the call to connect() and
-     * the actual establishment of the TCP socket. Once connected, we drain that
-     * buffer into the write buffer in Node's net module. 
-     */
-    while (pendingWrites.length && !writeStream.destroyed) {
-      writeStream.write(pendingWrites.shift());
-    }
+    writeOrQueue(null); /* drain pending */
 
     /* @todo Make this auto-detected /wg jul 2018
      * changeSerializer.bind(this)("/var/dcp/lib/serialize.js")
@@ -186,7 +208,7 @@ exports.Worker = function standaloneWorker$$Worker (options) {
       if (typeof this.newSerializer !== 'object') {
         throw new TypeError('newSerializer code evaluated as ' + typeof this.newSerializer)
       }
-      writeStream.write(this.serialize({ type: 'newSerializer', payload: code }) + '\n');
+      writeOrQueue(this.serialize({ type: 'newSerializer', payload: code }) + '\n');
       this.serialize = this.newSerializer.serialize /* do not change deserializer until worker acknowledges change */
     } catch (e) {
       console.log('Cannot change serializer', e)
@@ -253,6 +275,7 @@ exports.Worker = function standaloneWorker$$Worker (options) {
             ee.emit('error', new Error('Unrecognized message type from worker #' + this.serial + ', \'' + lineObj.type + '\''))
         }
       } catch (e) {
+        debugger
         console.error('Error processing remote response: \'' + line + '\' (' + e.name + ': ' + e.message + e.stack.split('\n')[1].replace(/^  */, ' ') + ')')
         throw e
       }
@@ -274,14 +297,17 @@ exports.Worker = function standaloneWorker$$Worker (options) {
       connectTimer = true;
     }
 
-    if (!connected)
-      return;
     if (e instanceof Error)
       console.error(e);
     debugging('lifecycle') && console.debug('Shutting down evaluator connection ' + this.serial + '');
-    readStream.destroy();
-    if (readStream !== writeStream)
-      writeStream.destroy();
+    try {
+      writeOrQueue(null);
+      readStream.destroy();
+      if (readStream !== writeStream)
+        writeStream.destroy();
+    } catch(e) {
+      console.log(e);
+    };
     connected = false;
   }
   
@@ -290,22 +316,17 @@ exports.Worker = function standaloneWorker$$Worker (options) {
   /** Send a message over the network to a standalone worker */
   this.postMessage = function standaloneWorker$$Worker$postMessage (message) {
     var wrappedMessage = this.serialize({ type: 'workerMessage', message: message }) + '\n'
-    if (connected)
-      writeStream.write(wrappedMessage);
-    else
-      pendingWrites.push(wrappedMessage);
+    writeOrQueue(wrappedMessage);
   }
-
+  
   /** Tell the worker to die.  The worker should respond with a message back of
    *  type DIE:, which in turn eventuallys triggers shutdown.
    */
   this.terminate = function standaloneWorker$$Worker$terminate () {
     var wrappedMessage = this.serialize({ type: 'die' }) + '\n'
+
     try {
-      if (connected)
-        writeStream.write(wrappedMessage);
-      else
-        pendingWrites.push(wrappedMessage);
+      writeOrQueue(wrappedMessage);
     } catch (e) {
       // Socket may have already been destroyed
     }
