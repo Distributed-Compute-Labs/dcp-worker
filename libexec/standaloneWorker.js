@@ -76,7 +76,6 @@ exports.Worker = function standaloneWorker$$Worker (options) {
   var hostname, port;
   var readStream, writeStream;
   var ee = new (require('events').EventEmitter)()
-  var pendingWrites = []
   var readBuf = ''
   var connected = false
   var dieTimer
@@ -172,7 +171,7 @@ exports.Worker = function standaloneWorker$$Worker (options) {
     readStream.setEncoding('utf-8');
     if (writeStream.setEncoding)
       writeStream.setEncoding('utf-8');
-    debugging() && console.debug('Connected ' + pendingWrites.length + ' pending messages.');
+    debugging() && console.debug('Connected; ' + writeOrQueue.pendingWrites.length + ' pending messages.');
 
     writeOrQueue(null); /* drain pending */
 
