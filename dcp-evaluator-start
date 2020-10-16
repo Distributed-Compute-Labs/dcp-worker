@@ -1,7 +1,6 @@
 #! /usr/bin/env node
 /** @file       dcp-evaluator-start
  *  @author     Eddie Roosenmaallen, eddie@kingsds.network
- *              Levi Stringer, levi@kingsds.network
  *  @date       September 2020
  *  
  *  This script starts the DCP Native Evaluator in server mode, with the 
@@ -16,92 +15,56 @@ const options = require('dcp/dcp-cli')
   .base('Evaluator frontend')
   .option('prefix', {
     desc: 'Path under which native components are installed',
-    default: path.dirname(process.argv[1]),
+    default: '/opt/dcp',
   })
   .option('port', {
     alias: ['p', 'evaluatorPort', 'daemonPort'],
     desc: 'Port to listen for worker connections',
     default: '9000',
   })
-  .option('evaluator', {
-    alias: ['e', 'evaluator'], 
-    desc: 'Type of evaluator to execute',
-    default: path.join(path.dirname(process.argv[1]), 'bin', 'dcp-evaluator'),
-  })
-  .option('evaluator-libexec-dir', {
-    desc: 'Location of evaluator-specific library files', 
-    default: path.join(path.dirname(process.argv[1]), 'libexec','evaluator'),
-  })
-  .option('setup-libexec-dir', {
-    desc: 'Location of set up files', 
-    default: path.join(path.dirname(process.argv[1]), 'libexec','evaluator'),
-  })
-  .option('setup-file-index', {
-    desc: 'Central authority for defining setup files for different workers', 
-    default: './evaluator-setup-files',
-  })
-  .option('evaluator-type', {
-    desc: 'Which type of export of the setup-file-index to use',
-    default: 'native'  
-  })
   .argv;
 
 
-// Requires the list of files module (evaluator-setup-files.js) and then chooses what export evaluator (options.evaluatorType)
-const setupFiles = require(options.setupFileIndex)[options.evaluatorType];
+const config = require('dcp/dcp-config').worker || {};
 
-const dcpConfig = require('dcp/dcp-config');
-const schedulerConfig = dcpConfig.scheduler;
+// If no v4 startup files, bail
+if (!config || !config.nativeEvaluator || !config.nativeEvaluator.setUpFiles) {
+  // console.error('Missing configuration');
+  // console.log('The current configuration does not support the v4 native evaluator.');
+  // process.exit(1);
 
-// Check for old versions of the config
-if (!schedulerConfig.worker) {
-  schedulerConfig.worker = {};
-  schedulerConfig.worker.operations = '1.0.0';
-  if (dcpConfig.worker.nativeEvaluator){
-    schedulerConfig.worker.types = ['v4'];
-  } 
-  else {
-    schedulerConfig.worker.types = ['v3'];
-  } 
+  // @hack: if not provided by the server, provide a reasonable default worker
+  // @configuration:
+  config.nativeEvaluator = {
+    "setUpFiles": [
+      "dcp-worker/lib/evaluator-lib/sa-ww-simulation",
+      "dcp-worker/lib/evaluator-lib/script-load-wrapper",
+      "dcp-worker/lib/evaluator-lib/event-loop-virtualization",
+      "dcp-worker/lib/evaluator-lib/access-lists",
+      "dcp-worker/lib/evaluator-lib/bravojs-init",
+      "bravojs/bravo",
+      "dcp-worker/lib/evaluator-lib/bravojs-env",
+      "dcp-worker/lib/evaluator-lib/calculate-capabilities",
+      "dcp-worker/lib/evaluator-lib/bootstrap"
+    ]
+  };
 }
 
-// Check if scheduler supports current worker version
-if (!Object.values(schedulerConfig.worker.types).includes('v4') || 
-    !require('semver').satisfies(schedulerConfig.worker.operations, '^1.0.0')) {
-  console.error('Please upgrade');
-  console.log('The selected scheduler is not capable of running this worker version.');
-  process.exit(1);
-}
-
-console.log(`The current scheduler supports worker type(s) ${Object.values(schedulerConfig.worker.types)} and operation ${schedulerConfig.worker.operations}`);
+const setUpFiles = config.nativeEvaluator.setUpFiles;
 
 const bin = path.join(options.prefix, 'bin', 'dcp-evaluator');
 const args = [
-  '-l', path.join(options.prefix, 'libexec','evaluator') ,
+  '-l', path.join(options.prefix, 'libexec', 'evaluator'),
   '--port', options.port,
 ];
 
-// web config doesn't nicely handle arrays, so setupFiles.forEach is no-go;
+// web config doesn't nicely handle arrays, so setUpFiles.forEach is no-go;
 // this hack works with either a real array, or an arrayish-looking ES object
 // such as we get in the bundled config.
-for (let n=0; setupFiles[n]; n++) {
-  // If the path is a realative path nodemodule (i.e. bravajs), take it directly from node_modules
-  if (/(^[.])|(\/)/.test(setupFiles[n])){ 
-    args.push(require.resolve(setupFiles[n]))
-  } else {
-    args.push(require.resolve(path.join(options.setupLibexecDir, setupFiles[n])));
-  }
+for (let n=0; setUpFiles[n]; n++) {
+  args.push(require.resolve(path.join('.', setUpFiles[n]).replace(/^dcp-worker/, '.')));
 }
 
-// Spits out the list of files for a node evaluator instead of spinning up an v8-evaluator 
-if(options.evaluatorType === 'node'){
-  console.log('{')
-  for (arg of args){
-    console.log(arg)
-  }
-  console.log('}')
-  process.exit();
-}
 
 // Log what we're about to do:
 console.log('DCP Evaluator Server');
@@ -115,6 +78,7 @@ args.slice(4).forEach(f => {
 
 // Do it
 const ran = require('child_process').spawnSync(bin, args);
+
 // How'd it go?
 console.log('Evaluator server process exited');
 
