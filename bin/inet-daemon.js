@@ -59,7 +59,16 @@ Object.entries(dcpConfig.inetDaemon).forEach(function (param) {
   })
 
   function handleConnection (socket) {
-    const setUpFiles = config.setUpFiles.map(require.resolve);
+    const setUpFiles = config.setUpFiles.map(f => {
+      try {
+        return require.resolve(f);
+      }
+      catch (error) {
+        if (error.message.includes(`Cannot find module`))
+          return require.resolve(require('path').join('dcp-worker', 'libexec', 'evaluator', f));
+        throw error;
+      }
+    });
     if (debug.indexOf('verbose') !== -1) { console.log('New connection; spawning ', config.process, setUpFiles) }
     var child = require('child_process').spawn(config.process, [...setUpFiles, ...config.arguments]);
     child.index = counter++
