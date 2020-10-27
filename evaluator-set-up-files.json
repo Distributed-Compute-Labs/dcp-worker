@@ -26,6 +26,7 @@
 
   "native": [
     "dcp-worker/lib/evaluator-lib/sa-ww-simulation",
+    "dcp-worker/lib/evaluator-lib/webgpu-worker-environment.js",
     "dcp-worker/lib/evaluator-lib/script-load-wrapper",
     "dcp-worker/lib/evaluator-lib/event-loop-virtualization",
     "dcp-worker/lib/evaluator-lib/access-lists",
