@@ -3,46 +3,449 @@ Report logger configured to write to ./report.tsv every 60 seconds.
  . Configured for scheduler http://scheduler.dcp-gpu:5000/
  . Earned funds will be deposited in account 0x1fd95C7c55DD62197bA8524F13ADDD9a5484Bc6C in bank http://bank.dcp-gpu:5000/
  . Identity is 0x3f7f0E7713fF07a7fBDc6011b516E65743d60361
- ~ [Sandbox 0x022] Initialized
- ~ [Sandbox 0x001] Initialized
- ~ [Sandbox 0x01F] Initialized
- ~ [Sandbox 0x01D] Initialized
- ~ [Sandbox 0x006] Initialized
- ~ [Sandbox 0x01A] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x00E] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x01C] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x013] Initialized
  ~ [Sandbox 0x01E] Initialized
  ~ [Sandbox 0x002] Initialized
- ~ [Sandbox 0x017] Initialized
- ~ [Sandbox 0x018] Initialized
- ~ [Sandbox 0x00A] Initialized
- ~ [Sandbox 0x020] Initialized
- ~ [Sandbox 0x011] Initialized
- ~ [Sandbox 0x004] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
  ~ [Sandbox 0x021] Initialized
- ~ [Sandbox 0x007] Initialized
- ~ [Sandbox 0x005] Initialized
- ~ [Sandbox 0x00E] Initialized
- ~ [Sandbox 0x016] Initialized
- ~ [Sandbox 0x015] Initialized
- ~ [Sandbox 0x010] Initialized
- ~ [Sandbox 0x01B] Initialized
- ~ [Sandbox 0x00B] Initialized
- ~ [Sandbox 0x00F] Initialized
- ~ [Sandbox 0x00C] Initialized
- ~ [Sandbox 0x012] Initialized
- ~ [Sandbox 0x013] Initialized
- ~ [Sandbox 0x023] Initialized
- ~ [Sandbox 0x003] Initialized
- ~ [Sandbox 0x009] Initialized
- ~ [Sandbox 0x008] Initialized
+ ~ [Sandbox 0x006] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
  ~ [Sandbox 0x019] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x004] Initialized
+ ~ [Sandbox 0x015] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x020] Initialized
+ ~ [Sandbox 0x00B] Initialized
+ ~ [Sandbox 0x001] Initialized
+ ~ [Sandbox 0x022] Initialized
+ ~ [Sandbox 0x010] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x01F] Initialized
+ ~ [Sandbox 0x018] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x01D] Initialized
+ ~ [Sandbox 0x003] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x01B] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x016] Initialized
+ ~ [Sandbox 0x023] Initialized
+ ~ [Sandbox 0x007] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
  ~ [Sandbox 0x014] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x008] Initialized
+ ~ [Sandbox 0x012] Initialized
+ ~ [Sandbox 0x009] Initialized
  ~ [Sandbox 0x00D] Initialized
- ~ [Sandbox 0x01C] Initialized
+ ~ [Sandbox 0x00C] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x00F] Initialized
+ ~ [Sandbox 0x011] Initialized
+ ~ [Sandbox 0x005] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x01A] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x017] Initialized
+ ~ [Sandbox 0x00A] Initialized
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
 Fetching slices...
 Finished fetching slices undefined
- ~ [Sandbox 0x01C] Slice Started - "aitf-tfjs-Test"
-Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'D11wkGHc4l',
-  sliceAddress: 'ilsAVU2PTs',
+ ~ [Sandbox 0x00A] Slice Started - "aitf-tfjs-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'sLq2YrulNg',
+  sliceAddress: '+kUvn3gEzv',
   jobName: 'aitf-tfjs-Test',
   error:
    { TypeError: Cannot read property 'STORAGE' of undefined
@@ -56,8 +459,28 @@ Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'D11wkGHc4l',
        at eval (eval at <anonymous> (unknown source), <anonymous>:92:12)
        at Object.bravojs_initializeModule [as initializeModule] (<anonymous>:409:3)
        at Object.bravojs_requireModule [as requireModule] (<anonymous>:421:13) errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
- ~ [Sandbox 0x01C] Terminated - Job address: D11wkGHc4l
+ ~ [Sandbox 0x00A] Terminated - Job address: sLq2YrulNg
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
  ~ [Sandbox 0x024] Initialized
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
 Fetching slices...
 Failed to fetch slices { Error: In operation workFetch: No tasks available.
     at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
@@ -88,8 +511,8 @@ Failed to fetch slices { Error: In operation workFetch: No tasks available.
 Fetching slices...
 Finished fetching slices undefined
  ~ [Sandbox 0x024] Slice Started - "aitf-tfjs-Test"
-Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'D11wkGHc4l',
-  sliceAddress: 'ilsAVU2PTs',
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'sLq2YrulNg',
+  sliceAddress: '+kUvn3gEzv',
   jobName: 'aitf-tfjs-Test',
   error:
    { TypeError: Cannot read property 'STORAGE' of undefined
@@ -103,8 +526,28 @@ Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'D11wkGHc4l',
        at eval (eval at <anonymous> (unknown source), <anonymous>:92:12)
        at Object.bravojs_initializeModule [as initializeModule] (<anonymous>:409:3)
        at Object.bravojs_requireModule [as requireModule] (<anonymous>:421:13) errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
- ~ [Sandbox 0x024] Terminated - Job address: D11wkGHc4l
+ ~ [Sandbox 0x024] Terminated - Job address: sLq2YrulNg
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
  ~ [Sandbox 0x025] Initialized
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
 Fetching slices...
 Failed to fetch slices { Error: In operation workFetch: No tasks available.
     at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
@@ -126,8 +569,8 @@ Failed to fetch slices { Error: In operation workFetch: No tasks available.
 Fetching slices...
 Finished fetching slices undefined
  ~ [Sandbox 0x025] Slice Started - "aitf-tfjs-Test"
-Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'G6CDxIach8',
-  sliceAddress: 'F02zbvIPR3',
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'sLq2YrulNg',
+  sliceAddress: '+kUvn3gEzv',
   jobName: 'aitf-tfjs-Test',
   error:
    { TypeError: Cannot read property 'STORAGE' of undefined
@@ -141,31 +584,60 @@ Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'G6CDxIach8',
        at eval (eval at <anonymous> (unknown source), <anonymous>:92:12)
        at Object.bravojs_initializeModule [as initializeModule] (<anonymous>:409:3)
        at Object.bravojs_requireModule [as requireModule] (<anonymous>:421:13) errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
- ~ [Sandbox 0x025] Terminated - Job address: G6CDxIach8
- ~ [Sandbox 0x00D] Slice Started - "aitf-tfjs-Test"
-Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'D11wkGHc4l',
-  sliceAddress: 'ilsAVU2PTs',
-  jobName: 'aitf-tfjs-Test',
-  error:
-   { TypeError: Cannot read property 'STORAGE' of undefined
-       at eval (eval at <anonymous> (unknown source), <anonymous>:4833:52)
-       at eval (eval at <anonymous> (unknown source), <anonymous>:208:13)
-       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:210:4)
-       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
-       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:202:14)
-       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
-       at eval (eval at <anonymous> (unknown source), <anonymous>:89:20)
-       at eval (eval at <anonymous> (unknown source), <anonymous>:92:12)
-       at Object.bravojs_initializeModule [as initializeModule] (<anonymous>:409:3)
-       at Object.bravojs_requireModule [as requireModule] (<anonymous>:421:13) errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
- ~ [Sandbox 0x00D] Terminated - Job address: D11wkGHc4l
- ~ [Sandbox 0x027] Initialized
+ ~ [Sandbox 0x025] Terminated - Job address: sLq2YrulNg
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
  ~ [Sandbox 0x026] Initialized
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
 Fetching slices...
 Finished fetching slices undefined
  ~ [Sandbox 0x026] Slice Started - "aitf-tfjs-Test"
-Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'G6CDxIach8',
-  sliceAddress: 'F02zbvIPR3',
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'sLq2YrulNg',
+  sliceAddress: '+kUvn3gEzv',
   jobName: 'aitf-tfjs-Test',
   error:
    { TypeError: Cannot read property 'STORAGE' of undefined
@@ -179,10 +651,51 @@ Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'G6CDxIach8',
        at eval (eval at <anonymous> (unknown source), <anonymous>:92:12)
        at Object.bravojs_initializeModule [as initializeModule] (<anonymous>:409:3)
        at Object.bravojs_requireModule [as requireModule] (<anonymous>:421:13) errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
- ~ [Sandbox 0x026] Terminated - Job address: G6CDxIach8
+ ~ [Sandbox 0x026] Terminated - Job address: sLq2YrulNg
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x027] Initialized
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Finished fetching slices undefined
  ~ [Sandbox 0x027] Slice Started - "aitf-tfjs-Test"
-Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'D11wkGHc4l',
-  sliceAddress: 'ilsAVU2PTs',
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'sLq2YrulNg',
+  sliceAddress: '+kUvn3gEzv',
   jobName: 'aitf-tfjs-Test',
   error:
    { TypeError: Cannot read property 'STORAGE' of undefined
@@ -196,8 +709,76 @@ Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'D11wkGHc4l',
        at eval (eval at <anonymous> (unknown source), <anonymous>:92:12)
        at Object.bravojs_initializeModule [as initializeModule] (<anonymous>:409:3)
        at Object.bravojs_requireModule [as requireModule] (<anonymous>:421:13) errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
- ~ [Sandbox 0x027] Terminated - Job address: D11wkGHc4l
+ ~ [Sandbox 0x027] Terminated - Job address: sLq2YrulNg
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
  ~ [Sandbox 0x028] Initialized
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Finished fetching slices undefined
+ ~ [Sandbox 0x028] Slice Started - "aitf-tfjs-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'sLq2YrulNg',
+  sliceAddress: '+kUvn3gEzv',
+  jobName: 'aitf-tfjs-Test',
+  error:
+   { TypeError: Cannot read property 'STORAGE' of undefined
+       at eval (eval at <anonymous> (unknown source), <anonymous>:4833:52)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:208:13)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:210:4)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:202:14)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:89:20)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:92:12)
+       at Object.bravojs_initializeModule [as initializeModule] (<anonymous>:409:3)
+       at Object.bravojs_requireModule [as requireModule] (<anonymous>:421:13) errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
+ ~ [Sandbox 0x028] Terminated - Job address: sLq2YrulNg
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
  ~ [Sandbox 0x029] Initialized
 Fetching slices...
 Failed to fetch slices { Error: In operation workFetch: No tasks available.
@@ -209,6 +790,58 @@ Failed to fetch slices { Error: In operation workFetch: No tasks available.
   message: 'In operation workFetch: No tasks available.',
   code: 'NOTASK' }
 Fetching slices...
+Finished fetching slices undefined
+ ~ [Sandbox 0x029] Slice Started - "aitf-tfjs-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'sLq2YrulNg',
+  sliceAddress: '+kUvn3gEzv',
+  jobName: 'aitf-tfjs-Test',
+  error:
+   { TypeError: Cannot read property 'STORAGE' of undefined
+       at eval (eval at <anonymous> (unknown source), <anonymous>:4833:52)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:208:13)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:210:4)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:202:14)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:89:20)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:92:12)
+       at Object.bravojs_initializeModule [as initializeModule] (<anonymous>:409:3)
+       at Object.bravojs_requireModule [as requireModule] (<anonymous>:421:13) errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
+ ~ [Sandbox 0x029] Terminated - Job address: sLq2YrulNg
+ ~ [Sandbox 0x017] Slice Started - "DCP-worker-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: '4bsBPc6+Ec',
+  sliceAddress: 'ddnOPenBlC',
+  jobName: 'DCP-worker-Test',
+  error:
+   { TypeError: Cannot read property 'COMPUTE' of undefined
+       at eval (eval at <anonymous> (unknown source), <anonymous>:65:49)
+       at async <anonymous>:94:24 errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
+ ~ [Sandbox 0x017] Terminated - Job address: 4bsBPc6+Ec
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x02B] Initialized
+ ~ [Sandbox 0x02A] Initialized
+Fetching slices...
 Failed to fetch slices { Error: In operation workFetch: No tasks available.
     at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
     at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
@@ -217,6 +850,304 @@ Failed to fetch slices { Error: In operation workFetch: No tasks available.
   name: 'Error',
   message: 'In operation workFetch: No tasks available.',
   code: 'NOTASK' }
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Finished fetching slices undefined
+ ~ [Sandbox 0x02A] Slice Started - "DCP-worker-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: '4bsBPc6+Ec',
+  sliceAddress: 'ddnOPenBlC',
+  jobName: 'DCP-worker-Test',
+  error:
+   { TypeError: Cannot read property 'COMPUTE' of undefined
+       at eval (eval at <anonymous> (unknown source), <anonymous>:65:49)
+       at async <anonymous>:94:24 errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
+ ~ [Sandbox 0x02A] Terminated - Job address: 4bsBPc6+Ec
+ ~ [Sandbox 0x02B] Slice Started - "aitf-tfjs-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'sLq2YrulNg',
+  sliceAddress: '+kUvn3gEzv',
+  jobName: 'aitf-tfjs-Test',
+  error:
+   { TypeError: Cannot read property 'STORAGE' of undefined
+       at eval (eval at <anonymous> (unknown source), <anonymous>:4833:52)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:208:13)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:210:4)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:202:14)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:89:20)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:92:12)
+       at Object.bravojs_initializeModule [as initializeModule] (<anonymous>:409:3)
+       at Object.bravojs_requireModule [as requireModule] (<anonymous>:421:13) errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
+ ~ [Sandbox 0x02B] Terminated - Job address: sLq2YrulNg
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x02D] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x02C] Initialized
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Finished fetching slices undefined
+ ~ [Sandbox 0x02C] Slice Started - "DCP-worker-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: '4bsBPc6+Ec',
+  sliceAddress: 'ddnOPenBlC',
+  jobName: 'DCP-worker-Test',
+  error:
+   { TypeError: Cannot read property 'COMPUTE' of undefined
+       at eval (eval at <anonymous> (unknown source), <anonymous>:65:49)
+       at async <anonymous>:94:24 errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
+ ~ [Sandbox 0x02C] Terminated - Job address: 4bsBPc6+Ec
+ ~ [Sandbox 0x02D] Slice Started - "aitf-tfjs-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'sLq2YrulNg',
+  sliceAddress: '+kUvn3gEzv',
+  jobName: 'aitf-tfjs-Test',
+  error:
+   { TypeError: Cannot read property 'STORAGE' of undefined
+       at eval (eval at <anonymous> (unknown source), <anonymous>:4833:52)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:208:13)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:210:4)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:202:14)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:89:20)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:92:12)
+       at Object.bravojs_initializeModule [as initializeModule] (<anonymous>:409:3)
+       at Object.bravojs_requireModule [as requireModule] (<anonymous>:421:13) errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
+ ~ [Sandbox 0x02D] Terminated - Job address: sLq2YrulNg
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x02E] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x02F] Initialized
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Finished fetching slices undefined
+ ~ [Sandbox 0x02E] Slice Started - "DCP-worker-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: '4bsBPc6+Ec',
+  sliceAddress: 'ddnOPenBlC',
+  jobName: 'DCP-worker-Test',
+  error:
+   { TypeError: Cannot read property 'COMPUTE' of undefined
+       at eval (eval at <anonymous> (unknown source), <anonymous>:65:49)
+       at async <anonymous>:94:24 errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
+ ~ [Sandbox 0x02E] Terminated - Job address: 4bsBPc6+Ec
+ ~ [Sandbox 0x02F] Slice Started - "aitf-tfjs-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'sLq2YrulNg',
+  sliceAddress: '+kUvn3gEzv',
+  jobName: 'aitf-tfjs-Test',
+  error:
+   { TypeError: Cannot read property 'STORAGE' of undefined
+       at eval (eval at <anonymous> (unknown source), <anonymous>:4833:52)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:208:13)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:210:4)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:202:14)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:89:20)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:92:12)
+       at Object.bravojs_initializeModule [as initializeModule] (<anonymous>:409:3)
+       at Object.bravojs_requireModule [as requireModule] (<anonymous>:421:13) errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
+ ~ [Sandbox 0x02F] Terminated - Job address: sLq2YrulNg
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x030] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x031] Initialized
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Finished fetching slices undefined
+ ~ [Sandbox 0x031] Slice Started - "DCP-worker-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: '4bsBPc6+Ec',
+  sliceAddress: 'ddnOPenBlC',
+  jobName: 'DCP-worker-Test',
+  error:
+   { TypeError: Cannot read property 'COMPUTE' of undefined
+       at eval (eval at <anonymous> (unknown source), <anonymous>:65:49)
+       at async <anonymous>:94:24 errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
+ ~ [Sandbox 0x031] Terminated - Job address: 4bsBPc6+Ec
+ ~ [Sandbox 0x030] Slice Started - "aitf-tfjs-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'sLq2YrulNg',
+  sliceAddress: '+kUvn3gEzv',
+  jobName: 'aitf-tfjs-Test',
+  error:
+   { TypeError: Cannot read property 'STORAGE' of undefined
+       at eval (eval at <anonymous> (unknown source), <anonymous>:4833:52)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:208:13)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:210:4)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:202:14)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:89:20)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:92:12)
+       at Object.bravojs_initializeModule [as initializeModule] (<anonymous>:409:3)
+       at Object.bravojs_requireModule [as requireModule] (<anonymous>:421:13) errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
+ ~ [Sandbox 0x030] Terminated - Job address: sLq2YrulNg
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x033] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x032] Initialized
 Fetching slices...
 Failed to fetch slices { Error: In operation workFetch: No tasks available.
     at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
@@ -263,6 +1194,137 @@ Failed to fetch slices { Error: In operation workFetch: No tasks available.
   message: 'In operation workFetch: No tasks available.',
   code: 'NOTASK' }
 Fetching slices...
+Finished fetching slices undefined
+ ~ [Sandbox 0x032] Slice Started - "DCP-worker-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: '4bsBPc6+Ec',
+  sliceAddress: 'ddnOPenBlC',
+  jobName: 'DCP-worker-Test',
+  error:
+   { TypeError: Cannot read property 'COMPUTE' of undefined
+       at eval (eval at <anonymous> (unknown source), <anonymous>:65:49)
+       at async <anonymous>:94:24 errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
+ ~ [Sandbox 0x032] Terminated - Job address: 4bsBPc6+Ec
+ ~ [Sandbox 0x033] Slice Started - "aitf-tfjs-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'sLq2YrulNg',
+  sliceAddress: '+kUvn3gEzv',
+  jobName: 'aitf-tfjs-Test',
+  error:
+   { TypeError: Cannot read property 'STORAGE' of undefined
+       at eval (eval at <anonymous> (unknown source), <anonymous>:4833:52)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:208:13)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:210:4)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:202:14)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:89:20)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:92:12)
+       at Object.bravojs_initializeModule [as initializeModule] (<anonymous>:409:3)
+       at Object.bravojs_requireModule [as requireModule] (<anonymous>:421:13) errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
+ ~ [Sandbox 0x033] Terminated - Job address: sLq2YrulNg
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x034] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x035] Initialized
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Finished fetching slices undefined
+ ~ [Sandbox 0x034] Slice Started - "DCP-worker-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: '4bsBPc6+Ec',
+  sliceAddress: 'ddnOPenBlC',
+  jobName: 'DCP-worker-Test',
+  error:
+   { TypeError: Cannot read property 'COMPUTE' of undefined
+       at eval (eval at <anonymous> (unknown source), <anonymous>:65:49)
+       at async <anonymous>:94:24 errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
+ ~ [Sandbox 0x034] Terminated - Job address: 4bsBPc6+Ec
+ ~ [Sandbox 0x035] Slice Started - "aitf-tfjs-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'sLq2YrulNg',
+  sliceAddress: '+kUvn3gEzv',
+  jobName: 'aitf-tfjs-Test',
+  error:
+   { TypeError: Cannot read property 'STORAGE' of undefined
+       at eval (eval at <anonymous> (unknown source), <anonymous>:4833:52)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:208:13)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:210:4)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:202:14)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:89:20)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:92:12)
+       at Object.bravojs_initializeModule [as initializeModule] (<anonymous>:409:3)
+       at Object.bravojs_requireModule [as requireModule] (<anonymous>:421:13) errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
+ ~ [Sandbox 0x035] Terminated - Job address: sLq2YrulNg
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x037] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x036] Initialized
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
 Failed to fetch slices { Error: In operation workFetch: No tasks available.
     at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
     at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
@@ -289,6 +1351,67 @@ Failed to fetch slices { Error: In operation workFetch: No tasks available.
   name: 'Error',
   message: 'In operation workFetch: No tasks available.',
   code: 'NOTASK' }
+Fetching slices...
+Failed to fetch slices { Error: In operation workFetch: No tasks available.
+    at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)
+    at Object.process (/var/dcp/libexec/scheduler/operations/workFetch.js:173:13)
+    at process._tickCallback (internal/process/next_tick.js:68:7)
+  origin: '0xF65Fbbd1d771A1b1791f8F41263191C28dd745A9',
+  name: 'Error',
+  message: 'In operation workFetch: No tasks available.',
+  code: 'NOTASK' }
+Fetching slices...
+Finished fetching slices undefined
+ ~ [Sandbox 0x036] Slice Started - "DCP-worker-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: '4bsBPc6+Ec',
+  sliceAddress: 'ddnOPenBlC',
+  jobName: 'DCP-worker-Test',
+  error:
+   { TypeError: Cannot read property 'COMPUTE' of undefined
+       at eval (eval at <anonymous> (unknown source), <anonymous>:65:49)
+       at async <anonymous>:94:24 errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
+ ~ [Sandbox 0x036] Terminated - Job address: 4bsBPc6+Ec
+ ~ [Sandbox 0x037] Slice Started - "aitf-tfjs-Test"
+Supervisor.startSandboxWork: Sandbox failed. { jobAddress: 'sLq2YrulNg',
+  sliceAddress: '+kUvn3gEzv',
+  jobName: 'aitf-tfjs-Test',
+  error:
+   { TypeError: Cannot read property 'STORAGE' of undefined
+       at eval (eval at <anonymous> (unknown source), <anonymous>:4833:52)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:208:13)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:210:4)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at Object.eval (eval at <anonymous> (unknown source), <anonymous>:202:14)
+       at __webpack_require__ (eval at <anonymous> (unknown source), <anonymous>:25:32)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:89:20)
+       at eval (eval at <anonymous> (unknown source), <anonymous>:92:12)
+       at Object.bravojs_initializeModule [as initializeModule] (<anonymous>:409:3)
+       at Object.bravojs_requireModule [as requireModule] (<anonymous>:421:13) errorCode: 'ETOOMANYERRORS', name: 'TypeError' } }
+ ~ [Sandbox 0x037] Terminated - Job address: sLq2YrulNg
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x039] Initialized
+Error: Received unhandled request from sandbox: undefined
+	{"WebGPU Worker":"Script finished completing"}
+    at Sandbox.handleRing0Message (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:174064)
+    at Sandbox.onmessage (/home/ubuntu/dcp-worker/node_modules/dcp-client/dist/dcp-client-bundle.js:30:176917)
+    at EventEmitter.emit (events.js:203:15)
+    at standaloneWorker$$Worker$recvData (/home/ubuntu/dcp-worker/lib/standaloneWorker.js:230:16)
+    at Socket.emit (events.js:198:13)
+    at addChunk (_stream_readable.js:288:12)
+    at readableAddChunk (_stream_readable.js:265:13)
+    at Socket.Readable.push (_stream_readable.js:224:10)
+    at TCP.onStreamRead [as onread] (internal/stream_base_commons.js:94:17)
+ ~ [Sandbox 0x038] Initialized
 Fetching slices...
 Failed to fetch slices { Error: In operation workFetch: No tasks available.
     at module.exports.schedulerError (/var/dcp/lib/scheduler-error.js:15:15)

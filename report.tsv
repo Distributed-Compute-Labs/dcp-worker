@@ -1,3 +1,12 @@
 Unix Time	slicesStarted	slicesCompleted	slicesFailed	sandboxesInitialized	sandboxesTerminated
 1603984422110	3	0	3	37	3
 1603984482110	3	0	3	4	3
+1603984542110	0	0	0	0	0
+Unix Time	slicesStarted	slicesCompleted	slicesFailed	sandboxesInitialized	sandboxesTerminated
+Unix Time	slicesStarted	slicesCompleted	slicesFailed	sandboxesInitialized	sandboxesTerminated
+1603984769263	2	0	2	37	2
+1603984829263	2	0	2	2	2
+1603984889262	2	0	2	2	2
+1603984949262	6	0	6	6	6
+1603985009262	4	0	4	4	4
+1603985069262	4	0	4	4	4
