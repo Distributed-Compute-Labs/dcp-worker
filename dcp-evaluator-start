@@ -38,7 +38,6 @@ if (!config || !config.nativeEvaluator || !config.nativeEvaluator.setUpFiles) {
   config.nativeEvaluator = {
     "setUpFiles": [
       "dcp-worker/lib/evaluator-lib/sa-ww-simulation",
-      "dcp-worker/lib/evaluator-lib/webgpu-worker-environment.js",
       "dcp-worker/lib/evaluator-lib/script-load-wrapper",
       "dcp-worker/lib/evaluator-lib/event-loop-virtualization",
       "dcp-worker/lib/evaluator-lib/access-lists",
@@ -55,14 +54,9 @@ const setUpFiles = config.nativeEvaluator.setUpFiles;
 
 const bin = path.join(options.prefix, 'bin', 'dcp-evaluator');
 const args = [
-  '-l', path.join(options.prefix, 'libexec', 'evaluator')
+  '-l', path.join(options.prefix, 'libexec', 'evaluator'),
+  '--port', options.port,
 ];
-
-// port is skippable by passing 0
-// TODO - read yargs docs and do this more yargs-y
-if (options.port !== '0') {
-  args.push('--port', options.port);
-}
 
 // web config doesn't nicely handle arrays, so setUpFiles.forEach is no-go;
 // this hack works with either a real array, or an arrayish-looking ES object
@@ -76,11 +70,7 @@ for (let n=0; setUpFiles[n]; n++) {
 console.log('DCP Evaluator Server');
 console.log('Evaluator binary at: ', bin);
 console.log('Library path at:     ', args[1]);
-if (args[3]) {
-  console.log('Listening on port:   ', args[3]);
-} else {
-  console.log('Not listening on any port.')
-}
+console.log('Listening on port:   ', args[3]);
 console.log('Worker environment:  ');
 args.slice(4).forEach(f => {
   console.log('\t' + f);
