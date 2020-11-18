@@ -70,13 +70,19 @@ let currentWorkerType = 'v4';
 let currentWorkerVersion = '1.0.0';
 if (!Object.values(schedulerConfig.worker.types).includes(currentWorkerType) || 
     !require('semver').satisfies(schedulerConfig.worker.operations, '^'+currentWorkerVersion)) {
-  console.error('Please upgrade');
-  console.log('The selected scheduler is not capable of running this worker version.');
-  if (process.env.CHECK_SEMVER === 'true')
+  console.error('\b**** Please update ****\b');
+  console.error('The selected scheduler is not capable of running this worker version.');
+  console.log(`
+Scheduler href:  ${dcpConfig.scheduler.location.href}
+Scheduler wants: ${schedulerConfig.worker.operations}\t/ ${schedulerConfig.worker.types}
+This worker is:  ${currentWorkerVersion}\t/ ${currentWorkerType}
+dcp-client:      ${require('util').inspect(require('dcp/build'))}
+`);
+  if (process.env.CHECK_SEMVER !== 'false')
     process.exit(1);
 }
 
-console.log(`The current scheduler supports worker type(s) ${Object.values(schedulerConfig.worker.types)} and operation ${schedulerConfig.worker.operations}`);
+console.log(`The current scheduler supports worker type(s) ${Object.values(schedulerConfig.worker.types)} and operations ${schedulerConfig.worker.operations}`);
 
 const bin = path.join(options.prefix, 'bin', 'dcp-evaluator');
 const args = [
@@ -116,10 +122,11 @@ args.slice(4).forEach(f => {
   console.log('\t' + f);
 });
 
-// Do it
 const ran = require('child_process').spawnSync(bin, args);
+console.log('Evaluator server process exited, status', ran.status);
 
-// How'd it go?
-console.log('Evaluator server process exited');
-console.log(ran.status === 0 ? 'OK' : ran.stderr.toString());
+if (ran.error);
+  console.error(ran.error.message);
+if (ran.stderr)
+  console.error(ran.stderr.toString());
 process.exit(ran.status);
