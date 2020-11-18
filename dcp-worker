@@ -131,11 +131,14 @@ async function startWorking(options) {
     }
   });
 
-  startWorkerLogger(worker, {
-    verbose: options.verbose,
-    outputMode: options.outputMode,
+  worker.on('start', () => {
+    console.log(' . ready');
+    startWorkerLogger(worker, {
+      verbose: options.verbose,
+      outputMode: options.outputMode,
+    });
   });
-
+  
   if (process.env.TEST_HARNESS) {
     const { bindToTestHarness } = require('./libexec/bindToTestHarness');
     bindToTestHarness(worker);
