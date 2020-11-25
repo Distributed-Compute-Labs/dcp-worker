@@ -133,7 +133,8 @@ self.wrapScriptLoading({ scriptName: 'access-lists', ringTransition: true }, (ri
   // Add polyfills for any non-whitelisted symbols
   const polyfills = {
     location: {
-      search: ""
+      search: "",
+      href: 'DCP Worker',
     },
     // Assumption that if performance exists, performance.now must exist
     performance: typeof performance !== 'undefined' ? performance : { 
