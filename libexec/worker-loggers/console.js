@@ -43,8 +43,8 @@ const consoleLogger = {
   },
     
   sandbox$onWorkerStop(sandbox, sandboxData, ev) {
-    const jobAddress = sandbox.jobAddress ? sandbox.jobAddress.substr(0, 10) : sandbox.jobAddress;
-    console.log(` ~ [Sandbox 0x${sandboxData.shortId}] Terminated - Job address: ${jobAddress}`);
+    const job = sandbox.job ? sandbox.job.substr(0, 10) : sandbox.job;
+    console.log(` ~ [Sandbox 0x${sandboxData.shortId}] Terminated - Job: ${job}`);
   },
 
   onPayment({ payment }) {

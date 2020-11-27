@@ -77,7 +77,7 @@ self.wrapScriptLoading({ scriptName: 'bravojs-env', ringTransition: true }, (rin
 
           ring2PostMessage({
             request:'assigned',
-            jobId: message.job.address
+            jobId: message.job.opaqueId
           });
         } catch (error) {
           ring2PostMessage({
