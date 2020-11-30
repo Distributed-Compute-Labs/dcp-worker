@@ -142,6 +142,9 @@ async function main() {
   // unlock the id keystore before starting the worker
   await identityKeystore.unlock(null, 5 * 60 /* 5 minutes */, true);
   
+  // Set the provided identity as the wallet's default
+  await wallet.addId(identityKeystore);
+  
   let paymentAddress;
   if (options.paymentAddress) {
     paymentAddress = new wallet.Address(options.paymentAddress);

@@ -34,6 +34,7 @@
     "blessed-contrib": "^4.8.20",
     "bravojs": "^1.0.15",
     "chalk": "^4.1.0",
-    "dcp-client": "^3.2.1"
+    "dcp-client": "^3.2.1",
+    "syslog-client": "^1.1.1"
   }
 }
