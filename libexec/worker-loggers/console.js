@@ -43,7 +43,7 @@ const consoleLogger = {
   },
     
   sandbox$onWorkerStop(sandbox, sandboxData, ev) {
-    const job = sandbox.job ? sandbox.job.substr(0, 10) : sandbox.job;
+    const job = sandbox.job ? sandbox.job.opaqueId : sandbox.job;
     console.log(` ~ [Sandbox 0x${sandboxData.shortId}] Terminated - Job: ${job}`);
   },
 
