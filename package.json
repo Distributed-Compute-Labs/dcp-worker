@@ -36,5 +36,8 @@
     "chalk": "^4.1.0",
     "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#prod-20201207",
     "syslog-client": "^1.1.1"
+  },
+  "optionalDependencies": {
+    "windows-eventlog": "git+https://github.com/jfromaniello/node-windows-eventlog.git#master"
   }
 }
