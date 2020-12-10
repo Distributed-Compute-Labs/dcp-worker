@@ -10,10 +10,14 @@
 
 const process = require('process');
 const os = require('os');
+const fs = require('fs');
 
 const DEFAULT_CORES = os.cpus().length - 1;
+var worker, dcpConfig;
 
 async function main () {
+  process.on('unhandledRejection', unhandledRejectionHandler);
+
   await require('dcp-client').init(process.argv);
 
   const argv = require('dcp/dcp-cli')
@@ -98,7 +102,7 @@ main()
  * @param {boolean} options.priorityOnly - Whether this worker should only work on priority jobs
  */
 async function startWorking(options) {
-  const dcpConfig = require('dcp/dcp-config');
+  dcpConfig = require('dcp/dcp-config');
   const wallet = require('dcp/wallet');
   const Worker = require('dcp/worker');
 
@@ -116,7 +120,10 @@ async function startWorking(options) {
     paymentAddress = (await wallet.get()).address;
   }
 
-  const worker = new Worker({
+  if (typeof dcpConfig.worker.unhandledRejectionCleanupTimeout !== 'undefined')
+    unhandledRejectionHandler.timeout = dcpConfig.worker.unhandledRejectionCleanupTimeout;
+  
+  worker = new Worker({
     maxWorkingSandboxes: options.cores,
     paymentAddress,
     priorityOnly: options.priorityOnly,
@@ -156,3 +163,50 @@ async function startWorking(options) {
   console.log('\n*** caught SIGQUIT; exiting...\n');
   await worker.stop(true);
 }
+
+/** 
+ * Unhandled rejection handler: __must not ever throw no matter what__.
+ * If we hit an unhandled rejection, we are by definition no longer confident of our program state, meaning that
+ * the worker must be restarted. This handler does its best to report the rejection and give the worker a few
+ * seconds in which to attempt to return slices to the scheduler before it gives up completely.
+ */
+async function unhandledRejectionHandler (error) {
+  let _worker = worker;
+  
+  if (!worker)
+    return;
+  else
+    worker = false;
+
+  try {
+    let log = dcpConfig && dcpConfig.worker && dcpConfig.worker.unhandledRejectionLog;
+    log = process.env.DCP_WORKER_UNHANDLED_REJECTION_LOG;
+    if (log) {
+      fs.appendFileSync(process.env.DCP_WORKER_UNHANDLED_REJECTION_LOG,
+                        `${Date.now()}: ${error.message}\n${error.stack}\n\n`);
+    }
+  } catch(e) {};
+  
+  try { console.error('Unhandled rejection:', error.message) } catch(e) {};
+  try { require('./libexec/worker-loggers/dashboard').screen.destroy(); } catch(e) {};
+
+  function bailSoon(exitCode) {
+    try { require('./libexec/worker-loggers/dashboard').screen.destroy(); } catch(e) { console.log(e) };
+    try { unhandledRejection.console.log('Worker stop timeout; bailing to due earlier unhandled rejection', error); } catch(e) {};
+    setImmediate(() => process.exit(exitCode || 31));
+  }
+  setTimeout(bailSoon, 1000 * unhandledRejectionHandler.timeout);
+
+  try {
+    await _worker.stop(true);
+    bailSoon(33);
+  } catch(e) {
+    console.log('Error during worker.stop:', e);
+    bailSoon(34);
+  }
+
+  try { unhandledRejection.console.error('Unhandled rejection:', error) } catch(e) {};
+//  setImmediate(process.exit(32));
+};
+unhandledRejectionHandler.timeout = 5;
+unhandledRejectionHandler.console = console;
