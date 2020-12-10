@@ -186,27 +186,36 @@ async function unhandledRejectionHandler (error) {
                         `${Date.now()}: ${error.message}\n${error.stack}\n\n`);
     }
   } catch(e) {};
-  
-  try { console.error('Unhandled rejection:', error.message) } catch(e) {};
-  try { require('./libexec/worker-loggers/dashboard').screen.destroy(); } catch(e) {};
 
-  function bailSoon(exitCode) {
-    try { require('./libexec/worker-loggers/dashboard').screen.destroy(); } catch(e) { console.log(e) };
-    try { unhandledRejection.console.log('Worker stop timeout; bailing to due earlier unhandled rejection', error); } catch(e) {};
-    setImmediate(() => process.exit(exitCode || 31));
+  try {
+    let screen = require('./libexec/worker-loggers/dashboard').screen;
+
+    if (screen) {
+      screen.log(error.message + '\n' + error.stack);
+      screen.destroy();
+    } else {
+      console.error('Unhandled rejection - preparing to exit:', error.message);
+    }
+  } catch(e) {};
+  
+  function bail(exitCode) {
+    try {
+      process.stderr.write('\nWorker stop timeout; bailing to due earlier unhandled rejection:\n');
+      process.stderr.write(error.message + '\n');
+      process.stderr.write(error.stack + '\n');
+    } catch(e) {
+      console.error(error);
+    }
+    process.exit(exitCode || 3);
   }
-  setTimeout(bailSoon, 1000 * unhandledRejectionHandler.timeout);
+  setTimeout(bail, 1000 * unhandledRejectionHandler.timeout);
 
   try {
     await _worker.stop(true);
-    bailSoon(33);
   } catch(e) {
     console.log('Error during worker.stop:', e);
-    bailSoon(34);
   }
 
-  try { unhandledRejection.console.error('Unhandled rejection:', error) } catch(e) {};
-//  setImmediate(process.exit(32));
+  setImmediate(() => bail(33));
 };
 unhandledRejectionHandler.timeout = 5;
-unhandledRejectionHandler.console = console;
