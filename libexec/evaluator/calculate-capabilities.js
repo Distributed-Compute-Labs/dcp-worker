@@ -77,17 +77,58 @@ self.wrapScriptLoading(
 
       if (offscreenCanvas) {
         const canvas = new OffscreenCanvas(1, 1);
-        const gl = canvas.getContext('webgl');
-        const textureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+        try {
+          const gl = canvas.getContext('webgl');
+          const textureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
 
-        // Destroy the WebGL context, from https://www.khronos.org/registry/webgl/extensions/WEBGL_lose_context/
-        // "This is the recommended mechanism for applications to programmatically halt their use of the WebGL API."
-        gl.getExtension('WEBGL_lose_context').loseContext();
+          // Destroy the WebGL context, from https://www.khronos.org/registry/webgl/extensions/WEBGL_lose_context/
+          // "This is the recommended mechanism for applications to programmatically halt their use of the WebGL API."
+          gl.getExtension('WEBGL_lose_context').loseContext();
 
-        bigTexture4096 = textureSize >= 4096;
-        bigTexture8192 = textureSize >= 8192;
-        bigTexture16384 = textureSize >= 16384;
-        bigTexture32768 = textureSize >= 32768;
+          bigTexture4096 = textureSize >= 4096;
+          bigTexture8192 = textureSize >= 8192;
+          bigTexture16384 = textureSize >= 16384;
+          bigTexture32768 = textureSize >= 32768;
+
+          // Monkeypatch webGL *after* capability check to verify getContext exists AND not charge every job for GPU checking
+          getWebGLTimer = (function monkeypatchWebGL() {
+            let timer = 0;
+            function getTimer() {
+              return timer;
+            }
+            let oldGetContext = OffscreenCanvas.prototype.getContext;
+            OffscreenCanvas.prototype.getContext = function(type, options){
+              let context = oldGetContext(type, options);
+              for (let key of Object.getOwnPropertyNames(context.__proto__)){
+                if (typeof context[key] === 'function'){
+                  let func = context[key].bind(context);
+                  context[key] = (...args) => {
+                    let startTimer = performance.now();
+                    // Try using .then (assuming async) and falling back to synchronous
+                    try{
+                      ret = func(...args).then((ret)=>{
+                        let timeRes = performance.now() - startTimer;
+                        timer += timeRes;
+                        return ret;
+                      });
+                    }catch(err){
+                      ret = func(...args); 
+                      let timeRes = performance.now() - startTimer;
+                      timer += timeRes;
+                    }
+                    return ret;
+                  };
+                }
+              };  
+              return context;
+            };
+            return getTimer;
+          })();
+        }catch(err){
+          //it is possible on some machines, that offscreenCanvas is available but canvas.getContext('webgl' or 'webgl2') results in null
+          //Any error in this using an extensions should likely result in specifications for that capability being set to false.
+          offscreenCanvas = false;
+        }
       }
 
       try {
