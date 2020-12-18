@@ -71,6 +71,7 @@ self.wrapScriptLoading({ scriptName: 'access-lists', ringTransition: true }, (ri
     'Promise',
     'propertyIsEnumerable',
     'Proxy',
+    'pt0',
     'RangeError',
     'ReferenceError',
     'RegExp',
@@ -104,6 +105,7 @@ self.wrapScriptLoading({ scriptName: 'access-lists', ringTransition: true }, (ri
     'WeakSet',
     'WebAssembly',
     'WebGL2RenderingContext',
+    'webGLOffset',
     'WebGLTexture',
     'WorkerGlobalScope',
 
@@ -121,6 +123,9 @@ self.wrapScriptLoading({ scriptName: 'access-lists', ringTransition: true }, (ri
     }
     return getTimer;
   })();
+
+  // Offset time for webGL when sandbox is re-used
+  self.webGLOffset = 0;
 
   // Origin time for performance polyfill
   const pt0 = new Date().getTime(); 
