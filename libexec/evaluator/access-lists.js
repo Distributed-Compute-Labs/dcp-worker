@@ -105,7 +105,7 @@ self.wrapScriptLoading({ scriptName: 'access-lists', ringTransition: true }, (ri
     'WeakSet',
     'WebAssembly',
     'WebGL2RenderingContext',
-    'WebGLOffset',
+    'webGLOffset',
     'WebGLTexture',
     'WorkerGlobalScope',
 
