@@ -110,12 +110,14 @@ self.wrapScriptLoading({ scriptName: 'bravojs-env', ringTransition: true }, (rin
         try {
           const t0 = performance.now();
           const webGLTimer = getWebGLTimer;
-          delete getWebGLTimer;
+          const offset = webGLOffset;
+          delete webGLOffset;
           let result = await timeoutPromise;
           // clear the above timeout
           await flushMicroTaskQueue();
           const total = performance.now() - t0;
-          let webGL = webGLTimer();
+          let webGL = webGLTimer() - offset;
+          self.webGLOffset = offset + webGL;
           postMessage({
             request: 'measurement',
             total,
