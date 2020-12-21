@@ -102,6 +102,12 @@ async function main() {
         type: 'number',
         group: 'Syslog output options',
       },
+
+      replPort: {
+        describe: 'If set, open a REPL on specified TCP port',
+        type: 'number',
+        default: undefined,
+      },
     })
     .strict().argv;
   
@@ -289,6 +295,15 @@ async function main() {
     });
   });
   
+  if (options.replPort) {
+    const replConfig = {
+      repl: {
+        port: options.replPort,
+      },
+    }
+    require('./lib/service-repl').start(replConfig, function rsEval() { return eval(arguments[0]) });
+  }
+
   worker.start();
   
   process.on('SIGUSR1', () => printReport());
