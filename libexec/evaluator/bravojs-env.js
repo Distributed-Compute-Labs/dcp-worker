@@ -3,7 +3,7 @@
  *  environment for WebWorkers and similar environments.
  *
  *  Copyright (c) 2018, Kings Distributed Systems, Ltd.  All Rights Reserved.
- *  Wes Garland, wes@sparc.network
+ *  Wes Garland, wes@kingsds.network
  */
 
 /* global self, bravojs, addEventListener, postMessage */
@@ -54,45 +54,46 @@ self.wrapScriptLoading({ scriptName: 'bravojs-env', ringTransition: true }, (rin
           console.log('moduleGroupError ', message.stack)
         }
         break
-      case 'assign':
-        try {
-          if (!!module.main) {
-            throw new Error("Tried to assign sandbox when it was already assigned")
-          }
+      case 'assign': {
+        let reportError = function bravojsEnv$$sandboxAssignment$reportError(e) {
+          var error = Objcet.assign({}, e);
+          if (error.stack)
+            error = error.stack.replace(/data:application\/javascript.*?:/g, 'eval:');
 
-          self.dcpConfig= message.sandboxConfig
-
-          Object.assign(self.work.job.public, message.job.public)
-
-          let workFunction = indirectEval(`(${message.job.workFunction})`)
-
-          module.declare(message.job.requireModules, (require, exports, module) => {
-            message.job.requirePath.map(p => require.paths.push(p));
-            exports.arguments = message.job.arguments
-            exports.job = workFunction
-          });
-
-          // Now that the evaluator is assigned, wrap post message for ring 3
-          wrapPostMessage();
-
-          ring2PostMessage({
-            request:'assigned',
-            jobId: message.job.opaqueId
-          });
-        } catch (error) {
-          ring2PostMessage({
-            request: 'error',
-            error: {
-              name: error.name,
-              message: error.message,
-              stack: error.stack.replace(
-                /data:application\/javascript.*?:/g,
-                'eval:'
-              ),
-            }
-          })
+          ring2PostMessage({request: 'error', error});
         }
-        break
+        
+        try {
+          if (typeof module.main !== 'undefined')
+            throw new Error('Main module was provided before job assignment');
+
+          self.dcpConfig = message.sandboxConfig;
+          Object.assign(self.work.job.public, message.job.public); /* override locale-specific defaults if specified */
+
+          module.declare(message.job.dependencies || (message.job.requireModules /* deprecated */), function mainModule(require, exports, module) {
+            try {
+              if (exports.hasOwnProperty('job'))
+                throw new Error("Tried to assign sandbox when it was already assigned"); /* Should be impossible - might happen if throw during assign? */
+              exports.job = false; /* placeholder own property */
+              
+              message.job.requirePath.map(p => require.paths.push(p));
+              message.job.modulePath.map(p => module.paths.push(p));
+              exports.arguments = message.job.arguments;
+              exports.job = indirectEval(`(${message.job.workFunction})`)
+
+              /* Now that the evaluator is assigned, wrap post message for ring 3 */
+              wrapPostMessage();
+            } catch(e) {
+              reportError(e);
+              return;
+            }
+            ring2PostMessage({request: 'assigned', jobId: message.job.opaqueId});
+          }); /* end of main module */          
+        } catch (error) {
+          report(error);
+        }
+        break /* end of assign */
+      }
       case 'main':
         let resolveHandle, rejectHandle;
         let timeoutPromise = new Promise((...args) => [resolveHandle, rejectHandle] = args);
