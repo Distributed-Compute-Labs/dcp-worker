@@ -44,6 +44,7 @@ self.wrapScriptLoading({ scriptName: 'access-lists', ringTransition: true }, (ri
     'Float32Array',
     'Float64Array',
     'Function',
+    'getWebGLTimer',
     'Headers',
     'Infinity',
     'Int16Array',
@@ -70,6 +71,7 @@ self.wrapScriptLoading({ scriptName: 'access-lists', ringTransition: true }, (ri
     'Promise',
     'propertyIsEnumerable',
     'Proxy',
+    'pt0',
     'RangeError',
     'ReferenceError',
     'RegExp',
@@ -103,6 +105,7 @@ self.wrapScriptLoading({ scriptName: 'access-lists', ringTransition: true }, (ri
     'WeakSet',
     'WebAssembly',
     'WebGL2RenderingContext',
+    'webGLOffset',
     'WebGLTexture',
     'WorkerGlobalScope',
 
@@ -112,13 +115,38 @@ self.wrapScriptLoading({ scriptName: 'access-lists', ringTransition: true }, (ri
     'flushLastLog'
   ]);
 
+  // webGL timer getter to be overwritten in calculate-capabilities
+  self.getWebGLTimer = (function monkeypatchWebGL() {
+    let timer = 0;
+    function getTimer() {
+      return timer;
+    }
+    return getTimer;
+  })();
+
+  // Offset time for webGL when sandbox is re-used
+  self.webGLOffset = 0;
+
+  // Origin time for performance polyfill
+  const pt0 = new Date().getTime(); 
+
   // Add polyfills for any non-whitelisted symbols
   const polyfills = {
     location: {
       search: ""
     },
-    performance: {
-      now: Date.now
+    // Assumption that if performance exists, performance.now must exist
+    performance: typeof performance !== 'undefined' ? performance : { 
+      now: ()=>{ 
+        res = new Date().getTime() - pt0;
+        // Rounding so that small timings don't get marked as 0 every time
+        if (res % 2 === 0) {
+          res += 0.5;
+        } else {
+          res -= 0.5;
+        }
+        return res;
+      } 
     },
     importScripts: function () {
       throw new Error('importScripts is not supported on DCP');
