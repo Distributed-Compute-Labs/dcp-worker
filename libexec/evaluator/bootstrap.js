@@ -156,7 +156,11 @@ self.wrapScriptLoading({ scriptName: 'bootstrap', finalScript: true }, (ring2Pos
   self.work = {
     emit: workerBootstrap$work$emit,
     job: {
-      public: {}
+      public: {
+        name: 'Ad-Hoc Job', /* in user's language */
+        description: 'Discreetly making the world smarter', /* in user's language */
+        link: 'https://distributed.computer/about',
+      }
     }
   };
 
