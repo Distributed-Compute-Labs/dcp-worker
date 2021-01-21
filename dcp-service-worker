@@ -337,27 +337,54 @@ async function main() {
 
     console.log('='.repeat(78));
 
+    const sbStates = {
+      WORKING: 0,
+      ASSIGNED: 0,
+      READY: 0,
+      TERMINATED: 0,
+    };
+    const stateNames = {
+      WORKING: 'Working',
+      ASSIGNED: 'Assigned',
+      READY: 'Ready',
+      TERMINATED: 'Terminated',
+    };
+    sup.sandboxes.forEach(sb => {
+      const { state } = sb;
+      if (!sbStates[state])
+        sbStates[state] = 0;
+      sbStates[state]++;
+    });
+
     console.log(Date());
     console.log('Sandboxes:');
-    console.log(`  working:     ${sup.workingSandboxes.length} / ${options.cores} (${sup.GPUsAssigned} assigned GPUs)`);
-    console.log(`  assigned:    ${sup.assignedSandboxes.length}`);
-    console.log(`  readied:     ${sup.readiedSandboxes.length}`);
-    console.log(`  terminated:  ${sup.terminatedSandboxes.length}`);
+    // console.log(`  working:     ${sup.workingSandboxes.length} / ${options.cores} (${sup.GPUsAssigned} assigned GPUs)`);
+    // console.log(`  assigned:    ${sup.assignedSandboxes.length}`);
+    // console.log(`  readied:     ${sup.readiedSandboxes.length}`);
+    // console.log(`  terminated:  ${sup.terminatedSandboxes.length}`);
+    Object.keys(sbStates).forEach(state => {
+      const stateName = stateNames[state] || state;
+      console.log(`  ${(stateName + ':').padEnd(12)} ${sbStates[state]}`);
+    })
     console.log(`  * ALL:       ${sup.sandboxes.length}`);
     
     console.log('Progress:');
     sup.workingSandboxes.forEach(sb => {
       const jobName = sb.job && sb.job.public && sb.job.public.name || `idek (${sb.jobAddress})`;
       let el = Date.now() - sb.sliceStartTime;
-      const t = toInterval(el);
+      const t = el < 1000000
+        ? toInterval(el)
+        : 'new';
       
       el = sb.progressReports && sb.progressReports.last
         ? Date.now() - (sb.sliceStartTime + sb.progressReports.last.timestamp)
         : 0;
-      const stale = (el < 1000) ? '' : `(last update: ${toInterval(el)})`;
-      // const stale = el;
+      const pct = (typeof sb.progress) === 'number'
+        ? `${Number(sb.progress).toFixed(0).padStart(2)}%`
+        : 'ind';
+      const stale = (el < 2000) ? '' : `(stale: ${toInterval(el)})`;
       
-      console.log(` ${String(sb.id).padStart(4)}: ${sb.jobAddress} ${jobName.padEnd(34)} `+ `${t} ${Number(sb.progress).toFixed(0).padStart(2)}% ${stale}`.padStart(13));
+      console.log(` ${String(sb.id).padStart(4)}: ${sb.jobAddress} ${jobName.padEnd(34)} `+ `${t} ${pct} ${stale}`.padStart(13));
     });
     
     console.log('Slices:');
