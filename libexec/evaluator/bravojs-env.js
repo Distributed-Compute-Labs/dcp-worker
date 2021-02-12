@@ -57,6 +57,7 @@ self.wrapScriptLoading({ scriptName: 'bravojs-env', ringTransition: true }, (rin
       case 'assign': {
         let reportError = function bravojsEnv$$sandboxAssignment$reportError(e) {
           var error = Object.assign({}, e);
+          Object.getOwnPropertyNames(e).forEach((prop) => error[prop] = e[prop]);
           if (error.stack)
             error = error.stack.replace(/data:application\/javascript.*?:/g, 'eval:');
 
