@@ -10,8 +10,8 @@
 
 const path = require('path');
 
+require('dcp-client').initSync();
 
-const dcp = require('dcp-client').initSync();
 const options = require('dcp/dcp-cli')
   .base('Evaluator frontend')
   .option('prefix', {
@@ -25,7 +25,7 @@ const options = require('dcp/dcp-cli')
   })
   .option('evaluator', {
     alias: ['e', 'evaluator'], 
-    desc: 'Type of evaluator to execute',
+    desc: 'Path to evaluator',
     default: path.join(path.dirname(process.argv[1]), 'bin', 'dcp-evaluator'),
   })
   .option('evaluator-libexec-dir', {
@@ -38,21 +38,22 @@ const options = require('dcp/dcp-cli')
   })
   .option('setup-file-index', {
     desc: 'Central authority for defining setup files for different workers', 
-    default: './evaluator-setup-files',
+    default: './generated/evaluator-setup-files.json',
   })
   .option('evaluator-type', {
     desc: 'Which type of export of the setup-file-index to use',
     default: 'native'  
   })
+  .wrap(process.stdout.columns || 80)
   .argv;
 
 
-// Requires the list of files module (evaluator-setup-files.js) and then chooses what export evaluator (options.evaluatorType)
+// Requires the list of files module (evaluator-setup-files.json) and then chooses what export evaluator (options.evaluatorType)
 const setupFiles = require(options.setupFileIndex)[options.evaluatorType];
 
 const dcpConfig = require('dcp/dcp-config');
 const schedulerConfig = dcpConfig.scheduler;
-
+debugger
 // Check for old versions of the config
 if (!schedulerConfig.worker) {
   schedulerConfig.worker = {};
@@ -90,6 +91,8 @@ const args = [
   '--port', options.port,
 ];
 
+debugger
+
 // web config doesn't nicely handle arrays, so setupFiles.forEach is no-go;
 // this hack works with either a real array, or an arrayish-looking ES object
 // such as we get in the bundled config.
@@ -122,11 +125,17 @@ args.slice(4).forEach(f => {
   console.log('\t' + f);
 });
 
-const ran = require('child_process').spawnSync(bin, args);
-console.log('Evaluator server process exited, status', ran.status);
+const ran = require('child_process').spawnSync(bin, args, {
+  cwd: __dirname,
+  windowsHide: true,
+  stdio: ['inherit', 'inherit', 'inherit']
+});
 
+console.log('Evaluator server process exited, status', ran.status);
+/*
 if (ran.error);
   console.error(ran.error.message);
 if (ran.stderr)
   console.error(ran.stderr.toString());
+*/
 process.exit(ran.status);
