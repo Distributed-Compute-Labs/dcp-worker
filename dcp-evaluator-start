@@ -19,14 +19,13 @@ const options = require('dcp/dcp-cli')
     default: path.dirname(process.argv[1]),
   })
   .option('port', {
-    alias: ['p', 'evaluatorPort', 'daemonPort'],
+    alias: ['p'],
     desc: 'Port to listen for worker connections',
     default: '9000',
   })
   .option('evaluator', {
-    alias: ['e', 'evaluator'], 
-    desc: 'Path to evaluator',
-    default: path.join(path.dirname(process.argv[1]), 'bin', 'dcp-evaluator'),
+    alias: ['e'],
+    desc: 'Path to evaluator (normally prefix/bin/dcp-evaluator)',
   })
   .option('evaluator-libexec-dir', {
     desc: 'Location of evaluator-specific library files', 
@@ -51,7 +50,7 @@ const options = require('dcp/dcp-cli')
 // Requires the list of files module (evaluator-setup-files.json) and then chooses what export evaluator (options.evaluatorType)
 const setupFiles = require(options.setupFileIndex)[options.evaluatorType];
 
-const bin = path.join(options.prefix, 'bin', 'dcp-evaluator');
+const bin = options.evaluator && path.resolve(options.evaluator) || path.join(options.prefix, 'bin', 'dcp-evaluator');
 const args = [
   '-l', path.join(options.prefix, 'libexec', 'evaluator'),
   '--port', options.port,
@@ -95,11 +94,18 @@ const ran = require('child_process').spawnSync(bin, args, {
   stdio: ['inherit', 'inherit', 'inherit']
 });
 
-console.log('Evaluator server process exited, status', ran.status);
-/*
-if (ran.error);
-  console.error(ran.error.message);
-if (ran.stderr)
-  console.error(ran.stderr.toString());
-*/
-process.exit(ran.status);
+console.log('');
+if (ran.signal)
+  console.log(`Evaluator server caught signal ${ran.signal}`);
+if (ran.error) {
+  delete ran.error.stack;
+  console.error(ran.error);
+}
+
+if (!ran.signal && !ran.error) {
+  console.log('Evaluator server process exited, status', ran.status);
+  process.exit(ran.status);
+}
+
+process.exit(1);
+
