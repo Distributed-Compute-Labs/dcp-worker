@@ -19,6 +19,7 @@ async function main () {
   process.on('unhandledRejection', unhandledRejectionHandler);
 
   await require('dcp-client').init(process.argv);
+  require('./lib/check-scheduler-version').check();
 
   const argv = require('dcp/dcp-cli')
   .base('Standalone NodeJS DCP Worker')

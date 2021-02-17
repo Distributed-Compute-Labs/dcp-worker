@@ -57,8 +57,6 @@ const args = [
   '--port', options.port,
 ];
 
-debugger
-
 // web config doesn't nicely handle arrays, so setupFiles.forEach is no-go;
 // this hack works with either a real array, or an arrayish-looking ES object
 // such as we get in the bundled config.
