@@ -24,6 +24,10 @@ const options = require('dcp/dcp-cli')
     desc: 'Port to listen on',
     default: Number(dcpConfig.evaluator.listen.port),
   })
+  .option('stdio', {
+    alias: ['s'],
+    desc: 'Use stdio pipeline (eg for inetd) instead of tcp port',
+  })
   .option('evaluator', {
     alias: ['e'],
     desc: 'Path to evaluator (normally prefix/bin/dcp-evaluator)',
@@ -64,10 +68,10 @@ const setupFiles = require(options.sandboxDefinitions)[options.sandboxType]
 debugger
 
 const bin = options.evaluator && path.resolve(options.evaluator) || path.join(options.prefix, 'bin', 'dcp-evaluator');
-let args = [
-  '--port', options.port,
-];
 
+let args = [];
+if (!options.stdio)
+  args = args.concat(['--port', options.port]);
 if (options.evaluatorLibexecDir)
   args = args.concat(['-l', path.join(options.prefix, 'libexec', 'evaluator')]);
 if (options._)
@@ -103,7 +107,10 @@ if (options.sandboxType === 'node') {
 console.log('DCP Evaluator Server');
 console.log('Evaluator binary at: ', bin);
 console.log('Library path at:     ', options.evaluatorLibexecDir);
-console.log('Listening on port:   ', options.port);
+if (options.stdio)
+  console.log('Running in single-shot over stdio pipeline');
+else
+  console.log('Listening on:        ', options.port);
 console.log('Worker environment:  ');
 args.slice(4).forEach(f => {
   console.log('\t' + f);
