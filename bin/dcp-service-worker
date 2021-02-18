@@ -16,7 +16,7 @@ const DEFAULT_CORES = os.cpus().length - 1;
 
 console.log(` * Starting DCP Service Worker`);
 
-require('dcp-client').init(process.argv)
+require('dcp-client').init(require(process.env.DCP_CONFIG || '../etc/dcp-config.js'))
 .then(main)
 .then((exitcode = 0) => process.exit(exitcode))
 .catch(e => {
@@ -26,8 +26,10 @@ require('dcp-client').init(process.argv)
 });
 
 async function main() {
-  require('./lib/check-scheduler-version').check();
-  
+  const dcpConfig = require('dcp/dcp-config');
+
+  require('../lib/check-scheduler-version').check();
+
   const options = require('dcp/dcp-cli')
     .base('DCP Service Worker')
     .options({
@@ -41,13 +43,13 @@ async function main() {
         alias: ['dh', 'eh', 'daemonHost'],
         describe: 'Evaluator Daemon hostname',
         type: 'string',
-        default: 'localhost',
+        default: dcpConfig.evaluator.location.hostname,
       },
       evaluatorPort: {
         alias: ['dp', 'ep', 'daemonPort'],
         describe: 'Evaluator Daemon port',
         type: 'number',
-        default: 9000,
+        default: dcpConfig.evaluator.location.port,
       },
       
       identityKey: {
@@ -118,15 +120,13 @@ async function main() {
     options.paymentAddress = addressFromCLI;
   }
   
-  const dcpConfig = require('dcp/dcp-config');
   const wallet = require('dcp/wallet');
   const Worker = require('dcp/worker');
 
-  const { Worker: StandaloneWorker } = require('./libexec/standaloneWorker');
+  const { Worker: StandaloneWorker } = require('../lib/standaloneWorker');
   
-  const saWorkerConfig = require('./libexec/standaloneWorker').config;
-  
-  saWorkerConfig.connectBackoff.maxInterval = 60 * 1000;  // max backoff is 1m for service worker
+  dcpConfig.standaloneWorker.evaluatorConnectBackoff.maxInterval = 60 * 1000;  // default max backoff is 1m for service worker
+  require('dcp/util').leafMerge(dcpConfig.standaloneWorker, dcpConfig.serviceWorker);
   
   let identityKeystore = false;
 
@@ -186,7 +186,7 @@ async function main() {
   })
   
   if (process.env.TEST_HARNESS) {
-    const { bindToTestHarness } = require('./libexec/bindToTestHarness');
+    const { bindToTestHarness } = require('.../lib/bindToTestHarness');
     bindToTestHarness(worker);
   }
 
@@ -201,7 +201,7 @@ async function main() {
   console.log(' . output mode: ' + options.output);
   
   // replace console.log with the appropriate handler
-  const consolePatch = require('./libexec/console-patch');
+  const consolePatch = require('../lib/console-patch');
   
   switch(options.output) {
     case 'file':

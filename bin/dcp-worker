@@ -18,8 +18,9 @@ var worker, dcpConfig;
 async function main () {
   process.on('unhandledRejection', unhandledRejectionHandler);
 
-  await require('dcp-client').init(process.argv);
-  require('./lib/check-scheduler-version').check();
+  await require('dcp-client').init(require(process.env.DCP_CONFIG || '../etc/dcp-config'));
+  dcpConfig = require('dcp/dcp-config');
+  require('../lib/check-scheduler-version').check();
 
   const argv = require('dcp/dcp-cli')
   .base('Standalone NodeJS DCP Worker')
@@ -48,21 +49,21 @@ async function main () {
         default: 'detect',
         choices: ['detect', 'console', 'dashboard'],
       },
-      daemonHostname: {
-        alias: 'dh',
-        describe: 'Inet Daemon hostname',
+      hostname: {
+        alias: 'h',
+        describe: 'Evaluator hostname',
         type: 'string',
-        default: 'localhost',
+        default: dcpConfig.evaluator.location.hostname,
       },
-      daemonPort: {
-        alias: 'dp',
-        describe: 'Inet Daemon port',
+      port: {
+        alias: 'p',
+        describe: 'Evaluator port',
         type: 'number',
-        default: 9000,
+        default: dcpConfig.evaluator.location.port,
       },
       priorityOnly: {
-        alias: 'p',
-        describe: 'Set the priority mode',
+        alias: 'P',
+        describe: 'Set the priority mode [deprecated]',
         type: 'boolean',
         default: false
       }
@@ -103,12 +104,11 @@ main()
  * @param {boolean} options.priorityOnly - Whether this worker should only work on priority jobs
  */
 async function startWorking(options) {
-  dcpConfig = require('dcp/dcp-config');
   const wallet = require('dcp/wallet');
   const Worker = require('dcp/worker');
 
-  const { Worker: StandaloneWorker } = require('./libexec/standaloneWorker');
-  const { startWorkerLogger } = require('./libexec/startWorkerLogger');
+  const { Worker: StandaloneWorker } = require('../lib/standaloneWorker');
+  const { startWorkerLogger } = require('../lib/startWorkerLogger');
 
   const identityKeystore = await wallet.getId();
   // unlock the id keystore before starting the worker
@@ -132,8 +132,8 @@ async function startWorking(options) {
     sandboxOptions: {
       SandboxConstructor: function (opts) {
         return new StandaloneWorker({ ...opts,
-          hostname: options.daemonHostname,
-          port: options.daemonPort,
+          hostname: options.hostname,
+          port: options.port,
         });
       },
     }
@@ -148,7 +148,7 @@ async function startWorking(options) {
   });
   
   if (process.env.TEST_HARNESS) {
-    const { bindToTestHarness } = require('./libexec/bindToTestHarness');
+    const { bindToTestHarness } = require('../lib/bindToTestHarness');
     bindToTestHarness(worker);
   }
 
@@ -189,7 +189,7 @@ async function unhandledRejectionHandler (error) {
   } catch(e) {};
 
   try {
-    let screen = require('./libexec/worker-loggers/dashboard').screen;
+    let screen = require('../lib/worker-loggers/dashboard').screen;
 
     if (screen) {
       screen.log(error.message + '\n' + error.stack);
