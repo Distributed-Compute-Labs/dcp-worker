@@ -22,7 +22,7 @@ async function main () {
   dcpConfig = require('dcp/dcp-config');
   require('../lib/check-scheduler-version').check();
 
-  const argv = require('dcp/dcp-cli')
+  const cliArgs = require('dcp/dcp-cli')
   .base('Standalone NodeJS DCP Worker')
   .command('start [paymentAddress]',
     'Start the worker.', yargs => yargs
@@ -50,7 +50,7 @@ async function main () {
         choices: ['detect', 'console', 'dashboard'],
       },
       hostname: {
-        alias: 'h',
+        alias: 'H',
         describe: 'Evaluator hostname',
         type: 'string',
         default: dcpConfig.evaluator.location.hostname,
@@ -59,7 +59,7 @@ async function main () {
         alias: 'p',
         describe: 'Evaluator port',
         type: 'number',
-        default: dcpConfig.evaluator.location.port,
+        default: Number(dcpConfig.evaluator.location.port),
       },
       priorityOnly: {
         alias: 'P',
@@ -70,12 +70,14 @@ async function main () {
     })
   )
   .demandCommand(1)
-  .strict().argv;
+  .strict()
+  .wrap(process.stdout.columns || 80)
+  .argv;
 
-  const command = argv._[0];
+  const command = cliArgs._[0];
   switch (command) {
     case 'start':
-      await startWorking(argv);
+      await startWorking(cliArgs);
       break;
     default:
       console.error(`Unknown command ${command}.`);
@@ -92,58 +94,42 @@ main()
   process.exit(1);
 });
 
-/**
- * 
- * @param {object} options
- * @param {string} options.paymentAddress
- * @param {number} options.cores - Number of cores to work with
- * @param {boolean} options.verbose - Verbose output
- * @param {string} options.outputMode - Passed to startSupervisorLogger to determine which outputMode to use
- * @param {string} options.daemonHostname - Inet daemon hostname
- * @param {number} options.daemonPort - Inet daemon port
- * @param {boolean} options.priorityOnly - Whether this worker should only work on priority jobs
- */
-async function startWorking(options) {
+async function startWorking(cliArgs) {
   const wallet = require('dcp/wallet');
-  const Worker = require('dcp/worker');
-
-  const { Worker: StandaloneWorker } = require('../lib/standaloneWorker');
+  const DCPWorker = require('dcp/worker').Worker;
   const { startWorkerLogger } = require('../lib/startWorkerLogger');
-
   const identityKeystore = await wallet.getId();
-  // unlock the id keystore before starting the worker
-  await identityKeystore.unlock(null, 5 * 60 /* 5 minutes */, true);
+  var paymentAddress;
+  var sawOptions = {
+    hostname: cliArgs.hostname,
+    port:     cliArgs.port
+  };
 
-  let paymentAddress;
-  if (options.paymentAddress) {
-    paymentAddress = new wallet.Address(options.paymentAddress);
+  if (cliArgs.paymentAddress) {
+    paymentAddress = new wallet.Address(cliArgs.paymentAddress);
   } else {
     paymentAddress = (await wallet.get()).address;
   }
 
   if (typeof dcpConfig.worker.unhandledRejectionCleanupTimeout !== 'undefined')
     unhandledRejectionHandler.timeout = dcpConfig.worker.unhandledRejectionCleanupTimeout;
+
+  const SAWorker = require('../lib/standaloneWorker').workerFactory(sawOptions);
   
-  worker = new Worker({
-    maxWorkingSandboxes: options.cores,
+  worker = new DCPWorker({
     paymentAddress,
-    priorityOnly: options.priorityOnly,
-    watchdogInterval: process.env.TEST_HARNESS && 1000, // speed up the fetch interval when running from tests
+    maxWorkingSandboxes: cliArgs.cores,
+    priorityOnly:        cliArgs.priorityOnly,
     sandboxOptions: {
-      SandboxConstructor: function (opts) {
-        return new StandaloneWorker({ ...opts,
-          hostname: options.hostname,
-          port: options.port,
-        });
-      },
+      SandboxConstructor: SAWorker,
     }
   });
 
   worker.on('start', () => {
     console.log(' . ready');
     startWorkerLogger(worker, {
-      verbose: options.verbose,
-      outputMode: options.outputMode,
+      verbose: cliArgs.verbose,
+      outputMode: cliArgs.outputMode,
     });
   });
   
