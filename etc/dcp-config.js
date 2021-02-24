@@ -41,6 +41,6 @@ const dcpConfig =
 }
 
 if (!dcpConfig.evaluator.location)
-  dcpConfig.evaluator.location = Object.assign({}, dcpConfig.evaluator.listen);
+  dcpConfig.evaluator.location = new URL(dcpConfig.evaluator.listen.href);
 
 Object.assign(exports, dcpConfig);
