@@ -51,6 +51,7 @@ async function main() {
         describe: 'Specify the output mode',
         type: 'string',
         choices: ['console', 'syslog', 'file', /*NYI: 'multi-file', 'event-log'*/],
+        default: 'console',
         group: 'Output options',
       },
       hostname: {
@@ -85,7 +86,7 @@ async function main() {
         describe: 'If set, dump all sandbox and worker events',
       },
       logfile: {
-        describe: 'Path to log file (if --output=console)',
+        describe: 'Path to log file (if --output=file)',
         type: 'string',
         group: 'Log File output options',
       },
