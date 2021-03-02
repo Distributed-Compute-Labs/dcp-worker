@@ -10,8 +10,8 @@
 
 const path = require('path');
 
+require('dcp-client').initSync();
 
-const dcp = require('dcp-client').initSync();
 const options = require('dcp/dcp-cli')
   .base('Evaluator frontend')
   .option('prefix', {
@@ -19,14 +19,13 @@ const options = require('dcp/dcp-cli')
     default: path.dirname(process.argv[1]),
   })
   .option('port', {
-    alias: ['p', 'evaluatorPort', 'daemonPort'],
+    alias: ['p'],
     desc: 'Port to listen for worker connections',
     default: '9000',
   })
   .option('evaluator', {
-    alias: ['e', 'evaluator'], 
-    desc: 'Type of evaluator to execute',
-    default: path.join(path.dirname(process.argv[1]), 'bin', 'dcp-evaluator'),
+    alias: ['e'],
+    desc: 'Path to evaluator (normally prefix/bin/dcp-evaluator)',
   })
   .option('evaluator-libexec-dir', {
     desc: 'Location of evaluator-specific library files', 
@@ -38,53 +37,20 @@ const options = require('dcp/dcp-cli')
   })
   .option('setup-file-index', {
     desc: 'Central authority for defining setup files for different workers', 
-    default: './evaluator-setup-files',
+    default: './generated/evaluator-setup-files.json',
   })
   .option('evaluator-type', {
     desc: 'Which type of export of the setup-file-index to use',
     default: 'native'  
   })
+  .wrap(process.stdout.columns || 80)
   .argv;
 
 
-// Requires the list of files module (evaluator-setup-files.js) and then chooses what export evaluator (options.evaluatorType)
+// Requires the list of files module (evaluator-setup-files.json) and then chooses what export evaluator (options.evaluatorType)
 const setupFiles = require(options.setupFileIndex)[options.evaluatorType];
 
-const dcpConfig = require('dcp/dcp-config');
-const schedulerConfig = dcpConfig.scheduler;
-
-// Check for old versions of the config
-if (!schedulerConfig.worker) {
-  schedulerConfig.worker = {};
-  schedulerConfig.worker.operations = '1.0.0';
-  if (dcpConfig.worker.nativeEvaluator){
-    schedulerConfig.worker.types = ['v4'];
-  } 
-  else {
-    schedulerConfig.worker.types = ['v3'];
-  } 
-}
-
-// Check if scheduler supports current worker version
-let currentWorkerType = 'v4';
-let currentWorkerVersion = '1.0.0';
-if (!Object.values(schedulerConfig.worker.types).includes(currentWorkerType) || 
-    !require('semver').satisfies(schedulerConfig.worker.operations, '^'+currentWorkerVersion)) {
-  console.error('\b**** Please update ****\b');
-  console.error('The selected scheduler is not capable of running this worker version.');
-  console.log(`
-Scheduler href:  ${dcpConfig.scheduler.location.href}
-Scheduler wants: ${schedulerConfig.worker.operations}\t/ ${schedulerConfig.worker.types}
-This worker is:  ${currentWorkerVersion}\t/ ${currentWorkerType}
-dcp-client:      ${require('util').inspect(require('dcp/build'))}
-`);
-  if (process.env.CHECK_SEMVER !== 'false')
-    process.exit(1);
-}
-
-console.log(`The current scheduler supports worker type(s) ${Object.values(schedulerConfig.worker.types)} and operations ${schedulerConfig.worker.operations}`);
-
-const bin = path.join(options.prefix, 'bin', 'dcp-evaluator');
+const bin = options.evaluator && path.resolve(options.evaluator) || path.join(options.prefix, 'bin', 'dcp-evaluator');
 const args = [
   '-l', path.join(options.prefix, 'libexec', 'evaluator'),
   '--port', options.port,
@@ -122,11 +88,24 @@ args.slice(4).forEach(f => {
   console.log('\t' + f);
 });
 
-const ran = require('child_process').spawnSync(bin, args);
-console.log('Evaluator server process exited, status', ran.status);
+const ran = require('child_process').spawnSync(bin, args, {
+  cwd: __dirname,
+  windowsHide: true,
+  stdio: ['inherit', 'inherit', 'inherit']
+});
 
-if (ran.error);
-  console.error(ran.error.message);
-if (ran.stderr)
-  console.error(ran.stderr.toString());
-process.exit(ran.status);
+console.log('');
+if (ran.signal)
+  console.log(`Evaluator server caught signal ${ran.signal}`);
+if (ran.error) {
+  delete ran.error.stack;
+  console.error(ran.error);
+}
+
+if (!ran.signal && !ran.error) {
+  console.log('Evaluator server process exited, status', ran.status);
+  process.exit(ran.status);
+}
+
+process.exit(1);
+

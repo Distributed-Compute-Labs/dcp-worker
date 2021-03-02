@@ -19,6 +19,7 @@ async function main () {
   process.on('unhandledRejection', unhandledRejectionHandler);
 
   await require('dcp-client').init(process.argv);
+  require('./lib/check-scheduler-version').check();
 
   const argv = require('dcp/dcp-cli')
   .base('Standalone NodeJS DCP Worker')
@@ -200,9 +201,9 @@ async function unhandledRejectionHandler (error) {
   
   function bail(exitCode) {
     try {
+      const util = require('util');
       process.stderr.write('\nWorker stop timeout; bailing to due earlier unhandled rejection:\n');
-      process.stderr.write(error.message + '\n');
-      process.stderr.write(error.stack + '\n');
+      process.stderr.write(util.inspect(error) + '\n');
     } catch(e) {
       console.error(error);
     }

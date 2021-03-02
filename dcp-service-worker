@@ -26,6 +26,8 @@ require('dcp-client').init(process.argv)
 });
 
 async function main() {
+  require('./lib/check-scheduler-version').check();
+  
   const options = require('dcp/dcp-cli')
     .base('DCP Service Worker')
     .options({
