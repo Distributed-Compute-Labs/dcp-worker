@@ -1,7 +1,6 @@
 #! /usr/bin/env node
-
 /**
- * @file	generate-evaluator-setup-json
+ * @file	generate-sandbox-definitions-json
  *		This file is the single-source-of-authority with respect
  *		to which files are run for which evaluators.  It is used
  *              to generate code in ../generated.
@@ -51,6 +50,6 @@ o.native = [
   "bootstrap"
 ];
 
-fs.writeFileSync(path.resolve(__dirname, '../generated/evaluator-setup-files.json'), JSON.stringify(o), 'utf-8');
+fs.writeFileSync(path.resolve(__dirname, '../generated/sandbox-definitions.json'), JSON.stringify(o), 'utf-8');
 
 console.log(`Done - ${Object.keys(o).join(', ')}.`);

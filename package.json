@@ -17,24 +17,26 @@
   "author": "Kings Distributed Systems",
   "main": "index.js",
   "bin": {
-    "dcp-service-worker": "dcp-service-worker",
-    "dcp-evaluator-start": "dcp-evaluator-start",
-    "dcp-worker": "dcp-worker"
+    "dcp-service-worker": "bin/dcp-service-worker",
+    "dcp-evaluator-start": "bin/dcp-evaluator-start",
+    "dcp-worker": "bin/dcp-worker"
   },
   "directories": {
-    "lib": "lib"
+    "lib": "lib",
+    "libexec": "libexec",
+    "etc": "etc"
   },
   "scripts": {
     "start": "node dcp-worker start",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "generate": "bin/generate-evaluator-setup-json"
+    "generate": "bin/generate-sandbox-definitions-json"
   },
   "dependencies": {
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.8.21",
     "bravojs": "^1.0.15",
     "chalk": "^4.1.0",
-    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#epic/scheduler-upgrade",
+    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#feature/dcpworker-use-dcpconfig",
     "peter": "^2.1.2-a",
     "syslog-client": "^1.1.1"
   }
