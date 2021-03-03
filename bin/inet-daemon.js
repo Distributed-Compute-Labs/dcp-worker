@@ -65,7 +65,7 @@ Object.entries(dcpConfig.inetDaemon).forEach(function (param) {
       }
       catch (error) {
         if (error.message.includes(`Cannot find module`))
-          return require.resolve(require('path').join('dcp-worker', 'libexec', 'sandbox', f));
+          return require.resolve(require('path').join('dcp-worker', 'libexec', 'evaluator', f));
         throw error;
       }
     });
