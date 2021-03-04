@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "JavaScript portion of DCP Workers for NodeJS",
   "keywords": [
     "dcp"
@@ -38,5 +38,9 @@
     "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#feature/dcpworker-use-dcpconfig",
     "peter": "^2.1.2-a",
     "syslog-client": "^1.1.1"
+  },
+  "optionalDependencies": {
+    "telnet": "0.0.1",
+    "windows-eventlog": "git+https://github.com/jfromaniello/node-windows-eventlog.git#master"
   }
 }

@@ -108,7 +108,12 @@ self.wrapScriptLoading({ scriptName: 'access-lists', ringTransition: true }, (ri
     'webGLOffset',
     'WebGLTexture',
     'WorkerGlobalScope',
-
+    // Our own Webgpu symbols
+    'WebGPUWindow',
+    'GPU',
+    'GPUBufferUsage',
+    'GPUShaderStage',
+    'GPUMapMode',
     // Our own symbols
     'progress',
     'work',
@@ -484,20 +489,36 @@ self.wrapScriptLoading({ scriptName: 'access-lists', ringTransition: true }, (ri
     // then we have to climb the prototype chain and apply the whitelist there, but we have to stop
     // before we whitelist Object's properties
 
+    var global = typeof globalThis === 'undefined' ? self : globalThis;
+    // Save them in scope because they'll get hidden by the whitelist
+    let _whitelist = whitelist;
+    let _blacklist = blacklist;
+    let _polyfills = polyfills;
+
+    // Ternary expression to avoid a ReferenceError on navigator
+    let _navigator = typeof navigator !== 'undefined' ? navigator : undefined;
+    let _GPU       = ((typeof navigator !== 'undefined') && (typeof navigator.gpu !== 'undefined')) ? navigator.gpu : 
+      (typeof GPU !== 'undefined'? GPU : undefined);
+    let _blacklistRequirements = blacklistRequirements;
+    let _applyAccessLists = applyAccessLists;
+    let _applyPolyfills = applyPolyfills;
+
     for (let g = global; g.__proto__ && (g.__proto__ !== Object); g = g.__proto__) {
       applyAccessLists(g, whitelist, blacklist, blacklistRequirements, polyfills);
     }
 
-    if (typeof navigator === 'undefined') {
-      navigator = {
+    if (typeof _navigator === 'undefined') {
+      _navigator = navigator = {
         userAgent: 'not a browser',
-        gpu: typeof GPU !== 'undefined' ? GPU : undefined
+        gpu: _GPU, 
       };
     } else {
       // We also want to whitelist certain parts of navigator, but not others.
-      navWhitelist = new Set(['userAgent']);
+      
+      navWhitelist = new Set(['userAgent','gpu']);
       let navPolyfill = {
-        gpu: typeof GPU !== 'undefined' ? GPU : undefined
+        userAgent: typeof navigator.userAgent !== 'undefined'? navigator.userAgent : 'not a browser',
+        gpu: _GPU 
       };
       applyAccessLists(navigator.__proto__, navWhitelist, {}, {}, navPolyfill);
       applyPolyfills(navigator.__proto__, navPolyfill);
