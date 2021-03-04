@@ -77,6 +77,7 @@ self.wrapScriptLoading(
 
       if (offscreenCanvas) {
         const canvas = new OffscreenCanvas(1, 1);
+
         try {
           const gl = canvas.getContext('webgl');
           const textureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);

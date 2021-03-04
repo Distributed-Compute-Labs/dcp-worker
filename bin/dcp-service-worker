@@ -76,6 +76,19 @@ async function main() {
         type: 'string',
         group: 'Identity options',
       },
+      output: {
+        alias: 'o',
+        describe: 'Specify the output mode',
+        type: 'string',
+        choices: ['console', 'syslog', 'file', /*NYI: 'multi-file',*/ 'event-log'],
+        group: 'Output options',
+      },
+      verbose: {
+        alias: 'v',
+        describe: 'Enable verbose output',
+        type: 'count',
+        group: 'Output options',
+      },
       reportInterval: {
         describe: 'If set, output a status summary every [interval] seconds',
         type: 'number',
@@ -105,6 +118,12 @@ async function main() {
         describe: 'UDP/TCP port of rsyslog server',
         type: 'number',
         group: 'Syslog output options',
+      },
+
+      replPort: {
+        describe: 'If set, open a REPL on specified TCP port',
+        type: 'number',
+        default: undefined,
       },
     })
   .strict()
@@ -211,12 +230,9 @@ async function main() {
         }
       ));
       break;
-    // NYI: Adding windows-eventlog to the project seems to prevent it
-    //  building on any platform.
-    // case 'event-log':
-    //   // @todo: is there any Window sconfig to do here?
-    //   consolePatch.patch(new consolePatch.Consoles.EventLogConsole());
-    //   break;
+    case 'event-log':
+      consolePatch.patch(new consolePatch.Consoles.EventLogConsole());
+      break;
     case 'console':
     default:
       // do nothing, use the default console
@@ -287,6 +303,15 @@ async function main() {
     });
   });
   
+  if (options.replPort) {
+    const replConfig = {
+      repl: {
+        port: options.replPort,
+      },
+    }
+    require('./lib/service-repl').start(replConfig, function rsEval() { return eval(arguments[0]) });
+  }
+
   worker.start();
   
   process.on('SIGUSR1', () => printReport());
@@ -320,27 +345,54 @@ async function main() {
 
     console.log('='.repeat(78));
 
+    const sbStates = {
+      WORKING: 0,
+      ASSIGNED: 0,
+      READY: 0,
+      TERMINATED: 0,
+    };
+    const stateNames = {
+      WORKING: 'Working',
+      ASSIGNED: 'Assigned',
+      READY: 'Ready',
+      TERMINATED: 'Terminated',
+    };
+    sup.sandboxes.forEach(sb => {
+      const { state } = sb;
+      if (!sbStates[state])
+        sbStates[state] = 0;
+      sbStates[state]++;
+    });
+
     console.log(Date());
     console.log('Sandboxes:');
-    console.log(`  working:     ${sup.workingSandboxes.length} / ${cliArgs.cores} (${sup.GPUsAssigned} assigned GPUs)`);
-    console.log(`  assigned:    ${sup.assignedSandboxes.length}`);
-    console.log(`  readied:     ${sup.readiedSandboxes.length}`);
-    console.log(`  terminated:  ${sup.terminatedSandboxes.length}`);
+    // console.log(`  working:     ${sup.workingSandboxes.length} / ${options.cores} (${sup.GPUsAssigned} assigned GPUs)`);
+    // console.log(`  assigned:    ${sup.assignedSandboxes.length}`);
+    // console.log(`  readied:     ${sup.readiedSandboxes.length}`);
+    // console.log(`  terminated:  ${sup.terminatedSandboxes.length}`);
+    Object.keys(sbStates).forEach(state => {
+      const stateName = stateNames[state] || state;
+      console.log(`  ${(stateName + ':').padEnd(12)} ${sbStates[state]}`);
+    })
     console.log(`  * ALL:       ${sup.sandboxes.length}`);
     
     console.log('Progress:');
     sup.workingSandboxes.forEach(sb => {
       const jobName = sb.job && sb.job.public && sb.job.public.name || `idek (${sb.jobAddress})`;
       let el = Date.now() - sb.sliceStartTime;
-      const t = toInterval(el);
+      const t = el < 1000000
+        ? toInterval(el)
+        : 'new';
       
       el = sb.progressReports && sb.progressReports.last
         ? Date.now() - (sb.sliceStartTime + sb.progressReports.last.timestamp)
         : 0;
-      const stale = (el < 1000) ? '' : `(last update: ${toInterval(el)})`;
-      // const stale = el;
+      const pct = (typeof sb.progress) === 'number'
+        ? `${Number(sb.progress).toFixed(0).padStart(2)}%`
+        : 'ind';
+      const stale = (el < 2000) ? '' : `(stale: ${toInterval(el)})`;
       
-      console.log(` ${String(sb.id).padStart(4)}: ${sb.jobAddress} ${jobName.padEnd(34)} `+ `${t} ${Number(sb.progress).toFixed(0).padStart(2)}% ${stale}`.padStart(13));
+      console.log(` ${String(sb.id).padStart(4)}: ${sb.jobAddress} ${jobName.padEnd(34)} `+ `${t} ${pct} ${stale}`.padStart(13));
     });
     
     console.log('Slices:');
