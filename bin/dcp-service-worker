@@ -134,6 +134,8 @@ async function main() {
   }
   else if (cliArgs.identityKeystore) {
     identityKeystore = await new wallet.Keystore(JSON.parse(cliArgs.identityKeystore), '');
+    // Set the provided identity as the wallet's default
+    await wallet.addId(identityKeystore);
   }
   else {
     identityKeystore = await wallet.getId();
