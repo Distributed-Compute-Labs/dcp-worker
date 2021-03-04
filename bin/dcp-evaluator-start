@@ -13,7 +13,7 @@ require('dcp-client').initSync(require(process.env.DCP_CONFIG || '../etc/dcp-con
 const path = require('path');
 const dcpConfig = require('dcp/dcp-config');
 
-const options = require('dcp/dcp-cli')
+const options = require('dcp/cli')
   .base('Evaluator frontend')
   .option('prefix', {
     desc: 'Path under which native components are installed',
