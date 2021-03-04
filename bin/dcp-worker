@@ -22,7 +22,7 @@ async function main () {
   dcpConfig = require('dcp/dcp-config');
   require('../lib/check-scheduler-version').check();
 
-  const cliArgs = require('dcp/dcp-cli')
+  const cliArgs = require('dcp/cli')
   .base('Standalone NodeJS DCP Worker')
   .command('start [paymentAddress]',
     'Start the worker.', yargs => yargs
