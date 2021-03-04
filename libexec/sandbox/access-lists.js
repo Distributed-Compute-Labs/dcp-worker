@@ -507,10 +507,6 @@ self.wrapScriptLoading({ scriptName: 'access-lists', ringTransition: true }, (ri
       applyAccessLists(g, whitelist, blacklist, blacklistRequirements, polyfills);
     }
 
-    if (typeof navigator === 'undefined') {
-      navigator = {
-      _applyAccessLists(g, _whitelist, _blacklist, _blacklistRequirements, _polyfills);
-    } 
     if (typeof _navigator === 'undefined') {
       _navigator = navigator = {
         userAgent: 'not a browser',
