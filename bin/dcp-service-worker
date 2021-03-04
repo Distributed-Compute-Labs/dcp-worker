@@ -303,10 +303,10 @@ async function main() {
     });
   });
   
-  if (options.replPort) {
+  if (cliArgs.replPort) {
     const replConfig = {
       repl: {
-        port: options.replPort,
+        port: cliArgs.replPort,
       },
     }
     require('./lib/service-repl').start(replConfig, function rsEval() { return eval(arguments[0]) });
