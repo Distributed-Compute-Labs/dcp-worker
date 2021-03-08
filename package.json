@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "1.4.2",
+  "version": "1.4.3-b",
   "description": "JavaScript portion of DCP Workers for NodeJS",
   "keywords": [
     "dcp"
@@ -35,14 +35,11 @@
     "blessed-contrib": "^4.8.21",
     "bravojs": "^1.0.15",
     "chalk": "^4.1.0",
-    "peter": "^2.1.2-a",
+    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#epic/scheduler-upgrade",
+    "peter": "^2.1.3",
     "syslog-client": "^1.1.1"
   },
   "optionalDependencies": {
     "telnet": "0.0.1"
-  },
-  "peerDependencies": {
-    "windows-eventlog": "git+https://github.com/jfromaniello/node-windows-eventlog.git#master",
-    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#epic/scheduler-upgrade"
   }
 }
