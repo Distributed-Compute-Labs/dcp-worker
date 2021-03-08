@@ -40,7 +40,9 @@
     "syslog-client": "^1.1.1"
   },
   "optionalDependencies": {
-    "telnet": "0.0.1",
+    "telnet": "0.0.1"
+  },
+  "peerDependencies": {
     "windows-eventlog": "git+https://github.com/jfromaniello/node-windows-eventlog.git#master"
   }
 }
