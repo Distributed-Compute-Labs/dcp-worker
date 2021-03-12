@@ -50,7 +50,7 @@ async function main() {
         alias: 'o',
         describe: 'Specify the output mode',
         type: 'string',
-        choices: ['console', 'syslog', 'file', /*NYI: 'multi-file', 'event-log'*/],
+        choices: ['console', 'syslog', 'file', /*NYI: 'multi-file',*/ 'event-log'],
         default: 'console',
         group: 'Output options',
       },
@@ -205,16 +205,6 @@ async function main() {
     bindToTestHarness(worker);
   }
 
-  console.log(` . Configured for scheduler ${dcpConfig.scheduler.location.href}`);
-  console.log(` . Earned funds will be deposited in account ${paymentAddress} in bank ${dcpConfig.bank.location.href}`);
-  console.log(` . Identity is ${identityKeystore.address} ${identityKeystore.label && `(${identityKeystore.label})`}`);
-  if (cliArgs.verbose)
-    console.log(` . Verbosity level: ${cliArgs.verbose}`);
-  if (cliArgs.eventDebug)
-    console.log(` . Event debug on`);
-  
-  console.log(' . output mode: ' + cliArgs.output);
-  
   // replace console.log with the appropriate handler
   const consolePatch = require('../lib/console-patch');
   
@@ -240,6 +230,16 @@ async function main() {
       // do nothing, use the default console
   }
 
+  console.log(` . Configured for scheduler ${dcpConfig.scheduler.location.href}`);
+  console.log(` . Earned funds will be deposited in account ${paymentAddress} in bank ${dcpConfig.bank.location.href}`);
+  console.log(` . Identity is ${identityKeystore.address} ${identityKeystore.label && `(${identityKeystore.label})`}`);
+  if (cliArgs.verbose)
+    console.log(` . Verbosity level: ${cliArgs.verbose}`);
+  if (cliArgs.eventDebug)
+    console.log(` . Event debug on`);
+  
+  console.log(' . output mode: ' + cliArgs.output);
+  
   if (cliArgs.eventDebug) {
     worker.debug = true;
     worker.supervisor.debug = true;
