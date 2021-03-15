@@ -138,7 +138,7 @@ async function main() {
   }
   
   const wallet = require('dcp/wallet');
-  const DCPWorker = require('dcp/worker');
+  const DCPWorker = require('dcp/worker').Worker;
   
   /* Overlay serviceWorker delta on top of standaloneWorker; code uses standaloneWorker internally */
   require('dcp/utils').leafMerge(dcpConfig.standaloneWorker, dcpConfig.serviceWorker);
