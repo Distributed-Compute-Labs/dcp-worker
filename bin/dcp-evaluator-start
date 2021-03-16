@@ -12,6 +12,7 @@ require('dcp-client').initSync(require(process.env.DCP_CONFIG || '../etc/dcp-con
 
 const path = require('path');
 const dcpConfig = require('dcp/dcp-config');
+const dcpClientDir = path.dirname(require.resolve('dcp-client'));
 
 const options = require('dcp/cli')
   .base('Evaluator frontend')
@@ -38,11 +39,11 @@ const options = require('dcp/cli')
   })
   .option('sandbox-libexec-dir', {
     desc: 'Location of sandbox setup files',
-    default: '../libexec/sandbox',
+    default: path.resolve(dcpClientDir, 'libexec', 'sandbox'),
   })
   .option('sandbox-definitions', {
     desc: 'Index of sandbox setup files for different evaluator/sandbox types', 
-    default: '../generated/sandbox-definitions.json',
+    default: path.resolve(dcpClientDir, 'generated', 'sandbox-definitions.json'),
   })
   .option('sandbox-type', {
     alias: ['t'],
@@ -65,7 +66,6 @@ if (!options.evaluator) {
 
 // Requires the list of files module (sandbox-definitions.json) and then chooses what export evaluator (options.sandboxType)
 const setupFiles = require(options.sandboxDefinitions)[options.sandboxType]
-debugger
 
 const bin = options.evaluator && path.resolve(options.evaluator) || path.join(options.prefix, 'bin', 'dcp-evaluator');
 

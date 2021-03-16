@@ -186,7 +186,7 @@ async function main() {
     }
   };
 
-  const SAWorker = require('../lib/standaloneWorker').workerFactory(sawOptions);
+  const SAWorker = require('dcp-client/lib/standaloneWorker').workerFactory(sawOptions);
   const worker = new DCPWorker({
     paymentAddress,
     maxWorkingSandboxes: cliArgs.cores,
