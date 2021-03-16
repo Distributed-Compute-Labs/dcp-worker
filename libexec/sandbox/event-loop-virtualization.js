@@ -11,6 +11,8 @@
  *  - ontimer             will be invoked by the reactor when there are timers that
  *                        should need servicing based on the information provided to nextTimer().    
  *  - nextTimer()         sets when the next timer will be fired (in ms)
+ *  - evalTimer           evaluates using either the actual setImmediate/setTimeout or uses 
+ *                        Promise.resolve.then as a fallback
  *  
  *  Once this file has run, the following methods will be
  *  available on the global object for every evaluator:
@@ -29,13 +31,18 @@
  *              the top of the scope chain (ie global object) for all code run
  *              by hosts in this environment.
  */
-/* globals self, ontimer, nextTimer */
+/* globals self, ontimer, nextTimer, evalTimer */
 
 self.wrapScriptLoading({ scriptName: 'event-loop-virtualization' }, (ring0PostMessage) => {
   let lastTimeStamp;
-  (function privateScope(ontimer, nextTimer) {
+  
+  if (typeof self.evalTimer === 'undefined'){
+    self.evalTimer = (func) => Promise.resolve().then(func);
+  }
 
+  (function privateScope(ontimer, nextTimer, evalTimer) {
     const timers = [];
+    timers.serial = 0; /* If this isn't set, it becomes NaN */
 
     function sortTimers() {
       timers.sort(function (a, b) { return a.when - b.when; });
@@ -53,6 +60,7 @@ self.wrapScriptLoading({ scriptName: 'event-loop-virtualization' }, (ring0PostMe
         if (timer.when > now) {
           break;
         }
+
         Promise.resolve().then(async () => {
           if (lastTimeStamp) {
             ring0PostMessage({
@@ -65,6 +73,7 @@ self.wrapScriptLoading({ scriptName: 'event-loop-virtualization' }, (ring0PostMe
           await timer.fn();
           lastTimeStamp = performance.now();
         });
+
         if (timer.recur) {
           timer.when = Date.now() + timer.recur;
         } else {
@@ -218,9 +227,10 @@ self.wrapScriptLoading({ scriptName: 'event-loop-virtualization' }, (ring0PostMe
         });
       }
     });
-  })(self.ontimer, self.nextTimer);
+  })(self.ontimer, self.nextTimer, self.evalTimer);
 
-  ontimer = nextTimer = undefined;
+  ontimer = nextTimer = evalTimer = undefined;
   delete self.ontimer;
   delete self.nextTimer;
+  delete self.evalTimer;
 });
