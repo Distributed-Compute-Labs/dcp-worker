@@ -1,10 +1,10 @@
-#! /usr/bin/env node
+#!/usr/bin/env node
 /** @file       dcp-evaluator-start
  *  @author     Eddie Roosenmaallen, eddie@kingsds.network
  *              Levi Stringer, levi@kingsds.network
  *  @date       September 2020
- *  
- *  This script starts the DCP Native Evaluator in server mode, with the 
+ *
+ *  This script starts the DCP Native Evaluator in server mode, with the
  *  appropriate list of worker startup files queued up
  */
 
@@ -42,13 +42,13 @@ const options = require('dcp/cli')
     default: path.resolve(dcpClientDir, 'libexec', 'sandbox'),
   })
   .option('sandbox-definitions', {
-    desc: 'Index of sandbox setup files for different evaluator/sandbox types', 
+    desc: 'Index of sandbox setup files for different evaluator/sandbox types',
     default: path.resolve(dcpClientDir, 'generated', 'sandbox-definitions.json'),
   })
   .option('sandbox-type', {
     alias: ['t'],
-    desc: 'Type of evaluator/sandbox', 
-    default: 'native'  
+    desc: 'Type of evaluator/sandbox',
+    default: 'native'
   })
   .option('dump', {
     alias: ['D'],
@@ -82,14 +82,14 @@ if (options._)
 // such as we get in the bundled config.
 for (let n=0; setupFiles[n]; n++) {
   // If the path is a realative path nodemodule (i.e. bravajs), take it directly from node_modules
-  if (/(^[.])|(\/)/.test(setupFiles[n])){ 
+  if (/(^[.])|(\/)/.test(setupFiles[n])){
     args.push(require.resolve(setupFiles[n]))
   } else {
     args.push(require.resolve(path.join(options.sandboxLibexecDir, setupFiles[n])));
   }
 }
 
-// Spits out the list of files for a node evaluator instead of spinning up an v8-evaluator 
+// Spits out the list of files for a node evaluator instead of spinning up an v8-evaluator
 if (options.sandboxType === 'node') {
   console.error("*** WARNING: Node evaluator is not suitable for production work ***");
   if (process.env['I_WANT_AN_INSECURE_DCP_WORKER'] !== 'badly') {
