@@ -26,7 +26,6 @@
     "libexec": "libexec"
   },
   "scripts": {
-    "generate": "bin/generate-sandbox-definitions-json",
     "start": "node bin/dcp-worker start",
     "start-evaluator": "node bin/dcp-evaluator-start -e ../dcp/native/build/artifacts/bin/Release/dcp-evaluator",
     "test": "echo \"Error: no test specified\" && exit 1"
