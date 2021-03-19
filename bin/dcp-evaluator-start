@@ -18,7 +18,7 @@ const options = require('dcp/cli')
   .base('Evaluator frontend')
   .option('prefix', {
     desc: 'Path under which native components are installed',
-    default: path.resolve(__dirname, '..'),
+    default: dcpClientDir,
   })
   .option('port', {
     alias: ['p'],
@@ -33,7 +33,7 @@ const options = require('dcp/cli')
   })
   .option('evaluator', {
     alias: ['e'],
-    desc: 'Path to evaluator (normally prefix/bin/dcp-evaluator)',
+    desc: 'Path to evaluator (default: prefix/libexec/evaluator-node)',
   })
   .option('evaluator-libexec-dir', {
     alias: ['l'],
@@ -61,9 +61,14 @@ const options = require('dcp/cli')
   .argv;
 
 if (!options.evaluator) {
-  options.evaluator = path.resolve(options.prefix , 'bin', 'dcp-evaluator');
-  if (!options.evaluatorLibexecDir)
-    options.evaluatorLibexecDir = path.resolve(options.prefix, 'libexec', 'evaluator');
+  options.evaluator = path.resolve(
+    options.prefix,
+    'libexec',
+    'evaluator-node.js',
+  );
+  if (!options.evaluatorLibexecDir) {
+    options.evaluatorLibexecDir = 'N/A';
+  }
 }
 
 // Requires the list of files module (sandbox-definitions.json) and then chooses what export evaluator (options.sandboxType)
