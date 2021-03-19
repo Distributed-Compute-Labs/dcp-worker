@@ -28,6 +28,8 @@ const options = require('dcp/cli')
   .option('stdio', {
     alias: ['s'],
     desc: 'Use stdio pipeline (eg for inetd) instead of tcp port',
+    type: 'boolean',
+    default: false,
   })
   .option('evaluator', {
     alias: ['e'],
