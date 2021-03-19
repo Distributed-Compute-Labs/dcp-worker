@@ -14,8 +14,6 @@ const os = require('os');
 
 const DEFAULT_CORES = os.cpus().length - 1;
 
-console.log(` * Starting DCP Service Worker`);
-
 require('dcp-client').init(require(process.env.DCP_CONFIG || '../etc/dcp-config.js'))
 .then(main)
 .then((exitcode = 0) => process.exit(exitcode))
@@ -50,7 +48,7 @@ async function main() {
         alias: 'o',
         describe: 'Specify the output mode',
         type: 'string',
-        choices: ['console', 'syslog', 'file', /*NYI: 'multi-file', 'event-log'*/],
+        choices: ['console', 'syslog', 'file', /*NYI: 'multi-file',*/ 'event-log'],
         default: 'console',
         group: 'Output options',
       },
@@ -140,7 +138,7 @@ async function main() {
   }
   
   const wallet = require('dcp/wallet');
-  const DCPWorker = require('dcp/worker');
+  const DCPWorker = require('dcp/worker').Worker;
   
   /* Overlay serviceWorker delta on top of standaloneWorker; code uses standaloneWorker internally */
   require('dcp/utils').leafMerge(dcpConfig.standaloneWorker, dcpConfig.serviceWorker);
@@ -153,12 +151,13 @@ async function main() {
   }
   else if (cliArgs.identityKeystore) {
     identityKeystore = await new wallet.Keystore(JSON.parse(cliArgs.identityKeystore), '');
-    // Set the provided identity as the wallet's default
-    await wallet.addId(identityKeystore);
   }
   else {
     identityKeystore = await wallet.getId();
   }
+
+  // Set the provided identity as the wallet's default
+  await wallet.addId(identityKeystore);
 
   let paymentAddress;
   if (cliArgs.paymentAddress) {
@@ -205,16 +204,6 @@ async function main() {
     bindToTestHarness(worker);
   }
 
-  console.log(` . Configured for scheduler ${dcpConfig.scheduler.location.href}`);
-  console.log(` . Earned funds will be deposited in account ${paymentAddress} in bank ${dcpConfig.bank.location.href}`);
-  console.log(` . Identity is ${identityKeystore.address} ${identityKeystore.label && `(${identityKeystore.label})`}`);
-  if (cliArgs.verbose)
-    console.log(` . Verbosity level: ${cliArgs.verbose}`);
-  if (cliArgs.eventDebug)
-    console.log(` . Event debug on`);
-  
-  console.log(' . output mode: ' + cliArgs.output);
-  
   // replace console.log with the appropriate handler
   const consolePatch = require('../lib/console-patch');
   
@@ -240,6 +229,17 @@ async function main() {
       // do nothing, use the default console
   }
 
+  console.log(` * Starting DCP Service Worker`);
+  console.log(` . Configured for scheduler ${dcpConfig.scheduler.location.href}`);
+  console.log(` . Earned funds will be deposited in account ${paymentAddress} in bank ${dcpConfig.bank.location.href}`);
+  console.log(` . Identity is ${identityKeystore.address} ${identityKeystore.label && `(${identityKeystore.label})`}`);
+  if (cliArgs.verbose)
+    console.log(` . Verbosity level: ${cliArgs.verbose}`);
+  if (cliArgs.eventDebug)
+    console.log(` . Event debug on`);
+  
+  console.log(' . output mode: ' + cliArgs.output);
+  
   if (cliArgs.eventDebug) {
     worker.debug = true;
     worker.supervisor.debug = true;
