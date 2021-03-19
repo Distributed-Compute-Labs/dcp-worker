@@ -33,6 +33,7 @@ var counter = 0
 // console.log(process.env)
 require('dcp-rtlink/rtLink').init();
 require('dcp/node-libs/config').load();
+const path = require('path');
 
 console.log('DCP inetd starting...')
 
@@ -59,18 +60,15 @@ Object.entries(dcpConfig.inetDaemon).forEach(function (param) {
   })
 
   function handleConnection (socket) {
-    const setUpFiles = config.setUpFiles.map(f => {
-      try {
-        return require.resolve(f);
-      }
-      catch (error) {
-        if (error.message.includes(`Cannot find module`))
-          return require.resolve(require('path').join('dcp-worker', 'libexec', 'evaluator', f));
-        throw error;
-      }
-    });
-    if (debug.indexOf('verbose') !== -1) { console.log('New connection; spawning ', config.process, setUpFiles) }
-    var child = require('child_process').spawn(config.process, [...setUpFiles, ...config.arguments]);
+    const setupFiles = config.setupFiles.map(file => {
+      if (/(^[.])|(\/)/.test(file)) //If located in node_modules will have slashes
+        return require.resolve(file)
+      else 
+        return require.resolve(path.join('dcp-worker','libexec', 'evaluator', file));
+      });
+    if (debug.indexOf('verbose') !== -1) { console.log('New connection; spawning ', config.process, setupFiles) }
+    var child = require('child_process').spawn(config.process, [...setupFiles, ...config.arguments]);
+
     child.index = counter++
 
     if (debug) { console.log('Spawned a new worker process, PID:', child.pid, 'Index:', child.index) }
