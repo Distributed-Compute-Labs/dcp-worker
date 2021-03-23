@@ -32,6 +32,10 @@ async function main() {
   const cliArgs = require('dcp/cli')
     .base('DCP Service Worker')
     .options({
+      paymentAddress: {
+        describe: 'Address to deposit payment',
+        type: 'string',
+      },
       cores: {
         alias: ['c', 'defaultSandboxes'],
         describe: 'Number of cores to work with',
