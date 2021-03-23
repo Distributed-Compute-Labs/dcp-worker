@@ -35,7 +35,7 @@
     "blessed-contrib": "^4.8.21",
     "bravojs": "1.0.15",
     "chalk": "^4.1.0",
-    "dcp-client": "file:../dcp-client",
+    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#reorg/sbox-client",
     "syslog-client": "^1.1.1"
   },
   "optionalDependencies": {
