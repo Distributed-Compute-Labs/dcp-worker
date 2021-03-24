@@ -24,12 +24,11 @@ async function main () {
 
   const cliArgs = require('dcp/cli')
   .base('Standalone NodeJS DCP Worker')
-  .command('start [paymentAddress]',
-    'Start the worker.', yargs => yargs
-    .positional('paymentAddress', {
-      describe: 'The address to deposit funds into, will use the default bank keystore if not provided.'
-    })
     .options({
+      paymentAddress: {
+        describe: 'The address to deposit funds into, will use the default bank keystore if not provided.',
+        type: 'string',
+      },
       cores: {
         alias: 'c',
         describe: 'Number of cores to work with',
@@ -68,20 +67,11 @@ async function main () {
         default: false
       }
     })
-  )
-  .demandCommand(1)
   .strict()
   .wrap(process.stdout.columns || 80)
   .argv;
 
-  const command = cliArgs._[0];
-  switch (command) {
-    case 'start':
-      await startWorking(cliArgs);
-      break;
-    default:
-      console.error(`Unknown command ${command}.`);
-  }
+  await startWorking(cliArgs);
 }
 
 // Preserve console.error, the dashboard replaces it with a custom logger
