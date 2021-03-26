@@ -104,7 +104,7 @@ async function startWorking(cliArgs) {
   if (typeof dcpConfig.worker.unhandledRejectionCleanupTimeout !== 'undefined')
     unhandledRejectionHandler.timeout = dcpConfig.worker.unhandledRejectionCleanupTimeout;
 
-  const SAWorker = require('../lib/standaloneWorker').workerFactory(sawOptions);
+  const SAWorker = require('dcp-client/lib/standaloneWorker').workerFactory(sawOptions);
   
   worker = new DCPWorker({
     paymentAddress,

@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "1.4.3-c",
+  "version": "2.0.0-a",
   "description": "JavaScript portion of DCP Workers for NodeJS",
   "keywords": [
     "dcp"
@@ -26,20 +26,20 @@
     "libexec": "libexec"
   },
   "scripts": {
-    "generate": "bin/generate-sandbox-definitions-json",
     "start": "node bin/dcp-worker start",
+    "start-evaluator": "node bin/dcp-evaluator-start",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.8.21",
-    "bravojs": "^1.0.15",
+    "bravojs": "1.0.15",
     "chalk": "^4.1.0",
     "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#merge/epic-into-develop",
-    "peter": "^2.1.3",
     "syslog-client": "^1.1.1"
   },
   "optionalDependencies": {
+    "peter": "^2.1.3",
     "telnet": "0.0.1",
     "windows-eventlog": "git+https://github.com/jfromaniello/node-windows-eventlog.git#master"
   }

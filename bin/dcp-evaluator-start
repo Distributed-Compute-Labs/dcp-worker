@@ -1,23 +1,26 @@
-#! /usr/bin/env node
+#!/usr/bin/env node
 /** @file       dcp-evaluator-start
  *  @author     Eddie Roosenmaallen, eddie@kingsds.network
  *              Levi Stringer, levi@kingsds.network
  *  @date       September 2020
- *  
- *  This script starts the DCP Native Evaluator in server mode, with the 
+ *
+ *  This script starts the DCP Native Evaluator in server mode, with the
  *  appropriate list of worker startup files queued up
  */
 
+const { clearLine, cursorTo } = require('readline');
+const path = require('path');
 require('dcp-client').initSync(require(process.env.DCP_CONFIG || '../etc/dcp-config'));
 
-const path = require('path');
 const dcpConfig = require('dcp/dcp-config');
+
+const dcpClientDir = path.dirname(require.resolve('dcp-client'));
 
 const options = require('dcp/cli')
   .base('Evaluator frontend')
   .option('prefix', {
     desc: 'Path under which native components are installed',
-    default: path.resolve(__dirname, '..'),
+    default: dcpClientDir,
   })
   .option('port', {
     alias: ['p'],
@@ -27,10 +30,12 @@ const options = require('dcp/cli')
   .option('stdio', {
     alias: ['s'],
     desc: 'Use stdio pipeline (eg for inetd) instead of tcp port',
+    type: 'boolean',
+    default: false,
   })
   .option('evaluator', {
     alias: ['e'],
-    desc: 'Path to evaluator (normally prefix/bin/dcp-evaluator)',
+    desc: 'Path to evaluator (default: prefix/libexec/evaluator-node)',
   })
   .option('evaluator-libexec-dir', {
     alias: ['l'],
@@ -38,16 +43,16 @@ const options = require('dcp/cli')
   })
   .option('sandbox-libexec-dir', {
     desc: 'Location of sandbox setup files',
-    default: '../libexec/sandbox',
+    default: path.resolve(dcpClientDir, 'libexec', 'sandbox'),
   })
   .option('sandbox-definitions', {
-    desc: 'Index of sandbox setup files for different evaluator/sandbox types', 
-    default: '../generated/sandbox-definitions.json',
+    desc: 'Index of sandbox setup files for different evaluator/sandbox types',
+    default: path.resolve(dcpClientDir, 'generated', 'sandbox-definitions.json'),
   })
   .option('sandbox-type', {
     alias: ['t'],
-    desc: 'Type of evaluator/sandbox', 
-    default: 'native'  
+    desc: 'Type of evaluator/sandbox',
+    default: 'native'
   })
   .option('dump', {
     alias: ['D'],
@@ -58,22 +63,51 @@ const options = require('dcp/cli')
   .argv;
 
 if (!options.evaluator) {
-  options.evaluator = path.resolve(options.prefix , 'bin', 'dcp-evaluator');
-  if (!options.evaluatorLibexecDir)
-    options.evaluatorLibexecDir = path.resolve(options.prefix, 'libexec', 'evaluator');
+  options.evaluator = path.resolve(
+    options.prefix,
+    'libexec',
+    'evaluator-node.js',
+  );
+  if (!options.evaluatorLibexecDir) {
+    options.evaluatorLibexecDir = 'N/A';
+  }
 }
 
 // Requires the list of files module (sandbox-definitions.json) and then chooses what export evaluator (options.sandboxType)
 const setupFiles = require(options.sandboxDefinitions)[options.sandboxType]
-debugger
 
-const bin = options.evaluator && path.resolve(options.evaluator) || path.join(options.prefix, 'bin', 'dcp-evaluator');
+/**
+ * Spits out the list of files for a node evaluator instead of spinning up an
+ * v8-evaluator.
+ */
+if (options.sandboxType === 'node') {
+  if (process.env.I_WANT_AN_INSECURE_DCP_WORKER !== 'badly') {
+    console.warn(
+      '*** WARNING: Node evaluator is not suitable for production work ***',
+    );
+    for (let i = 10; i; i -= 1) {
+      process.stdout.write(Buffer.from(`...${i} \x08\x08`, 'utf-8'));
+      require('dcp/utils').sleep(1 - 0.1);
+      clearLine(process.stdout);
+      cursorTo(process.stdout, 0);
+    }
+
+    process.stdout.write(Buffer.from('            \n', 'utf-8'));
+  }
+
+  console.log(JSON.stringify(setupFiles, null, 2));
+  process.exit(0);
+}
+
+const bin =
+  (options.evaluator && path.resolve(options.evaluator)) ||
+  path.join(options.prefix, 'bin', 'dcp-evaluator');
 
 let args = [];
 if (!options.stdio)
   args = args.concat(['--port', options.port]);
 if (options.evaluatorLibexecDir)
-  args = args.concat(['-l', path.join(options.prefix, 'libexec', 'evaluator')]);
+  args = args.concat(['-l', options.evaluatorLibexecDir]);
 if (options._)
   args = args.concat(options._);
 
@@ -82,24 +116,10 @@ if (options._)
 // such as we get in the bundled config.
 for (let n=0; setupFiles[n]; n++) {
   // If the path is a realative path nodemodule (i.e. bravajs), take it directly from node_modules
-  if (/(^[.])|(\/)/.test(setupFiles[n])){ 
+  if (/(^[.])|(\/)/.test(setupFiles[n])){
     args.push(require.resolve(setupFiles[n]))
   } else {
     args.push(require.resolve(path.join(options.sandboxLibexecDir, setupFiles[n])));
-  }
-}
-
-// Spits out the list of files for a node evaluator instead of spinning up an v8-evaluator 
-if (options.sandboxType === 'node') {
-  console.error("*** WARNING: Node evaluator is not suitable for production work ***");
-  if (process.env['I_WANT_AN_INSECURE_DCP_WORKER'] !== 'badly') {
-    for (let i=10; i; i--) {
-      process.stdout.write(Buffer.from('...' + i + ' \x08\x08', 'utf-8'));
-      require('dcp/utils').sleep(1 - 0.1);
-      process.stdout.clearLine();
-      process.stdout.cursorTo(0);
-    }
-    process.stdout.write(Buffer.from('            \n', 'utf-8'));
   }
 }
 
