@@ -65,6 +65,12 @@ async function main () {
         describe: 'Set the priority mode [deprecated]',
         type: 'boolean',
         default: false
+      },
+      jobId: {
+        alias: 'j',
+        describe: 'Set a job ID to target against',
+        type: 'string',
+        default: undefined,
       }
     })
   .strict()
@@ -92,8 +98,16 @@ async function startWorking(cliArgs) {
   var paymentAddress;
   var sawOptions = {
     hostname: cliArgs.hostname,
-    port:     cliArgs.port
+    port:     cliArgs.port,
   };
+
+  if (cliArgs.jobID) {
+    if (Array.isArray(cliArgs.jobID)) {
+      sawOptions.jobIDs = cliArgs.jobID;
+    } else {
+      sawOptions.jobIDs = [ cliArgs.jobID ];
+    }
+  }
 
   if (cliArgs.paymentAddress) {
     paymentAddress = new wallet.Address(cliArgs.paymentAddress);
