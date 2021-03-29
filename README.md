@@ -6,14 +6,14 @@ necessary library routines and packages for implementing other worker types (eg 
 
 Note that, in order to run this DCP Worker, you also need a DCP Evaluator; we use a completely separate
 build process, unrelated to NodeJS and NPM, to create our evaluators for security reasons. Our native
-evaluator embeds Google's V8 JavaScript engine directory; this evaluator hosts the sandbox which executes
+evaluator embeds Google's V8 JavaScript engine directly; this evaluator hosts the sandbox which executes
 DCP workload.
 
 You can find a complete package for Linux, including Evaluator binaries at https://archive.distributed.computer/releases/, 
 and documentation at https://docs.distributed.computer/worker/readme.html.  If you are a developer
-which is interested in porting the Evaluator to your own platform, please contact us and we will
+who interested in porting the Evaluator to your own platform, please contact us and we will
 grant you early access to the MIT-licensed source code.  The build is CMake with GN and largely
-based around v8.
+based around V8.
 
 ## Record of Issue
 
