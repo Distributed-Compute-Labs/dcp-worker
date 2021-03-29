@@ -29,15 +29,6 @@ const dcpConfig =
     },
     reloadBehaviour: 'process.exit(12)',
   },
-
-  /** serviceWorker properties override standaloneWorker properties the dcp-service-worker program */
-  serviceWorker:
-  {
-    evaluatorConnectBackoff:
-    {
-      maxInterval: 1 * 60 * 1000,
-    },
-  },
 }
 
 if (!dcpConfig.evaluator.location)

@@ -17,13 +17,11 @@
   "author": "Kings Distributed Systems",
   "bin": {
     "dcp-evaluator-start": "bin/dcp-evaluator-start",
-    "dcp-service-worker": "bin/dcp-service-worker",
     "dcp-worker": "bin/dcp-worker"
   },
   "directories": {
     "lib": "lib",
-    "etc": "etc",
-    "libexec": "libexec"
+    "etc": "etc"
   },
   "scripts": {
     "start": "node bin/dcp-worker start",
@@ -36,11 +34,7 @@
     "bravojs": "1.0.15",
     "chalk": "^4.1.0",
     "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#develop",
-    "peter": "^2.1.3",
-    "telnet": "0.0.1",
-    "syslog-client": "^1.1.1"
+    "peter": "^2.1.3"
   },
-  "optionalDependencies": {
-    "windows-eventlog": "git+https://github.com/jfromaniello/node-windows-eventlog.git#master"
-  }
+  "optionalDependencies": {}
 }
