@@ -1,11 +1,13 @@
 # DCP-Worker
 
 This is the official Node DCP Worker implementation for DCP, the Distributed Compute Protocol.
-This code implements a Node-based DCP Worker and is used by the DCP Compute API job.localExec()
-function under Node.
+This code implements a DCP Worker which is intended to be executed interactively and supplies
+necessary library routines and packages for implementing other worker types (eg the DCP Service Worker).
 
-Note that, in order to run a Node DCP Worker, you also need a DCP Evaluator; we use a completely
-separate build process, unrelated to NodeJS and NPM, to create our evaluators for security reasons.
+Note that, in order to run this DCP Worker, you also need a DCP Evaluator; we use a completely separate
+build process, unrelated to NodeJS and NPM, to create our evaluators for security reasons. Our native
+evaluator embeds Google's V8 JavaScript engine directory; this evaluator hosts the sandbox which executes
+DCP workload.
 
 You can find a complete package for Linux, including Evaluator binaries at https://archive.distributed.computer/releases/, 
 and documentation at https://docs.distributed.computer/worker/readme.html.  If you are a developer
@@ -13,12 +15,12 @@ which is interested in porting the Evaluator to your own platform, please contac
 grant you early access to the MIT-licensed source code.  The build is CMake with GN and largely
 based around v8.
 
-
 ## Record of Issue
 
 Date        |  Author          | Change
 ----------- | ---------------- | ---------------------------------------------
 May 29 2020 | Wes Garland      | Early Developer Preview Release
+Mar 29 2021 | Wes Garland      | DCP Service Worker moved to separate package
 
 ## Release Notes
 
