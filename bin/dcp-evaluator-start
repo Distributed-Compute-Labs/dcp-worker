@@ -70,6 +70,10 @@ const options = require('dcp/cli')
     alias: ['T'],
     desc: 'Dump list of known sandbox types to stdout and exit',
   })
+  .option('dumpFiles', {
+    alias: ['F'],
+    desc: 'Dump list of startup files which would be passed to the evaluator and exit',
+  })
   .option('-', { desc: 'end of options - all subsequent options passed directly to evaluator' })
   .wrap(process.stdout.columns || 80)
   .argv;
@@ -77,20 +81,53 @@ const options = require('dcp/cli')
 if (!options.evaluator)
   options.evaluator = path.join(options.prefix, 'bin', 'dcp-evaluator');
 
-if (options.dumpTypes) {
-  console.log(Object.keys(require(options.sandboxDefinitions)));
-  process.exit(0);
-}
-
 if (options.stdio)
   delete options.port;
 
 const sandboxSetupDefs = require(options.sandboxDefinitions)[options.sandboxType]
 
-/**
- * Spits out the list of files for a node evaluator instead of spinning up an
- * v8-evaluator.
+if (options.rEvaluator)
+  evaluator = require.resolve(options.rEvaluator);
+else
+  evaluator = path.resolve(options.evaluator);
+
+let args = [];    /* Command-line arguments to pass to evaluator */
+let files = [];   /* Startup files passed to evaluator as supplementary arguments */
+
+if (!options.stdio)
+  args = args.concat(['-p', options.port]);
+if (options.evaluatorLibDir)
+  args = args.concat(['-l', options.evaluatorLibDir]);
+if (options._)
+  args = args.concat(options._);
+
+/* Definitions in the JSON file are either in the sandboxLibexecDir, or pathed
+ * via normal CommonJS (node_modules) rules.  The syntax for detecting which must
+ * stay synchronized with dcp/src/dcp-client/worker/evaluators/browser.js.
  */
+for (let def of sandboxSetupDefs) {
+  if (def.match(/\//))
+    files.push(require.resolve(def));
+  else
+    files.push(require.resolve(options.sandboxLibexecDir + '/' + def));
+}
+
+if (options.dump) {
+  console.log('Evaluator command:', args.concat(files).join(' '));
+  console.log('Options:', options);
+  process.exit(0);
+}
+
+if (options.dumpFiles) {
+  console.log(files);
+  process.exit(0);
+}
+
+if (options.dumpTypes) {
+  console.log(Object.keys(require(options.sandboxDefinitions)));
+  process.exit(0);
+}
+
 if (!options.stdio && options.sandboxType === 'node') {
   if (process.env.I_WANT_AN_INSECURE_DCP_WORKER !== 'badly') {
     console.warn('***\x07 WARNING: Node evaluator is not suitable for production work - ^C to abort');
@@ -105,38 +142,6 @@ if (!options.stdio && options.sandboxType === 'node') {
   }
 }
 
-if (options.rEvaluator)
-  evaluator = require.resolve(options.rEvaluator);
-else
-  evaluator = path.resolve(options.evaluator);
-
-let args = [];
-if (!options.stdio)
-  args = args.concat(['-p', options.port]);
-if (options.evaluatorLibDir)
-  args = args.concat(['-l', options.evaluatorLibDir]);
-if (options._)
-  args = args.concat(options._);
-
-const cliArgsLimit = args.length; /* mark the last argument generated from our command-line opts; rest are files */
-
-/* Definitions in the JSON file are either in the sandboxLibexecDir, or pathed
- * via normal CommonJS (node_modules) rules.  The syntax for detecting which must
- * stay synchronized with dcp/src/dcp-client/worker/evaluators/browser.js.
- */
-for (let def of sandboxSetupDefs) {
-  if (def.match(/\//))
-    args.push(require.resolve(def));
-  else
-    args.push(require.resolve(options.sandboxLibexecDir + '/' + def));
-}
-
-if (options.dump) {
-  console.log('Evaluator command:', args.join(' '));
-  console.log('Options:', options);
-  process.exit(0);
-}
-
 if (!options.stdio) {
   // Log what we're about to do:
   console.log('Starting DCP Evaluator -- ');
@@ -148,13 +153,13 @@ if (!options.stdio) {
     console.log('. Listening on:      \t\t', options.port);
   console.log('. Worker environment type:\t', options.type);
   console.log('. Worker environment:  \t');
-  args.slice(cliArgsLimit).forEach(f => {
+  files.forEach(f => {
     console.log('\t' + f);
   });
   console.log('');
 }
 
-const ran = require('child_process').spawnSync(evaluator, args, {
+const ran = require('child_process').spawnSync(evaluator, args.concat(files), {
   cwd: __dirname,
   windowsHide: true,
   stdio: ['inherit', 'inherit', 'inherit']
