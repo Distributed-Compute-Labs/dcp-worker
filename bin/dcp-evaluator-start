@@ -4,9 +4,10 @@
  *              Levi Stringer, levi@kingsds.network
  *  @date       September 2020
  *
- *  This script starts the DCP Native Evaluator in server mode, with the
+ *  This script starts a DCP Evaluator, with the
  *  appropriate list of worker startup files queued up
  */
+'use strict';
 
 const { clearLine, cursorTo } = require('readline');
 const path = require('path');
@@ -16,11 +17,15 @@ const dcpConfig = require('dcp/dcp-config');
 
 const dcpClientDir = path.dirname(require.resolve('dcp-client'));
 
+/* All evaluators must understand the following command-line options:
+ * -l - location of libs
+ * -p - port to listen on; unspecified => stdio
+ */
 const options = require('dcp/cli')
   .base('Evaluator frontend')
   .option('prefix', {
     desc: 'Path under which native components are installed',
-    default: dcpClientDir,
+    default: path.resolve(__dirname, '..'),
   })
   .option('port', {
     alias: ['p'],
@@ -35,11 +40,11 @@ const options = require('dcp/cli')
   })
   .option('evaluator', {
     alias: ['e'],
-    desc: 'Path to evaluator (default: prefix/libexec/evaluator-node)',
+    desc: 'Path to evaluator (default: prefix/dcp-evaluator)',
   })
-  .option('evaluator-libexec-dir', {
+  .option('evaluator-lib-dir', {
     alias: ['l'],
-    desc: 'Location of evaluator libraries (prefix/libexec unless -e)',
+    desc: 'Location of evaluator libraries',
   })
   .option('sandbox-libexec-dir', {
     desc: 'Location of sandbox setup files',
@@ -65,16 +70,13 @@ const options = require('dcp/cli')
 if (!options.evaluator) {
   options.evaluator = path.resolve(
     options.prefix,
-    'libexec',
-    'evaluator-node.js',
+    'bin',
+    'dcp-evaluator',
   );
-  if (!options.evaluatorLibexecDir) {
-    options.evaluatorLibexecDir = 'N/A';
-  }
 }
 
 // Requires the list of files module (sandbox-definitions.json) and then chooses what export evaluator (options.sandboxType)
-const setupFiles = require(options.sandboxDefinitions)[options.sandboxType]
+const sandboxSetupDefs = require(options.sandboxDefinitions)[options.sandboxType]
 
 /**
  * Spits out the list of files for a node evaluator instead of spinning up an
@@ -95,7 +97,7 @@ if (options.sandboxType === 'node') {
     process.stdout.write(Buffer.from('            \n', 'utf-8'));
   }
 
-  console.log(JSON.stringify(setupFiles, null, 2));
+  console.log(JSON.stringify(sandboxSetupDefs, null, 2));
   process.exit(0);
 }
 
@@ -105,41 +107,45 @@ const bin =
 
 let args = [];
 if (!options.stdio)
-  args = args.concat(['--port', options.port]);
-if (options.evaluatorLibexecDir)
-  args = args.concat(['-l', options.evaluatorLibexecDir]);
+  args = args.concat(['-p', options.port]);
+if (options.evaluatorLibDir)
+  args = args.concat(['-l', options.evaluatorLibDir]);
 if (options._)
   args = args.concat(options._);
 
-// web config doesn't nicely handle arrays, so setupFiles.forEach is no-go;
-// this hack works with either a real array, or an arrayish-looking ES object
-// such as we get in the bundled config.
-for (let n=0; setupFiles[n]; n++) {
-  // If the path is a realative path nodemodule (i.e. bravajs), take it directly from node_modules
-  if (/(^[.])|(\/)/.test(setupFiles[n])){
-    args.push(require.resolve(setupFiles[n]))
-  } else {
-    args.push(require.resolve(path.join(options.sandboxLibexecDir, setupFiles[n])));
-  }
-}
+const cliArgsLimit = args.length; /* mark the last argument generated from our command-line opts; rest are files */
 
-// Log what we're about to do:
-console.log('DCP Evaluator Server');
-console.log('Evaluator binary at: ', bin);
-console.log('Library path at:     ', options.evaluatorLibexecDir);
-if (options.stdio)
-  console.log('Running in single-shot over stdio pipeline');
-else
-  console.log('Listening on:        ', options.port);
-console.log('Worker environment:  ');
-args.slice(4).forEach(f => {
-  console.log('\t' + f);
-});
+/* Definitions in the JSON file are either in the sandboxLibexecDir, or pathed
+ * via normal CommonJS (node_modules) rules.  The syntax for detecting which must
+ * stay synchronized with dcp/src/dcp-client/worker/evaluators/browser.js.
+ */
+for (let def of sandboxSetupDefs) {
+  if (def.match(/\//))
+    args.push(require.resolve(def));
+  else
+    args.push(require.resolve(options.sandboxLibexecDir + '/' + def));
+}
 
 if (options.dump) {
   console.log('Evaluator command:', args.join(' '));
   console.log('Options:', options);
   process.exit(0);
+}
+
+if (!options.stdio) {
+  // Log what we're about to do:
+  console.log('Start DCP Evaluator');
+  console.log('Evaluator binary at: ', bin);
+  console.log('Library path at:     ', options.evaluatorDir);
+  if (options.stdio)
+    console.log('Running in single-shot over stdio pipeline');
+  else
+    console.log('Listening on:        ', options.port);
+  console.log('Worker environment:  ');
+  args.slice(cliArgsLimit).forEach(f => {
+    console.log('\t' + f);
+  });
+  console.log('');
 }
 
 const ran = require('child_process').spawnSync(bin, args, {
@@ -148,8 +154,7 @@ const ran = require('child_process').spawnSync(bin, args, {
   stdio: ['inherit', 'inherit', 'inherit']
 });
 
-console.log('');
-if (ran.signal)
+if (ran.signal && !options.stdio)
   console.log(`Evaluator server caught signal ${ran.signal}`);
 if (ran.error) {
   delete ran.error.stack;
@@ -157,7 +162,8 @@ if (ran.error) {
 }
 
 if (!ran.signal && !ran.error) {
-  console.log('Evaluator server process exited, status', ran.status);
+  if (!options.stdio)
+    console.log('Evaluator server process exited, status', ran.status);
   process.exit(ran.status);
 }
 
