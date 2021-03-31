@@ -12,10 +12,9 @@
 const { clearLine, cursorTo } = require('readline');
 const path = require('path');
 require('dcp-client').initSync(require(process.env.DCP_CONFIG || '../etc/dcp-config'));
-
 const dcpConfig = require('dcp/dcp-config');
-
 const dcpClientDir = path.dirname(require.resolve('dcp-client'));
+var evaluator;
 
 /* All evaluators must understand the following command-line options:
  * -l - location of libs
@@ -40,7 +39,11 @@ const options = require('dcp/cli')
   })
   .option('evaluator', {
     alias: ['e'],
-    desc: 'Path to evaluator (default: prefix/dcp-evaluator)',
+    desc: 'Path to evaluator (default: prefix/bin/dcp-evaluator)',
+  })
+  .option('rEvaluator', {
+    alias: ['r'],
+    desc: 'Path to evaluator as a module identitifer',
   })
   .option('evaluator-lib-dir', {
     alias: ['l'],
@@ -63,32 +66,36 @@ const options = require('dcp/cli')
     alias: ['D'],
     desc: 'Dump configuration to stdout and exit',
   })
+  .option('dumpTypes', {
+    alias: ['T'],
+    desc: 'Dump list of known sandbox types to stdout and exit',
+  })
   .option('-', { desc: 'end of options - all subsequent options passed directly to evaluator' })
   .wrap(process.stdout.columns || 80)
   .argv;
 
-if (!options.evaluator) {
-  options.evaluator = path.resolve(
-    options.prefix,
-    'bin',
-    'dcp-evaluator',
-  );
+if (!options.evaluator)
+  options.evaluator = path.join(options.prefix, 'bin', 'dcp-evaluator');
+
+if (options.dumpTypes) {
+  console.log(Object.keys(require(options.sandboxDefinitions)));
+  process.exit(0);
 }
 
-// Requires the list of files module (sandbox-definitions.json) and then chooses what export evaluator (options.sandboxType)
+if (options.stdio)
+  delete options.port;
+
 const sandboxSetupDefs = require(options.sandboxDefinitions)[options.sandboxType]
 
 /**
  * Spits out the list of files for a node evaluator instead of spinning up an
  * v8-evaluator.
  */
-if (options.sandboxType === 'node') {
+if (!options.stdio && options.sandboxType === 'node') {
   if (process.env.I_WANT_AN_INSECURE_DCP_WORKER !== 'badly') {
-    console.warn(
-      '*** WARNING: Node evaluator is not suitable for production work ***',
-    );
-    for (let i = 10; i; i -= 1) {
-      process.stdout.write(Buffer.from(`...${i} \x08\x08`, 'utf-8'));
+    console.warn('***\x07 WARNING: Node evaluator is not suitable for production work - ^C to abort');
+    for (let i = 5; i; i -= 1) {
+      process.stdout.write(Buffer.from(`...${i} \x08\x08\x07`, 'utf-8'));
       require('dcp/utils').sleep(1 - 0.1);
       clearLine(process.stdout);
       cursorTo(process.stdout, 0);
@@ -96,14 +103,12 @@ if (options.sandboxType === 'node') {
 
     process.stdout.write(Buffer.from('            \n', 'utf-8'));
   }
-
-  console.log(JSON.stringify(sandboxSetupDefs, null, 2));
-  process.exit(0);
 }
 
-const bin =
-  (options.evaluator && path.resolve(options.evaluator)) ||
-  path.join(options.prefix, 'bin', 'dcp-evaluator');
+if (options.rEvaluator)
+  evaluator = require.resolve(options.rEvaluator);
+else
+  evaluator = path.resolve(options.evaluator);
 
 let args = [];
 if (!options.stdio)
@@ -134,21 +139,22 @@ if (options.dump) {
 
 if (!options.stdio) {
   // Log what we're about to do:
-  console.log('Start DCP Evaluator');
-  console.log('Evaluator binary at: ', bin);
-  console.log('Library path at:     ', options.evaluatorDir);
+  console.log('Starting DCP Evaluator -- ');
+  console.log('. Evaluator program at:\t\t', evaluator);
+  console.log('. Library path at:     \t\t', options.evaluatorDir);
   if (options.stdio)
-    console.log('Running in single-shot over stdio pipeline');
+    console.log('. Running in single-shot over stdio pipeline');
   else
-    console.log('Listening on:        ', options.port);
-  console.log('Worker environment:  ');
+    console.log('. Listening on:      \t\t', options.port);
+  console.log('. Worker environment type:\t', options.type);
+  console.log('. Worker environment:  \t');
   args.slice(cliArgsLimit).forEach(f => {
     console.log('\t' + f);
   });
   console.log('');
 }
 
-const ran = require('child_process').spawnSync(bin, args, {
+const ran = require('child_process').spawnSync(evaluator, args, {
   cwd: __dirname,
   windowsHide: true,
   stdio: ['inherit', 'inherit', 'inherit']
