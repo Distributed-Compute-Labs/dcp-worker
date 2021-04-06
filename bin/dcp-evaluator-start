@@ -66,16 +66,21 @@ const options = require('dcp/cli')
     alias: ['D'],
     desc: 'Dump configuration to stdout and exit',
   })
-  .option('dumpTypes', {
+  .option('dump-types', {
     alias: ['T'],
     desc: 'Dump list of known sandbox types to stdout and exit',
   })
-  .option('dumpFiles', {
+  .option('dump-files', {
     alias: ['F'],
     desc: 'Dump list of startup files which would be passed to the evaluator and exit',
   })
+  .option('json', {
+    alias: ['J'],
+    desc: 'Dump in JSON format',
+  })
   .option('-', { desc: 'end of options - all subsequent options passed directly to evaluator' })
   .wrap(process.stdout.columns || 80)
+  .strict()
   .argv;
 
 if (!options.evaluator)
@@ -85,6 +90,8 @@ if (options.stdio)
   delete options.port;
 
 const sandboxSetupDefs = require(options.sandboxDefinitions)[options.sandboxType]
+if (!sandboxSetupDefs)
+  throw new Error(`Invalid sandbox type: ${options.sandboxType}`);
 
 if (options.rEvaluator)
   evaluator = require.resolve(options.rEvaluator);
@@ -113,18 +120,30 @@ for (let def of sandboxSetupDefs) {
 }
 
 if (options.dump) {
-  console.log('Evaluator command:', args.concat(files).join(' '));
-  console.log('Options:', options);
+  if (options.json) {
+    console.log(JSON.stringify({evaluator, args, files, options}));
+  } else {
+    console.log('Evaluator command:', [evaluator].concat(args).concat(files).join(' '));
+    console.log('Options:', options);
+  }
   process.exit(0);
 }
 
 if (options.dumpFiles) {
-  console.log(files);
+  let dump = files;
+
+  if (options.json)
+    dump = JSON.stringify(dump);
+  console.log(dump);
   process.exit(0);
 }
 
 if (options.dumpTypes) {
-  console.log(Object.keys(require(options.sandboxDefinitions)));
+  let dump = Object.keys(require(options.sandboxDefinitions));
+
+  if (options.json)
+    dump = JSON.stringify(dump);
+  console.log(dump);
   process.exit(0);
 }
 
