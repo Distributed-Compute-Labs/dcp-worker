@@ -99,7 +99,7 @@ async function startWorking(cliArgs) {
   var paymentAddress;
   var sawOptions = {
     hostname: cliArgs.hostname,
-    port:     cliArgs.port,
+    port:     cliArgs.port
   };
 
   if (cliArgs.jobID) {
