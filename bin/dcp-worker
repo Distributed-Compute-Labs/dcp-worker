@@ -66,7 +66,7 @@ async function main () {
         type: 'boolean',
         default: false
       },
-      jobId: {
+      jobID: {
         alias: 'j',
         describe: 'Set a job ID to target against',
         type: 'string',
@@ -95,6 +95,7 @@ async function startWorking(cliArgs) {
   const DCPWorker = require('dcp/worker').Worker;
   const { startWorkerLogger } = require('../lib/startWorkerLogger');
   const identityKeystore = await wallet.getId();
+  var jobOpaqueIds = [];
   var paymentAddress;
   var sawOptions = {
     hostname: cliArgs.hostname,
@@ -103,9 +104,9 @@ async function startWorking(cliArgs) {
 
   if (cliArgs.jobID) {
     if (Array.isArray(cliArgs.jobID)) {
-      sawOptions.jobIDs = cliArgs.jobID;
+      jobOpaqueIds = cliArgs.jobID;
     } else {
-      sawOptions.jobIDs = [ cliArgs.jobID ];
+      jobOpaqueIds = [ cliArgs.jobID ];
     }
   }
 
@@ -126,7 +127,8 @@ async function startWorking(cliArgs) {
     priorityOnly:        cliArgs.priorityOnly,
     sandboxOptions: {
       SandboxConstructor: SAWorker,
-    }
+    },
+    jobOpaqueIds
   });
 
   worker.on('start', () => {
