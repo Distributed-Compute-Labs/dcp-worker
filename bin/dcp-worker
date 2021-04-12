@@ -136,8 +136,6 @@ async function startWorking(cliArgs) {
 
   worker = new DCPWorker(dcpWorkerOptions);
 
-  debugger;
-
   worker.on('start', () => {
     console.log(' . ready');
     startWorkerLogger(worker, {
