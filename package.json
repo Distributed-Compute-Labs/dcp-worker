@@ -2,6 +2,7 @@
   "name": "dcp-worker",
   "version": "2.0.1-a",
   "description": "JavaScript portion of DCP Workers for NodeJS",
+  "main": "bin/dcp-worker",
   "keywords": [
     "dcp"
   ],
