@@ -76,9 +76,6 @@ async function main () {
   .wrap(process.stdout.columns || 80)
   .argv;
 
-  console.log(cliArgs)
-  debugger;
-
   await startWorking(cliArgs);
 }
 
@@ -98,6 +95,7 @@ async function startWorking(cliArgs) {
   const { startWorkerLogger } = require('../lib/startWorkerLogger');
   const identityKeystore = await wallet.getId();
   var jobOpaqueIds = [];
+  var dcpWorkerOptions;
   var paymentAddress;
   var sawOptions = {
     hostname: cliArgs.hostname,
@@ -123,15 +121,22 @@ async function startWorking(cliArgs) {
 
   const SAWorker = require('dcp-client/lib/standaloneWorker').workerFactory(sawOptions);
   
-  worker = new DCPWorker({
+  dcpWorkerOptions = {
     paymentAddress,
     maxWorkingSandboxes: cliArgs.cores,
     priorityOnly:        cliArgs.priorityOnly,
     sandboxOptions: {
       SandboxConstructor: SAWorker,
-    },
-    jobOpaqueIds
-  });
+    }
+  };
+
+  if (cliArgs.jobId) {
+    dcpWorkerOptions.jobOpaqueIds = jobOpaqueIds;
+  }
+
+  worker = new DCPWorker(dcpWorkerOptions);
+
+  debugger;
 
   worker.on('start', () => {
     console.log(' . ready');
