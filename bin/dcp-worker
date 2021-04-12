@@ -66,16 +66,18 @@ async function main () {
         type: 'boolean',
         default: false
       },
-      jobID: {
+      'job-id': {
         alias: 'j',
-        describe: 'Set a job ID to target against',
+        describe: 'Restrict worker to a specific job (use N times for N jobs)',
         type: 'string',
-        default: undefined,
       }
     })
   .strict()
   .wrap(process.stdout.columns || 80)
   .argv;
+
+  console.log(cliArgs)
+  debugger;
 
   await startWorking(cliArgs);
 }
@@ -102,11 +104,11 @@ async function startWorking(cliArgs) {
     port:     cliArgs.port
   };
 
-  if (cliArgs.jobID) {
-    if (Array.isArray(cliArgs.jobID)) {
-      jobOpaqueIds = cliArgs.jobID;
+  if (cliArgs.jobId) {
+    if (Array.isArray(cliArgs.jobId)) {
+      jobOpaqueIds = cliArgs.jobId;
     } else {
-      jobOpaqueIds = [ cliArgs.jobID ];
+      jobOpaqueIds = [ cliArgs.jobId ];
     }
   }
 
