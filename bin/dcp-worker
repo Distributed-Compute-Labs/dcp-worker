@@ -94,7 +94,8 @@ async function startWorking(cliArgs) {
   const DCPWorker = require('dcp/worker').Worker;
   const { startWorkerLogger } = require('../lib/startWorkerLogger');
   const identityKeystore = await wallet.getId();
-  var jobOpaqueIds = [];
+  /** @type {string[]} */
+  let jobOpaqueIds;
   var dcpWorkerOptions;
   var paymentAddress;
   var sawOptions = {
