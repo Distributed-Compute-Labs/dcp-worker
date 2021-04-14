@@ -69,7 +69,7 @@ async function main () {
       'job-id': {
         alias: 'j',
         describe: 'Restrict worker to a specific job (use N times for N jobs)',
-        type: 'string',
+        type: 'array',
       }
     })
   .strict()
@@ -104,11 +104,7 @@ async function startWorking(cliArgs) {
   };
 
   if (cliArgs.jobId) {
-    if (Array.isArray(cliArgs.jobId)) {
-      jobOpaqueIds = cliArgs.jobId;
-    } else {
-      jobOpaqueIds = [ cliArgs.jobId ];
-    }
+    jobOpaqueIds = cliArgs.jobId;
   }
 
   if (cliArgs.paymentAddress) {
