@@ -65,6 +65,11 @@ async function main () {
         describe: 'Set the priority mode [deprecated]',
         type: 'boolean',
         default: false
+      },
+      'job-id': {
+        alias: 'j',
+        describe: 'Restrict worker to a specific job (use N times for N jobs)',
+        type: 'array',
       }
     })
   .strict()
@@ -89,11 +94,18 @@ async function startWorking(cliArgs) {
   const DCPWorker = require('dcp/worker').Worker;
   const { startWorkerLogger } = require('../lib/startWorkerLogger');
   const identityKeystore = await wallet.getId();
+  /** @type {string[]} */
+  let jobOpaqueIds;
+  var dcpWorkerOptions;
   var paymentAddress;
   var sawOptions = {
     hostname: cliArgs.hostname,
     port:     cliArgs.port
   };
+
+  if (cliArgs.jobId) {
+    jobOpaqueIds = cliArgs.jobId;
+  }
 
   if (cliArgs.paymentAddress) {
     paymentAddress = new wallet.Address(cliArgs.paymentAddress);
@@ -106,14 +118,20 @@ async function startWorking(cliArgs) {
 
   const SAWorker = require('dcp-client/lib/standaloneWorker').workerFactory(sawOptions);
   
-  worker = new DCPWorker({
+  dcpWorkerOptions = {
     paymentAddress,
     maxWorkingSandboxes: cliArgs.cores,
     priorityOnly:        cliArgs.priorityOnly,
     sandboxOptions: {
       SandboxConstructor: SAWorker,
     }
-  });
+  };
+
+  if (cliArgs.jobId) {
+    dcpWorkerOptions.jobOpaqueIds = jobOpaqueIds;
+  }
+
+  worker = new DCPWorker(dcpWorkerOptions);
 
   worker.on('start', () => {
     console.log(' . ready');
