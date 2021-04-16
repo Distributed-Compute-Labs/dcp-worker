@@ -165,12 +165,12 @@ if (!options.stdio) {
   // Log what we're about to do:
   console.log('Starting DCP Evaluator -- ');
   console.log('. Evaluator program at:\t\t', evaluator);
-  console.log('. Library path at:     \t\t', options.evaluatorDir);
+  console.log('. Library path at:     \t\t', options.evaluatorLibDir);
   if (options.stdio)
     console.log('. Running in single-shot over stdio pipeline');
   else
     console.log('. Listening on:      \t\t', options.port);
-  console.log('. Worker environment type:\t', options.type);
+  console.log('. Worker environment type:\t', options.sandboxType);
   console.log('. Worker environment:  \t');
   files.forEach(f => {
     console.log('\t' + f);
