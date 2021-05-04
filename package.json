@@ -1,7 +1,8 @@
 {
   "name": "dcp-worker",
-  "version": "1.1.6-c",
+  "version": "2.0.1-a",
   "description": "JavaScript portion of DCP Workers for NodeJS",
+  "main": "bin/dcp-worker",
   "keywords": [
     "dcp"
   ],
@@ -15,30 +16,26 @@
   },
   "license": "MIT",
   "author": "Kings Distributed Systems",
-  "main": "index.js",
   "bin": {
-    "dcp-service-worker": "dcp-service-worker",
-    "dcp-evaluator-start": "dcp-evaluator-start",
-    "dcp-worker": "dcp-worker"
+    "dcp-evaluator-start": "bin/dcp-evaluator-start",
+    "dcp-worker": "bin/dcp-worker"
   },
   "directories": {
-    "lib": "lib"
+    "lib": "lib",
+    "etc": "etc"
   },
   "scripts": {
-    "start": "node dcp-worker start",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "node generate-native-env-script"
+    "start": "node bin/dcp-worker start",
+    "start-evaluator": "node bin/dcp-evaluator-start",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "blessed": "^0.1.81",
-    "blessed-contrib": "^4.8.20",
-    "bravojs": "^1.0.15",
+    "blessed-contrib": "^4.8.21",
+    "bravojs": "1.0.15",
     "chalk": "^4.1.0",
-    "dcp-client": "^3.2.7",
-    "syslog-client": "^1.1.1"
+    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#develop",
+    "peter": "^2.1.3"
   },
-  "optionalDependencies": {
-    "telnet": "0.0.1",
-    "windows-eventlog": "git+https://github.com/jfromaniello/node-windows-eventlog.git#master"
-  }
+  "optionalDependencies": {}
 }

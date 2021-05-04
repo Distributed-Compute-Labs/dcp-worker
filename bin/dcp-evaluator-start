@@ -1,0 +1,203 @@
+#!/usr/bin/env node
+/** @file       dcp-evaluator-start
+ *  @author     Eddie Roosenmaallen, eddie@kingsds.network
+ *              Levi Stringer, levi@kingsds.network
+ *  @date       September 2020
+ *
+ *  This script starts a DCP Evaluator, with the
+ *  appropriate list of worker startup files queued up
+ */
+'use strict';
+
+function main() {
+  const { clearLine, cursorTo } = require('readline');
+  const path = require('path');
+  const dcpConfig = require('dcp/dcp-config');
+  const dcpClientDir = path.dirname(require.resolve('dcp-client'));
+  var evaluator;
+
+  /* All evaluators must understand the following command-line options:
+   * -l - location of libs
+   * -p - port to listen on; unspecified => stdio
+   */
+  const options = require('dcp/cli')
+        .base('Evaluator frontend')
+        .option('prefix', {
+          desc: 'Path under which native components are installed',
+          default: path.resolve(__dirname, '..'),
+        })
+        .option('port', {
+          alias: ['p'],
+          desc: 'Port to listen on',
+          default: Number(dcpConfig.evaluator.listen.port),
+        })
+        .option('stdio', {
+          alias: ['s'],
+          desc: 'Use stdio pipeline (eg for inetd) instead of tcp port',
+          type: 'boolean',
+          default: false,
+        })
+        .option('evaluator', {
+          alias: ['e'],
+          desc: 'Path to evaluator (default: prefix/bin/dcp-evaluator)',
+        })
+        .option('rEvaluator', {
+          alias: ['r'],
+          desc: 'Path to evaluator as a module identitifer',
+        })
+        .option('evaluator-lib-dir', {
+          alias: ['l'],
+          desc: 'Location of evaluator libraries',
+        })
+        .option('sandbox-libexec-dir', {
+          desc: 'Location of sandbox setup files',
+          default: path.resolve(dcpClientDir, 'libexec', 'sandbox'),
+        })
+        .option('sandbox-definitions', {
+          desc: 'Index of sandbox setup files for different evaluator/sandbox types',
+          default: path.resolve(dcpClientDir, 'generated', 'sandbox-definitions.json'),
+        })
+        .option('sandbox-type', {
+          alias: ['t'],
+          desc: 'Type of evaluator/sandbox',
+          default: 'native'
+        })
+        .option('dump', {
+          alias: ['D'],
+          desc: 'Dump configuration to stdout and exit',
+        })
+        .option('dump-types', {
+          alias: ['T'],
+          desc: 'Dump list of known sandbox types to stdout and exit',
+        })
+        .option('dump-files', {
+          alias: ['F'],
+          desc: 'Dump list of startup files which would be passed to the evaluator and exit',
+        })
+        .option('json', {
+          alias: ['J'],
+          desc: 'Dump in JSON format',
+        })
+        .option('-', { desc: 'end of options - all subsequent options passed directly to evaluator' })
+        .wrap(process.stdout.columns || 80)
+        .strict()
+        .argv;
+
+  if (!options.evaluator)
+    options.evaluator = path.join(options.prefix, 'bin', 'dcp-evaluator');
+
+  if (options.stdio)
+    delete options.port;
+
+  const sandboxSetupDefs = require(options.sandboxDefinitions)[options.sandboxType]
+  if (!sandboxSetupDefs)
+    throw new Error(`Invalid sandbox type: ${options.sandboxType}`);
+
+  if (options.rEvaluator)
+    evaluator = require.resolve(options.rEvaluator);
+  else
+    evaluator = path.resolve(options.evaluator);
+
+  let args = [];    /* Command-line arguments to pass to evaluator */
+  let files = [];   /* Startup files passed to evaluator as supplementary arguments */
+
+  if (!options.stdio)
+    args = args.concat(['-p', options.port]);
+  if (options.evaluatorLibDir)
+    args = args.concat(['-l', options.evaluatorLibDir]);
+  if (options._)
+    args = args.concat(options._);
+
+  /* Definitions in the JSON file are either in the sandboxLibexecDir, or pathed
+   * via normal CommonJS (node_modules) rules.  The syntax for detecting which must
+   * stay synchronized with dcp/src/dcp-client/worker/evaluators/browser.js.
+   */
+  for (let def of sandboxSetupDefs) {
+    if (def.match(/\//))
+      files.push(require.resolve(def));
+    else
+      files.push(require.resolve(options.sandboxLibexecDir + '/' + def));
+  }
+
+  if (options.dump) {
+    if (options.json) {
+      console.log(JSON.stringify({evaluator, args, files, options}));
+    } else {
+      console.log('Evaluator command:', [evaluator].concat(args).concat(files).join(' '));
+      console.log('Options:', options);
+    }
+    process.exit(0);
+  }
+
+  if (options.dumpFiles) {
+    let dump = files;
+
+    if (options.json)
+      dump = JSON.stringify(dump);
+    console.log(dump);
+    process.exit(0);
+  }
+
+  if (options.dumpTypes) {
+    let dump = Object.keys(require(options.sandboxDefinitions));
+
+    if (options.json)
+      dump = JSON.stringify(dump);
+    console.log(dump);
+    process.exit(0);
+  }
+
+  if (!options.stdio && options.sandboxType === 'node') {
+    if (process.env.I_WANT_AN_INSECURE_DCP_WORKER !== 'badly') {
+      console.warn('***\x07 WARNING: Node evaluator is not suitable for production work - ^C to abort');
+      for (let i = 5; i; i -= 1) {
+        process.stdout.write(Buffer.from(`...${i} \x08\x08\x07`, 'utf-8'));
+        require('dcp/utils').sleep(1 - 0.1);
+        clearLine(process.stdout);
+        cursorTo(process.stdout, 0);
+      }
+
+      process.stdout.write(Buffer.from('            \n', 'utf-8'));
+    }
+  }
+
+  if (!options.stdio) {
+    // Log what we're about to do:
+    console.log('Starting DCP Evaluator -- ');
+    console.log('. Evaluator program at:\t\t', evaluator);
+    console.log('. Library path at:     \t\t', options.evaluatorLibDir);
+    if (options.stdio)
+      console.log('. Running in single-shot over stdio pipeline');
+    else
+      console.log('. Listening on:      \t\t', options.port);
+    console.log('. Worker environment type:\t', options.sandboxType);
+    console.log('. Worker environment:  \t');
+    files.forEach(f => {
+      console.log('\t' + f);
+    });
+    console.log('');
+  }
+
+  const ran = require('child_process').spawnSync(evaluator, args.concat(files), {
+    cwd: __dirname,
+    windowsHide: true,
+    stdio: ['inherit', 'inherit', 'inherit']
+  });
+
+  if (ran.signal && !options.stdio)
+    console.log(`Evaluator server caught signal ${ran.signal}`);
+  if (ran.error) {
+    delete ran.error.stack;
+    console.error(ran.error);
+  }
+
+  if (!ran.signal && !ran.error) {
+    if (!options.stdio)
+      console.log('Evaluator server process exited, status', ran.status);
+    process.exit(ran.status);
+  }
+
+  process.exit(1);
+}
+
+require('dcp-client').init(require(process.env.DCP_CONFIG || '../etc/dcp-config')).then(main);

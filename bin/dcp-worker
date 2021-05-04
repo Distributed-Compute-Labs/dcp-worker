@@ -1,0 +1,216 @@
+#! /usr/bin/env node
+/**
+ *  @file       dcp-worker.js
+ *              Standalone NodeJS DCP Worker
+ *
+ *  @author     Ryan Rossiter, ryan@kingsds.network
+ *  @date       April 2020
+ */
+'use strict';
+
+const process = require('process');
+const os = require('os');
+const fs = require('fs');
+
+const DEFAULT_CORES = os.cpus().length - 1;
+var worker, dcpConfig;
+
+async function main () {
+  process.on('unhandledRejection', unhandledRejectionHandler);
+
+  await require('dcp-client').init(require(process.env.DCP_CONFIG || '../etc/dcp-config'));
+  dcpConfig = require('dcp/dcp-config');
+  require('../lib/check-scheduler-version').check();
+
+  const cliArgs = require('dcp/cli')
+  .base('Standalone NodeJS DCP Worker')
+    .options({
+      paymentAddress: {
+        describe: 'The address to deposit funds into, will use the default bank keystore if not provided.',
+        type: 'string',
+      },
+      cores: {
+        alias: 'c',
+        describe: 'Number of cores to work with',
+        type: 'number',
+        default: DEFAULT_CORES,
+      },
+      verbose: {
+        alias: 'v',
+        describe: 'Enable verbose output',
+        type: 'boolean',
+        default: false,
+      },
+      outputMode: {
+        alias: 'o',
+        describe: 'Set the output mode',
+        type: 'string',
+        default: 'detect',
+        choices: ['detect', 'console', 'dashboard'],
+      },
+      hostname: {
+        alias: 'H',
+        describe: 'Evaluator hostname',
+        type: 'string',
+        default: dcpConfig.evaluator.location.hostname,
+      },
+      port: {
+        alias: 'p',
+        describe: 'Evaluator port',
+        type: 'number',
+        default: Number(dcpConfig.evaluator.location.port),
+      },
+      priorityOnly: {
+        alias: 'P',
+        describe: 'Set the priority mode [deprecated]',
+        type: 'boolean',
+        default: false
+      },
+      'job-id': {
+        alias: 'j',
+        describe: 'Restrict worker to a specific job (use N times for N jobs)',
+        type: 'array',
+      }
+    })
+  .strict()
+  .wrap(process.stdout.columns || 80)
+  .argv;
+
+  await startWorking(cliArgs);
+}
+
+// Preserve console.error, the dashboard replaces it with a custom logger
+const logError = console.error;
+main()
+.then(() => process.exit(0))
+.catch(e => {
+  logError("Script failed:");
+  logError(e);
+  process.exit(1);
+});
+
+async function startWorking(cliArgs) {
+  const wallet = require('dcp/wallet');
+  const DCPWorker = require('dcp/worker').Worker;
+  const { startWorkerLogger } = require('../lib/startWorkerLogger');
+  const identityKeystore = await wallet.getId();
+  /** @type {string[]} */
+  let jobOpaqueIds;
+  var dcpWorkerOptions;
+  var paymentAddress;
+  var sawOptions = {
+    hostname: cliArgs.hostname,
+    port:     cliArgs.port
+  };
+
+  if (cliArgs.jobId) {
+    jobOpaqueIds = cliArgs.jobId;
+  }
+
+  if (cliArgs.paymentAddress) {
+    paymentAddress = new wallet.Address(cliArgs.paymentAddress);
+  } else {
+    paymentAddress = (await wallet.get()).address;
+  }
+
+  if (typeof dcpConfig.worker.unhandledRejectionCleanupTimeout !== 'undefined')
+    unhandledRejectionHandler.timeout = dcpConfig.worker.unhandledRejectionCleanupTimeout;
+
+  const SAWorker = require('dcp-client/lib/standaloneWorker').workerFactory(sawOptions);
+  
+  dcpWorkerOptions = {
+    paymentAddress,
+    maxWorkingSandboxes: cliArgs.cores,
+    priorityOnly:        cliArgs.priorityOnly,
+    sandboxOptions: {
+      SandboxConstructor: SAWorker,
+    }
+  };
+
+  if (cliArgs.jobId) {
+    dcpWorkerOptions.jobOpaqueIds = jobOpaqueIds;
+  }
+
+  worker = new DCPWorker(dcpWorkerOptions);
+
+  worker.on('start', () => {
+    console.log(' . ready');
+    startWorkerLogger(worker, {
+      verbose: cliArgs.verbose,
+      outputMode: cliArgs.outputMode,
+    });
+  });
+  
+  if (process.env.TEST_HARNESS) {
+    const { bindToTestHarness } = require('../lib/bindToTestHarness');
+    bindToTestHarness(worker);
+  }
+
+  console.log(` * Starting DCP Worker`);
+  console.log(` . Configured for scheduler ${dcpConfig.scheduler.location.href}`);
+  console.log(` . Earned funds will be deposited in account ${paymentAddress} in bank ${dcpConfig.bank.location.href}`);
+  console.log(` . Identity is ${identityKeystore.address}`);
+
+  worker.start();
+
+  await new Promise(resolve => process.on('SIGQUIT', resolve));
+
+  console.log('\n*** caught SIGQUIT; exiting...\n');
+  await worker.stop(true);
+}
+
+/** 
+ * Unhandled rejection handler: __must not ever throw no matter what__.
+ * If we hit an unhandled rejection, we are by definition no longer confident of our program state, meaning that
+ * the worker must be restarted. This handler does its best to report the rejection and give the worker a few
+ * seconds in which to attempt to return slices to the scheduler before it gives up completely.
+ */
+async function unhandledRejectionHandler (error) {
+  let _worker = worker;
+  
+  if (!worker)
+    return;
+  else
+    worker = false;
+
+  try {
+    let log = dcpConfig && dcpConfig.worker && dcpConfig.worker.unhandledRejectionLog;
+    log = process.env.DCP_WORKER_UNHANDLED_REJECTION_LOG;
+    if (log) {
+      fs.appendFileSync(process.env.DCP_WORKER_UNHANDLED_REJECTION_LOG,
+                        `${Date.now()}: ${error.message}\n${error.stack}\n\n`);
+    }
+  } catch(e) {};
+
+  try {
+    let screen = require('../lib/worker-loggers/dashboard').screen;
+
+    if (screen) {
+      screen.log(error.message + '\n' + error.stack);
+      screen.destroy();
+    } else {
+      console.error('Unhandled rejection - preparing to exit:', error.message);
+    }
+  } catch(e) {};
+  
+  function bail(exitCode) {
+    try {
+      const util = require('util');
+      process.stderr.write('\nWorker stop timeout; bailing to due earlier unhandled rejection:\n');
+      process.stderr.write(util.inspect(error) + '\n');
+    } catch(e) {
+      console.error(error);
+    }
+    process.exit(exitCode || 3);
+  }
+  setTimeout(bail, 1000 * unhandledRejectionHandler.timeout);
+
+  try {
+    await _worker.stop(true);
+  } catch(e) {
+    console.log('Error during worker.stop:', e);
+  }
+
+  setImmediate(() => bail(33));
+};
+unhandledRejectionHandler.timeout = 5;
