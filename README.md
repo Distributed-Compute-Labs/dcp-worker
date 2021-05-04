@@ -15,10 +15,13 @@ who interested in porting the Evaluator to your own platform, please contact us 
 grant you early access to the MIT-licensed source code.  The build is CMake with GN and largely
 based around V8.
 
+This code, without the evaluator binaries, is used for DCP LocalExec, a debugging tool for DCP Client developers.
+
 ## Record of Issue
 
 Date        |  Author          | Change
 ----------- | ---------------- | ---------------------------------------------
+May  4 2021 | Wes Garland      | Updated to reflect Scheduler v4 Release
 May 29 2020 | Wes Garland      | Early Developer Preview Release
 Mar 29 2021 | Wes Garland      | DCP Service Worker moved to separate package
 
@@ -28,8 +31,7 @@ Mar 29 2021 | Wes Garland      | DCP Service Worker moved to separate package
 DCP is currently (May 2020) in testing for a limited set of developers under our Early Developer Preview program.  If you would like to be part of our *First Dev* cohort, visit https://dcp.dev/ and sign up!
 
 ### Supported Platforms
-- NodeJS version 10 (LTS)
-- NodeJS version 12 (LTS)
+- Node.js version 12 (LTS)
 - Ubuntu Linux 18.04 (LTS)
 - Ubuntu Linux 20.04 (LTS)
 - More to come
@@ -45,7 +47,7 @@ Other utilities for developers working with DCP can be retrieved via npm, and in
 ### Entities
 
 #### Scheduler
-A NodeJS daemon which
+A Node.js daemon which
 * receives work functions and data sets from Compute API
 * slices data into smaller sets
 * transmits work and data points to Worker
@@ -53,8 +55,8 @@ A NodeJS daemon which
 * ensures that all tasks eventually complete, provided appropriate financial and computation resources can be deployed in furtherance of this goal
 
 #### Bank
-A NodeJS daemon which
-* manages a ledger for DCC which are not on the blockchain
+A Node.js daemon which
+* manages a ledger for DCC. This is not a blockchain currency.
 * enables the movement of DCC between entities requesting work and entities performing work
 * enables the movement of DCC between the ledger and the blockchain
 * enables the placement of DCC in escrow on behalf of the Scheduler for work which is anticipated to be done
@@ -78,7 +80,7 @@ A JavaScript program which includes a Supervisor and one or more Sandboxes
   - a standalone Worker operating on Google's v8 engine
 
 #### Sandbox
-A component of a Worker, used to execute arbitrary JavaScript code in a secure environment.  Currently implemented by the DistributedWorker class (whose name will change some day).  Generally speaking, we use one Sandbox per CPU core, although we might use more in order to work around system scheduler deficiencies, network overhead, etc.   Sandboxes in the web browser are implemented using window.Worker().
+A component of a Worker, used to execute arbitrary JavaScript code in a secure environment.
 
 #### Supervisor
 The component of a Worker which communicates with the Scheduler and Sandboxen.

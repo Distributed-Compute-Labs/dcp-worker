@@ -1,7 +1,7 @@
 {
   "name": "dcp-worker",
-  "version": "2.0.1-a",
-  "description": "JavaScript portion of DCP Workers for NodeJS",
+  "version": "2.0.2-a",
+  "description": "JavaScript portion of DCP Workers for Node.js",
   "main": "bin/dcp-worker",
   "keywords": [
     "dcp"
@@ -32,10 +32,9 @@
   "dependencies": {
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.8.21",
-    "bravojs": "1.0.15",
+    "bravojs": "^1.0.15",
     "chalk": "^4.1.0",
-    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#develop",
-    "peter": "^2.1.3"
+    "dcp-client": "^4.0.2-a"
   },
   "optionalDependencies": {}
 }
