@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#! /usr/bin/env node
 /** @file       dcp-evaluator-start
  *  @author     Eddie Roosenmaallen, eddie@kingsds.network
  *              Levi Stringer, levi@kingsds.network
@@ -24,7 +24,7 @@ function main() {
         .base('Evaluator frontend')
         .option('prefix', {
           desc: 'Path under which native components are installed',
-          default: path.resolve(__dirname, '..'),
+          default: path.resolve(path.dirname(process.argv[1]), '..'),
         })
         .option('port', {
           alias: ['p'],
@@ -48,6 +48,7 @@ function main() {
         .option('evaluator-lib-dir', {
           alias: ['l'],
           desc: 'Location of evaluator libraries',
+          default: dcpConfig.evaluator.libDir || undefined
         })
         .option('sandbox-libexec-dir', {
           desc: 'Location of sandbox setup files',
@@ -103,8 +104,10 @@ function main() {
 
   if (!options.stdio)
     args = args.concat(['-p', options.port]);
-  if (options.evaluatorLibDir)
-    args = args.concat(['-l', options.evaluatorLibDir]);
+  if (options.evaluatorLibDir) {
+    let libDir = path.resolve(options.prefix, 'etc', options.evaluatorLibDir);
+    args = args.concat(['-l', libDir]);
+  }
   if (options._)
     args = args.concat(options._);
 
@@ -179,7 +182,7 @@ function main() {
   }
 
   const ran = require('child_process').spawnSync(evaluator, args.concat(files), {
-    cwd: __dirname,
+    cwd: path.join(options.prefix),
     windowsHide: true,
     stdio: ['inherit', 'inherit', 'inherit']
   });
@@ -200,4 +203,18 @@ function main() {
   process.exit(1);
 }
 
-require('dcp-client').init(require(process.env.DCP_CONFIG || '../etc/dcp-config')).then(main);
+/* Half-initialize the dcp-client library so that we can use dcp/cli, but 
+ * without checking the scheduler for configuration updates.
+ */
+require('dcp-client');
+const dcpConfig = require('dcp/dcp-config');
+const localConfig = require(process.env.DCP_CONFIG || '../etc/dcp-config');
+if (!localConfig.bundle)
+  localConfig.bundle = {};
+if (!localConfig.scheduler)
+  localConfig.scheduler = {};
+localConfig.bundle.location = false;
+localConfig.scheduler.configLocation = false;
+Object.assign(dcpConfig, require('dcp/utils').leafMerge(dcpConfig, localConfig));
+main();
+

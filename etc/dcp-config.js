@@ -10,13 +10,14 @@
  * @date        Feb 2021
  */
 
-const dcpConfig = 
+const dcpConfig =
 {
   evaluator:
   {
     listen: new URL('dcpsaw://localhost:9000/'),
+    libDir: '../libexec/evaluator', // relative to prefix
   },
-  
+
   standaloneWorker:
   {
     quiet: false,

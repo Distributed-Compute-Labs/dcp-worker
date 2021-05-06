@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "2.0.2-a",
+  "version": "2.0.3-a",
   "description": "JavaScript portion of DCP Workers for Node.js",
   "main": "bin/dcp-worker",
   "keywords": [
@@ -19,6 +19,9 @@
   "bin": {
     "dcp-evaluator-start": "bin/dcp-evaluator-start",
     "dcp-worker": "bin/dcp-worker"
+  },
+  "files": {
+    "etc/dcp-config.js": "etc/dcp-config.js"
   },
   "directories": {
     "lib": "lib",
