@@ -79,6 +79,10 @@ function main() {
           alias: ['J'],
           desc: 'Dump in JSON format',
         })
+        .option('verbose', {
+          alias: ['v'],
+          desc: 'Generate verbose output',
+        })
         .option('-', { desc: 'end of options - all subsequent options passed directly to evaluator' })
         .wrap(process.stdout.columns || 80)
         .strict()
@@ -105,8 +109,8 @@ function main() {
   if (!options.stdio)
     args = args.concat(['-p', options.port]);
   if (options.evaluatorLibDir) {
-    let libDir = path.resolve(options.prefix, 'etc', options.evaluatorLibDir);
-    args = args.concat(['-l', libDir]);
+    options.evaluatorLibDir = path.resolve(options.prefix, 'etc', options.evaluatorLibDir);
+    args = args.concat(['-l', options.evaluatorLibDir]);
   }
   if (options._)
     args = args.concat(options._);
@@ -181,6 +185,10 @@ function main() {
     console.log('');
   }
 
+  if (options.verbose) {
+    console.log('. cwd:', path.join(options.prefix));
+    console.log('. run:', [evaluator].concat(args).concat(files).map(a => `"${a}"`).join(' '));
+  }
   const ran = require('child_process').spawnSync(evaluator, args.concat(files), {
     cwd: path.join(options.prefix),
     windowsHide: true,
