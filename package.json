@@ -16,12 +16,12 @@
   },
   "license": "MIT",
   "author": "Kings Distributed Systems",
+  "engines": {
+    "node": ">=12.0.0"
+  },
   "bin": {
     "dcp-evaluator-start": "bin/dcp-evaluator-start",
     "dcp-worker": "bin/dcp-worker"
-  },
-  "files": {
-    "etc/dcp-config.js": "etc/dcp-config.js"
   },
   "directories": {
     "lib": "lib",
