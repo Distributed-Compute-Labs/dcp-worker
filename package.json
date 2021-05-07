@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "2.0.4-a",
+  "version": "2.0.4-b",
   "description": "JavaScript portion of DCP Workers for Node.js",
   "main": "bin/dcp-worker",
   "keywords": [
@@ -16,9 +16,6 @@
   },
   "license": "MIT",
   "author": "Kings Distributed Systems",
-  "engines": {
-    "node": ">=12.0.0"
-  },
   "bin": {
     "dcp-evaluator-start": "bin/dcp-evaluator-start",
     "dcp-worker": "bin/dcp-worker"
