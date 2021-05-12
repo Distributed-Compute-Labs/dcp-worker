@@ -37,7 +37,8 @@
     "blessed-contrib": "^4.8.21",
     "bravojs": "^1.0.15",
     "chalk": "^4.1.0",
-    "dcp-client": "^4.0.2-a"
+    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git",
+    "semver": "^7.3.5"
   },
   "optionalDependencies": {}
 }
