@@ -38,6 +38,7 @@
     "bravojs": "^1.0.15",
     "chalk": "^4.1.0",
     "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#feature/kvin-in-evaluator",
+    "kvin": "^1.2.2",
     "semver": "^7.3.5"
   },
   "optionalDependencies": {}
