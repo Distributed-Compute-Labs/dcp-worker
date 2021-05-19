@@ -34,7 +34,7 @@
     "blessed-contrib": "^4.8.21",
     "bravojs": "^1.0.15",
     "chalk": "^4.1.1",
-    "dcp-client": "^4.0.4-a"
+    "dcp-client": "^4.0.4"
   },
   "optionalDependencies": {}
 }
