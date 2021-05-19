@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "2.0.5-b",
+  "version": "3.0.0",
   "description": "JavaScript portion of DCP Workers for Node.js",
   "main": "bin/dcp-worker",
   "keywords": [
