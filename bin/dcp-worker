@@ -1,4 +1,4 @@
-#! /usr/bin/env node
+#!/usr/bin/env node
 /**
  *  @file       dcp-worker.js
  *              Standalone NodeJS DCP Worker
@@ -133,14 +133,6 @@ async function startWorking(cliArgs) {
 
   worker = new DCPWorker(dcpWorkerOptions);
 
-  worker.on('start', () => {
-    console.log(' . ready');
-    startWorkerLogger(worker, {
-      verbose: cliArgs.verbose,
-      outputMode: cliArgs.outputMode,
-    });
-  });
-  
   if (process.env.TEST_HARNESS) {
     const { bindToTestHarness } = require('../lib/bindToTestHarness');
     bindToTestHarness(worker);
@@ -150,11 +142,28 @@ async function startWorking(cliArgs) {
   console.log(` . Configured for scheduler ${dcpConfig.scheduler.location.href}`);
   console.log(` . Earned funds will be deposited in account ${paymentAddress} in bank ${dcpConfig.bank.location.href}`);
   console.log(` . Identity is ${identityKeystore.address}`);
+  console.log(' . ready');
 
-  worker.start();
+  /**
+   * startWorkerLogger needs to be called before the worker is started so that
+   * it can attach event listeners before the events fire, else UI events for
+   * things such as progress will never get attached.
+   *
+   * setDefaultIdentityKeystore needs to be called before the logger because it
+   * tries access the identity of the worker before it has started, i.e. where
+   * it sets its identity, throwing an assertion error.
+   *
+   * FIXME(bryan-hoang): This is a fragile solution that is too coupled with the
+   * implementation of the worker that should be addressed in Supervisor 2
+   */
+  await worker.supervisor.setDefaultIdentityKeystore();
+  startWorkerLogger(worker, {
+    verbose: cliArgs.verbose,
+    outputMode: cliArgs.outputMode,
+  });
 
+  await worker.start();
   await new Promise(resolve => process.on('SIGQUIT', resolve));
-
   console.log('\n*** caught SIGQUIT; exiting...\n');
   await worker.stop(true);
 }
