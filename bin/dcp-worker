@@ -163,13 +163,27 @@ async function startWorking(cliArgs) {
     console.log(` . Bank is ${dcpConfig.bank.location}`);
     console.log(` . Earned funds will be deposited in account ${paymentAddress}`);
     console.log(` . Identity is ${identityKeystore.address}`);
-    console.log(' . ready');
+
+    function qty(amount, singular, plural) /* XXX i18n */
+    {
+      if (Array.isArray(amount))
+        amount = amount.length;
+      if (!plural)
+        plural = singular + 's';
+      if (!amount)
+        return plural;
+      if (amount == 1)
+        return singular;
+      return plural;
+    }
+
     if (dcpWorkerOptions.jobOpaqueIds)
-      console.log(' * Processing only jobs', dcpWorkerOptions.jobOpaqueIds.join(', '));
-    if (dcpWorkerOptions.computeGroups)
-      console.log(' * Joining compute groups', dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', '));
+      console.log(` * Processing only ${qty(dcpWorkerOptions.jobOpaqueIds, 'job')}`, dcpWorkerOptions.jobOpaqueIds.join(', '));
+    if (dcpWorkerOptions.computeGroups.length)
+      console.log(` * Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')}`, dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', '));
     if (dcpWorkerOptions.leavePublicGroup)
-      console.log(' * Leaving the public compute groups');
+      console.log(' * Leaving the public compute group');
+    console.log(' . ready');
   });
   
   /**
