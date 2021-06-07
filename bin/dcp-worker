@@ -73,7 +73,7 @@ async function main () {
       },
       'leave-public-group': {
         type: 'boolean',
-        hidden: false,
+        hidden: true,
         default: false
       },
       'join': {
