@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "JavaScript portion of DCP Workers for Node.js",
   "main": "bin/dcp-worker",
   "keywords": [
@@ -34,7 +34,7 @@
     "blessed-contrib": "^4.8.21",
     "bravojs": "^1.0.15",
     "chalk": "^4.1.1",
-    "dcp-client": "^4.0.6",
+    "dcp-client": "^4.0.7",
     "kvin": "^1.2.2",
     "semver": "^7.3.5"
   },

@@ -70,7 +70,21 @@ async function main () {
         alias: 'j',
         describe: 'Restrict worker to a specific job (use N times for N jobs)',
         type: 'array',
-      }
+      },
+      'leave-public-group': {
+        type: 'boolean',
+        hidden: true,
+        default: false
+      },
+      'join': {
+        alias: 'g',
+        describe: 'Join compute group',
+        type: 'array'
+      },
+      'join-keystore': {
+        hidden: true,
+        /* future */
+      },
     })
   .strict()
   .wrap(process.stdout.columns || 80)
@@ -95,7 +109,6 @@ async function startWorking(cliArgs) {
   const { startWorkerLogger } = require('../lib/startWorkerLogger');
   const identityKeystore = await wallet.getId();
   /** @type {string[]} */
-  let jobOpaqueIds;
   var dcpWorkerOptions;
   var paymentAddress;
   var sawOptions = {
@@ -103,32 +116,37 @@ async function startWorking(cliArgs) {
     port:     cliArgs.port
   };
 
-  if (cliArgs.jobId) {
-    jobOpaqueIds = cliArgs.jobId;
-  }
-
   if (cliArgs.paymentAddress) {
     paymentAddress = new wallet.Address(cliArgs.paymentAddress);
   } else {
     paymentAddress = (await wallet.get()).address;
   }
 
-  if (typeof dcpConfig.worker.unhandledRejectionCleanupTimeout !== 'undefined')
-    unhandledRejectionHandler.timeout = dcpConfig.worker.unhandledRejectionCleanupTimeout;
-
-  const SAWorker = require('dcp-client/lib/standaloneWorker').workerFactory(sawOptions);
-  
   dcpWorkerOptions = {
     paymentAddress,
     maxWorkingSandboxes: cliArgs.cores,
     priorityOnly:        cliArgs.priorityOnly,
     sandboxOptions: {
-      SandboxConstructor: SAWorker,
-    }
+      SandboxConstructor: require('dcp-client/lib/standaloneWorker').workerFactory(sawOptions)
+    },
+    computeGroups: [], /* public group is implied */
+    leavePublicGroup: cliArgs.leavePublicGroup
   };
 
+  /* cliArgs.join is the list of compute groups to join */
+  if (cliArgs.join && cliArgs.join.length)
+  {
+    dcpWorkerOptions.computeGroups = cliArgs.join
+      .map   ((el) => { var [a,b] = el.split(','); return { joinKey: a, joinSecret: b }})  /* Map cliArgs.join to give us [{ joinKey, joinSecret }...] */
+      .filter((el) => el.joinKey)                                                          /* Filter out entries with no joinKey */
+    ;
+  }
+  
+  if (typeof dcpConfig.worker.unhandledRejectionCleanupTimeout !== 'undefined')
+    unhandledRejectionHandler.timeout = dcpConfig.worker.unhandledRejectionCleanupTimeout;
+
   if (cliArgs.jobId) {
-    dcpWorkerOptions.jobOpaqueIds = jobOpaqueIds;
+    dcpWorkerOptions.jobOpaqueIds = cliArgs.jobId;
   }
 
   worker = new DCPWorker(dcpWorkerOptions);
@@ -138,12 +156,36 @@ async function startWorking(cliArgs) {
     bindToTestHarness(worker);
   }
 
-  console.log(` * Starting DCP Worker`);
-  console.log(` . Configured for scheduler ${dcpConfig.scheduler.location.href}`);
-  console.log(` . Earned funds will be deposited in account ${paymentAddress} in bank ${dcpConfig.bank.location.href}`);
-  console.log(` . Identity is ${identityKeystore.address}`);
-  console.log(' . ready');
+  /* Delay log messages so that they appear in TUI window */
+  setImmediate(() => {
+    console.log(` * Starting DCP Worker`);
+    console.log(` . Configured for scheduler ${dcpConfig.scheduler.location}`);
+    console.log(` . Bank is ${dcpConfig.bank.location}`);
+    console.log(` . Earned funds will be deposited in account ${paymentAddress}`);
+    console.log(` . Identity is ${identityKeystore.address}`);
 
+    function qty(amount, singular, plural) /* XXX i18n */
+    {
+      if (Array.isArray(amount))
+        amount = amount.length;
+      if (!plural)
+        plural = singular + 's';
+      if (!amount)
+        return plural;
+      if (amount == 1)
+        return singular;
+      return plural;
+    }
+
+    if (dcpWorkerOptions.jobOpaqueIds)
+      console.log(` * Processing only ${qty(dcpWorkerOptions.jobOpaqueIds, 'job')}`, dcpWorkerOptions.jobOpaqueIds.join(', '));
+    if (dcpWorkerOptions.computeGroups.length)
+      console.log(` * Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')}`, dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', '));
+    if (dcpWorkerOptions.leavePublicGroup)
+      console.log(' * Leaving the public compute group');
+    console.log(' . ready');
+  });
+  
   /**
    * startWorkerLogger needs to be called before the worker is started so that
    * it can attach event listeners before the events fire, else UI events for
