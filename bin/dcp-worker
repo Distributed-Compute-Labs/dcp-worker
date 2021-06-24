@@ -247,7 +247,7 @@ async function unhandledRejectionHandler (error) {
   function bail(exitCode) {
     try {
       const util = require('util');
-      process.stderr.write('\nWorker stop timeout; bailing to due earlier unhandled rejection:\n');
+      process.stderr.write('\nWorker stop timeout; bailing due to earlier unhandled rejection:\n');
       process.stderr.write(util.inspect(error) + '\n');
     } catch(e) {
       console.error(error);
