@@ -34,7 +34,7 @@
     "blessed-contrib": "^4.8.21",
     "bravojs": "^1.0.15",
     "chalk": "^4.1.1",
-    "dcp-client": "^4.0.12",
+    "dcp-client": "^4.0.13",
     "kvin": "^1.2.2",
     "semver": "^7.3.5"
   },
