@@ -41,5 +41,9 @@
     "kvin": "^1.2.2",
     "semver": "^7.3.5"
   },
-  "optionalDependencies": {}
+  "optionalDependencies": {},
+  "devDependencies": {
+    "@kingsds/eslint-config": "1.0.1",
+    "eslint": "7.30.0"
+  }
 }
