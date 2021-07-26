@@ -85,8 +85,11 @@ function main() {
         })
         .options('debugLogLevel', {
           alias: ['d'],
-          desc: 'Log level for evaluator output. (max 8)',
+          desc: 'Log level for evaluator output (max 8)',
         })
+        .wrap(process.stdout.columns || 80)
+        .strict()
+        .argv;
 
   if (!options.evaluator)
     options.evaluator = path.join(options.prefix, 'bin', 'dcp-evaluator');
