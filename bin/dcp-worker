@@ -146,7 +146,7 @@ async function startWorking(cliArgs) {
     unhandledRejectionHandler.timeout = dcpConfig.worker.unhandledRejectionCleanupTimeout;
 
   if (cliArgs.jobId) {
-    dcpWorkerOptions.jobOpaqueIds = cliArgs.jobId;
+    dcpWorkerOptions.jobAddresses = cliArgs.jobId;
   }
 
   worker = new DCPWorker(dcpWorkerOptions);
@@ -177,8 +177,8 @@ async function startWorking(cliArgs) {
       return plural;
     }
 
-    if (dcpWorkerOptions.jobOpaqueIds)
-      console.log(` * Processing only ${qty(dcpWorkerOptions.jobOpaqueIds, 'job')}`, dcpWorkerOptions.jobOpaqueIds.join(', '));
+    if (dcpWorkerOptions.jobAddresses)
+      console.log(` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')}`, dcpWorkerOptions.jobAddresses.join(', '));
     if (dcpWorkerOptions.computeGroups.length)
       console.log(` * Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')}`, dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', '));
     if (dcpWorkerOptions.leavePublicGroup)
