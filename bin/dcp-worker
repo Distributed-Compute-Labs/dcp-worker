@@ -85,6 +85,11 @@ async function main () {
         hidden: true,
         /* future */
       },
+      'allowed-origins': {
+        alias: 'a',
+        describe: 'origins where the worker is allowed to fetch input data from',
+        type: 'array'
+      },
     })
   .strict()
   .wrap(process.stdout.columns || 80)
@@ -147,6 +152,9 @@ async function startWorking(cliArgs) {
 
   if (cliArgs.jobId) {
     dcpWorkerOptions.jobAddresses = cliArgs.jobId;
+  }
+  if (cliArgs.allowedOrigins) {
+    dcpWorkerOptions.allowedOrigins = cliArgs.allowedOrigins;
   }
 
   worker = new DCPWorker(dcpWorkerOptions);
