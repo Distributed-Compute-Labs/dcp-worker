@@ -31,7 +31,7 @@ var debug = process.env.DEBUG || ''
 var counter = 0
 
 // console.log(process.env)
-require('dcp-rtlink/rtLink').init();
+require('dcp-rtlink').init();
 require('dcp/node-libs/config').load();
 const path = require('path');
 
