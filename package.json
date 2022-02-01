@@ -35,7 +35,7 @@
     "bravojs": "^1.0.15",
     "chalk": "^4.1.1",
     "dcp-client": "^4.1.18",
-    "kvin": "^1.2.5",
+    "kvin": "^1.2.7",
     "semver": "^7.3.5"
   },
   "optionalDependencies": {},
