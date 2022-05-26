@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "3.2.5",
+  "version": "3.2.6",
   "description": "JavaScript portion of DCP Workers for Node.js",
   "main": "bin/dcp-worker",
   "keywords": [
@@ -15,7 +15,9 @@
     "url": "git@github.com:Distributed-Compute-Labs/dcp-worker.git"
   },
   "license": "MIT",
-  "author": "Kings Distributed Systems",
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "bin": {
     "dcp-evaluator-start": "bin/dcp-evaluator-start",
     "dcp-worker": "bin/dcp-worker"
@@ -31,10 +33,10 @@
   },
   "dependencies": {
     "blessed": "^0.1.81",
-    "blessed-contrib": "=4.8.21",
+    "blessed-contrib": "^4.11.0",
     "bravojs": "^1.0.15",
     "chalk": "^4.1.1",
-    "dcp-client": "^4.2.5",
+    "dcp-client": "^4.2.6",
     "kvin": "^1.2.7",
     "semver": "^7.3.5"
   },
