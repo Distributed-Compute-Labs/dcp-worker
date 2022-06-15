@@ -108,6 +108,11 @@ main()
   process.exit(1);
 });
 
+// Imperfect, but handles CG { joinKey, joinHash }.
+function isHash(b) {
+  return b.startsWith('eh1-');
+}
+
 async function startWorking(cliArgs) {
   const wallet = require('dcp/wallet');
   const DCPWorker = require('dcp/worker').Worker;
@@ -129,6 +134,7 @@ async function startWorking(cliArgs) {
 
   dcpWorkerOptions = {
     paymentAddress,
+    identityKeystore,
     maxWorkingSandboxes: cliArgs.cores,
     priorityOnly:        cliArgs.priorityOnly,
     sandboxOptions: {
@@ -142,9 +148,13 @@ async function startWorking(cliArgs) {
   if (cliArgs.join && cliArgs.join.length)
   {
     dcpWorkerOptions.computeGroups = cliArgs.join
-      .map   ((el) => { var [a,b] = el.split(','); return { joinKey: a, joinSecret: b }})  /* Map cliArgs.join to give us [{ joinKey, joinSecret }...] */
-      .filter((el) => el.joinKey)                                                          /* Filter out entries with no joinKey */
-    ;
+      .map((el) => {
+        /* Map cliArgs.join to give us [{ joinKey, joinSecret/joinHash }...] */
+        const [a, b] = el.split(',');
+        return isHash(b) ? { joinKey: a, joinHash: b } : { joinKey: a, joinSecret: b };
+      })
+      .filter((el) => el.joinKey); /* Filter out entries with no joinKey */
+    console.log( dcpWorkerOptions.computeGroups);
   }
   
   if (typeof dcpConfig.worker.unhandledRejectionCleanupTimeout !== 'undefined')
@@ -193,20 +203,7 @@ async function startWorking(cliArgs) {
       console.log(' * Leaving the public compute group');
     console.log(' . ready');
   });
-  
-  /**
-   * startWorkerLogger needs to be called before the worker is started so that
-   * it can attach event listeners before the events fire, else UI events for
-   * things such as progress will never get attached.
-   *
-   * setDefaultIdentityKeystore needs to be called before the logger because it
-   * tries access the identity of the worker before it has started, i.e. where
-   * it sets its identity, throwing an assertion error.
-   *
-   * FIXME(bryan-hoang): This is a fragile solution that is too coupled with the
-   * implementation of the worker that should be addressed in Supervisor 2
-   */
-  await worker.supervisor.setDefaultIdentityKeystore();
+
   startWorkerLogger(worker, {
     verbose: cliArgs.verbose,
     outputMode: cliArgs.outputMode,
