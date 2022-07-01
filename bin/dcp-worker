@@ -66,6 +66,11 @@ async function main () {
         type: 'boolean',
         default: false
       },
+      watchdogInterval: {
+        alias: 'W',
+        describe: 'Number of milliseconds between watchdog cycles',
+        type: 'number',
+      },
       'job-id': {
         alias: 'j',
         describe: 'Restrict worker to a specific job (use N times for N jobs)',
@@ -73,7 +78,7 @@ async function main () {
       },
       'leave-public-group': {
         type: 'boolean',
-        hidden: true,
+        describe: 'Do not fetch slices from public compute group',
         default: false
       },
       'join': {
@@ -114,25 +119,25 @@ function isHash(b) {
 }
 
 async function startWorking(cliArgs) {
+  //console.log('cliArgs', cliArgs);
   const wallet = require('dcp/wallet');
   const DCPWorker = require('dcp/worker').Worker;
   const { startWorkerLogger } = require('../lib/startWorkerLogger');
   const identityKeystore = await wallet.getId();
-  /** @type {string[]} */
-  var dcpWorkerOptions;
-  var paymentAddress;
-  var sawOptions = {
+  const sawOptions = {
     hostname: cliArgs.hostname,
     port:     cliArgs.port
   };
 
+  let paymentAddress;
   if (cliArgs.paymentAddress) {
     paymentAddress = new wallet.Address(cliArgs.paymentAddress);
   } else {
     paymentAddress = (await wallet.get()).address;
   }
 
-  dcpWorkerOptions = {
+  /** @type {string[]} */
+  const dcpWorkerOptions = {
     paymentAddress,
     identityKeystore,
     maxWorkingSandboxes: cliArgs.cores,
@@ -141,7 +146,7 @@ async function startWorking(cliArgs) {
       SandboxConstructor: require('dcp-client/lib/standaloneWorker').workerFactory(sawOptions)
     },
     computeGroups: [], /* public group is implied */
-    leavePublicGroup: cliArgs.leavePublicGroup
+    leavePublicGroup: cliArgs.leavePublicGroup || dcpConfig.worker.leavePublicGroup,
   };
 
   /* cliArgs.join is the list of compute groups to join */
@@ -154,7 +159,7 @@ async function startWorking(cliArgs) {
         return isHash(b) ? { joinKey: a, joinHash: b } : { joinKey: a, joinSecret: b };
       })
       .filter((el) => el.joinKey); /* Filter out entries with no joinKey */
-    console.log( dcpWorkerOptions.computeGroups);
+    //console.log(dcpWorkerOptions.computeGroups);
   }
   
   if (typeof dcpConfig.worker.unhandledRejectionCleanupTimeout !== 'undefined')
@@ -165,6 +170,9 @@ async function startWorking(cliArgs) {
   }
   if (cliArgs.allowedOrigins) {
     dcpWorkerOptions.allowedOrigins = cliArgs.allowedOrigins;
+  }
+  if (cliArgs.watchdogInterval) {
+    dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
   }
 
   worker = new DCPWorker(dcpWorkerOptions);

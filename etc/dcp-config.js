@@ -36,6 +36,7 @@ const dcpConfig =
       progressTimeout: 30 * 1000,
     },
     leavePublicGroup: false,
+    allowConsoleAccess: false,
   },
 }
 
