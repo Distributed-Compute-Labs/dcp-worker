@@ -18,7 +18,7 @@ const dcpConfig =
 
     /* Allow lists permitting supervisor network access beyond DCP messages to services */
     allowOrigins: {
-      // any: [ alias('scheduler.location.origin') ], //Removing this will break things until a later bug lands that gets origins from compute groups
+      any: [],
       fetchWorkFunctions: [],
       fetchArguments: [],
       fetchData: [],
