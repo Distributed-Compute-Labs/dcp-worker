@@ -219,7 +219,7 @@ async function startWorking(cliArgs) {
    * NOTE: In Supervisor2 this fucntion is a NOOP.
    * When (and if) we stop using Supevisor1, delete this reference to setDefaultIdentityKeystore
    * and delete the corresponding fucntion from Supervisor2.
-   * 
+   *
    * startWorkerLogger needs to be called before the worker is started so that
    * it can attach event listeners before the events fire, else UI events for
    * things such as progress will never get attached.
