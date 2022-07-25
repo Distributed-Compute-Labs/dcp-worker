@@ -154,7 +154,7 @@ async function startWorking(cliArgs) {
     dcpWorkerOptions.jobAddresses = cliArgs.jobId;
   }
   if (cliArgs.allowedOrigins) {
-    dcpWorkerOptions.allowedOrigins = cliArgs.allowedOrigins;
+    dcpConfig.worker.allowOrigins.any = cliArgs.allowedOrigins;
   }
 
   worker = new DCPWorker(dcpWorkerOptions);
