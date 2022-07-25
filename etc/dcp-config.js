@@ -12,6 +12,32 @@
 
 const dcpConfig =
 {
+  worker: { /******* Note: all properties passed to web; no filtering! ********/
+    maxAllowedSandboxes: 0,    // this feature has unforseen side-effects, defaulted to off for now
+    maxSandboxErrorsPerSlice: 2, // more than this many sandbox errors per slice cause it to be returned
+
+    /* Allow lists permitting supervisor network access beyond DCP messages to services */
+    allowOrigins: {
+      any: [],
+      fetchWorkFunctions: [],
+      fetchArguments: [],
+      fetchData: [],
+      sendResults: [],
+    },
+
+    minimumWage: {
+      CPU:  0,
+      GPU:  0,
+      'in': 0,
+      out:  0,
+    },
+
+    computeGroups: {},        // integer-one-indexed; format is 1:{ joinKey,joinHash } or 2:{ joinKey, joinSecret }
+    leavePublicGroup: false,  // if true, will not fetch work from public group
+    
+    allowConsoleAccess: false,
+    trustComputeGroupOrigins: true,
+  },
   evaluator:
   {
     listen: new URL('dcpsaw://localhost:9000/'),
