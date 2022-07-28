@@ -116,7 +116,7 @@ main()
 
 // Imperfect, but handles CG { joinKey, joinHash }.
 function isHash(b) {
-  return b.startsWith('eh1-');
+  return b && b.length === 68 && b.startsWith('eh1-');
 }
 
 async function startWorking(cliArgs) {
