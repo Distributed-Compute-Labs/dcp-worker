@@ -87,7 +87,7 @@ async function main () {
       },
       'allowed-origins': {
         alias: 'a',
-        describe: 'origins where the worker is allowed to fetch input data from',
+        describe: 'modify the \'any\' allow origins of dcpConfig',
         type: 'array'
       },
     })
