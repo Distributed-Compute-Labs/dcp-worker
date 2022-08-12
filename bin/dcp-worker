@@ -140,7 +140,7 @@ async function startWorking(cliArgs) {
   /** @type {string[]} */
   const dcpWorkerOptions = {
     paymentAddress,
-    identityKeystore,
+    identity: identityKeystore,
     maxWorkingSandboxes: cliArgs.cores,
     cores:               { cpu: TOTAL_CPU_VCORES, gpu: undefined }, /** XXXpfr @todo: Figure out how many gpus. */
     targetLoad:          { cpu: 1.0, gpu: 1.0 }, /** Use 100%: XXXpfr @todo Allow command-line override. */
