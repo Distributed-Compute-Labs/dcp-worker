@@ -239,6 +239,13 @@ async function startWorking(cliArgs) {
   });
 
   await worker.start();
+
+  /** XXXpfr @todo Testing for stopWork. Please save. Please delete on or after October 2022. */
+  //setTimeout(async () => {await worker.stop(), console.log('stop1........................................................')}, 4000);
+  //setTimeout(async () => {await worker.start(), console.log('start1........................................................')}, 8000);
+  //setTimeout(async () => {await worker.stop(), console.log('stop2........................................................')}, 12000);
+  //setTimeout(async () => {await worker.start(), console.log('start2........................................................')}, 16000);
+
   await new Promise(resolve => process.on('SIGQUIT', resolve));
   console.log('\n*** caught SIGQUIT; exiting...\n');
   await worker.stop(true);
