@@ -102,7 +102,7 @@ async function main () {
       },
       'allowed-origins': {
         alias: 'a',
-        describe: 'origins where the worker is allowed to fetch input data from',
+        describe: 'modify the \'any\' allow origins of dcpConfig',
         type: 'array'
       },
     })
@@ -181,7 +181,7 @@ async function startWorking(cliArgs) {
     dcpWorkerOptions.jobAddresses = cliArgs.jobId;
   }
   if (cliArgs.allowedOrigins) {
-    dcpWorkerOptions.allowedOrigins = cliArgs.allowedOrigins;
+    dcpConfig.worker.allowOrigins.any = cliArgs.allowedOrigins;
   }
   if (cliArgs.watchdogInterval) {
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
