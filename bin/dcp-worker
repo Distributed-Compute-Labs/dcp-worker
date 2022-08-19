@@ -12,12 +12,21 @@ const process = require('process');
 const os = require('os');
 const fs = require('fs');
 
+// Set to true to try to understand unhandled rejection.
+const ANALYZE_UNHANDELD_REJECTION = false;
+
 const TOTAL_CPU_VCORES = os.cpus().length;
 const DEFAULT_CORES = TOTAL_CPU_VCORES - 1;
 var worker, dcpConfig;
 
+
+process.on('unhandledRejection', (error) => {
+  console.error('Unhandled rejection:', error);
+});
+
 async function main () {
-  process.on('unhandledRejection', unhandledRejectionHandler);
+  if (!ANALYZE_UNHANDELD_REJECTION)
+    process.on('unhandledRejection', unhandledRejectionHandler);
 
   await require('dcp-client').init(require(process.env.DCP_CONFIG || '../etc/dcp-config'));
   dcpConfig = require('dcp/dcp-config');
@@ -216,7 +225,7 @@ async function startWorking(cliArgs) {
   });
 
   /**
-   * NOTE: In Supervisor2 this fucntion is a NOOP.
+   * NOTE: In Supervisor2 this function is a NOOP.
    * When (and if) we stop using Supevisor1, delete this reference to setDefaultIdentityKeystore
    * and delete the corresponding fucntion from Supervisor2.
    *
@@ -236,6 +245,10 @@ async function startWorking(cliArgs) {
   startWorkerLogger(worker, {
     verbose: cliArgs.verbose,
     outputMode: cliArgs.outputMode,
+  });
+
+  worker.supervisor.addEventListener('submitSliceFailed', (error) => {
+    console.error('submitSliceFailed handler in dcp-worker', error);
   });
 
   await worker.start();
@@ -267,7 +280,7 @@ async function unhandledRejectionHandler (error) {
 
   try {
     let log = dcpConfig && dcpConfig.worker && dcpConfig.worker.unhandledRejectionLog;
-    log = process.env.DCP_WORKER_UNHANDLED_REJECTION_LOG;
+    if (!log) log = process.env.DCP_WORKER_UNHANDLED_REJECTION_LOG;
     if (log) {
       fs.appendFileSync(process.env.DCP_WORKER_UNHANDLED_REJECTION_LOG,
                         `${Date.now()}: ${error.message}\n${error.stack}\n\n`);
