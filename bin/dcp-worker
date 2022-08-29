@@ -48,15 +48,17 @@ async function main () {
       verbose: {
         alias: 'v',
         describe: 'Enable verbose output',
-        type: 'boolean',
+        type: 'count',
         default: false,
+        group: 'Output options',
       },
       outputMode: {
         alias: 'o',
         describe: 'Set the output mode',
         type: 'string',
         default: 'detect',
-        choices: ['detect', 'console', 'dashboard'],
+        choices: ['detect', 'console', 'dashboard', 'event-log', 'syslog', 'file'],
+        group: 'Output options',
       },
       hostname: {
         alias: 'H',
@@ -76,34 +78,88 @@ async function main () {
         type: 'boolean',
         default: false
       },
-      watchdogInterval: {
-        alias: 'W',
-        describe: 'Number of milliseconds between watchdog cycles',
-        type: 'number',
-      },
       'job-id': {
         alias: 'j',
         describe: 'Restrict worker to a specific job (use N times for N jobs)',
         type: 'array',
       },
-      'leave-public-group': {
+
+      join: {
+        alias: 'g',
+        describe: 'Join compute group; the format is "joinKey,joinSecret" or "joinKey,eh1-joinHash"',
+        type: 'array'
+      },
+      joinKeystore: {
+        hidden: true,
+        /* future */
+      },
+
+      leavePublicGroup: {
         type: 'boolean',
         describe: 'Do not fetch slices from public compute group',
         default: false
       },
-      'join': {
-        alias: 'g',
-        describe: 'Join compute group',
-        type: 'array'
+      publicGroupFallback: {
+        describe: 'If set, worker will prefer private groups but fall back on the public group if no preferred work is available',
+        type: 'boolean',
+        default: false,
       },
-      'join-keystore': {
-        hidden: true,
-        /* future */
+
+      identityKey: {
+        describe: 'Identity key, in hex format',
+        type: 'string',
+        group: 'Identity options',
       },
-      'allowed-origins': {
+      identityKeystore: {
+        describe: 'Identity keystore, in json format',
+        type: 'string',
+        group: 'Identity options',
+      },
+
+      reportInterval: {
+        describe: 'If set, output a status summary every [interval] seconds in console output mode',
+        type: 'number',
+        group: 'Output options',
+      },
+
+      logfile: {
+        describe: 'Path to log file (if --output=file)',
+        type: 'string',
+        group: 'Log File output options',
+      },
+      syslogAddress: {
+        describe: 'Address of rsyslog server (if --output=syslog)',
+        type: 'string',
+        group: 'Syslog output options',
+      },
+      syslogTransport: {
+        describe: 'Transport to connect to rsyslog daemon (if --output=syslog)',
+        type: 'string',
+        choices: ['udp','tcp'],
+        group: 'Syslog output options',
+      },
+      syslogPort: {
+        describe: 'UDP/TCP port of rsyslog server',
+        type: 'number',
+        group: 'Syslog output options',
+      },
+
+      allowedOrigins: {
         alias: 'a',
         describe: 'modify the \'any\' allow origins of dcpConfig',
         type: 'array'
+      },
+
+      replPort: {
+        describe: 'If set, open a REPL on specified TCP port',
+        type: 'number',
+        default: undefined,
+      },
+      watchdogInterval: {
+        alias: 'W',
+        describe: 'Number of milliseconds between watchdog cycles',
+        type: 'number',
+        hidden: 'true',
       },
     })
   .strict()
@@ -146,6 +202,22 @@ async function startWorking(cliArgs) {
     paymentAddress = (await wallet.get()).address;
   }
 
+  // Different ways to get the identity: 
+  let identityKeystore = false;
+
+  if (cliArgs.identityKey) {
+    identityKeystore = await new wallet.IdKeystore(cliArgs.identityKey, '');
+  }
+  else if (cliArgs.identityKeystore) {
+    identityKeystore = await new wallet.IdKeystore(JSON.parse(cliArgs.identityKeystore), '');
+  }
+  else {
+    identityKeystore = await wallet.getId();
+  }
+
+  // Set the provided identity as the wallet's default
+  await wallet.addId(identityKeystore);
+
   /** @type {string[]} */
   const dcpWorkerOptions = {
     paymentAddress,
@@ -153,7 +225,6 @@ async function startWorking(cliArgs) {
     maxWorkingSandboxes: cliArgs.cores,
     cores:               { cpu: TOTAL_CPU_VCORES, gpu: undefined }, /** XXXpfr @todo: Figure out how many gpus. */
     targetLoad:          { cpu: 1.0, gpu: 1.0 }, /** Use 100%: XXXpfr @todo Allow command-line override. */
-    priorityOnly:        cliArgs.priorityOnly,
     sandboxOptions: {
       SandboxConstructor: require('dcp-client/lib/standaloneWorker').workerFactory(sawOptions)
     },
@@ -179,6 +250,7 @@ async function startWorking(cliArgs) {
 
   if (cliArgs.jobId) {
     dcpWorkerOptions.jobAddresses = cliArgs.jobId;
+    dcpWorkerOptions.priorityOnly = true;
   }
   if (cliArgs.allowedOrigins) {
     dcpConfig.worker.allowOrigins.any = cliArgs.allowedOrigins;
@@ -187,12 +259,9 @@ async function startWorking(cliArgs) {
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
   }
 
-  worker = new DCPWorker(dcpWorkerOptions);
 
-  if (process.env.TEST_HARNESS) {
-    const { bindToTestHarness } = require('../lib/bindToTestHarness');
-    bindToTestHarness(worker);
-  }
+
+  worker = new DCPWorker(dcpWorkerOptions);
 
   /* Delay log messages so that they appear in TUI window */
   setImmediate(() => {
