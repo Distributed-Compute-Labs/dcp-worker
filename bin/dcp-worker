@@ -189,34 +189,51 @@ async function startWorking(cliArgs) {
   const wallet = require('dcp/wallet');
   const DCPWorker = require('dcp/worker').Worker;
   const { startWorkerLogger } = require('../lib/startWorkerLogger');
-  const identityKeystore = await wallet.getId();
   const sawOptions = {
     hostname: cliArgs.hostname,
     port:     cliArgs.port
   };
 
   let paymentAddress;
-  if (cliArgs.paymentAddress) {
+  if (cliArgs.paymentAddress)
     paymentAddress = new wallet.Address(cliArgs.paymentAddress);
-  } else {
+  else
     paymentAddress = (await wallet.get()).address;
-  }
+
 
   // Different ways to get the identity: 
   let identityKeystore = false;
 
-  if (cliArgs.identityKey) {
+  if (cliArgs.identityKey)
     identityKeystore = await new wallet.IdKeystore(cliArgs.identityKey, '');
-  }
-  else if (cliArgs.identityKeystore) {
+  else if (cliArgs.identityKeystore)
     identityKeystore = await new wallet.IdKeystore(JSON.parse(cliArgs.identityKeystore), '');
-  }
-  else {
+  else
     identityKeystore = await wallet.getId();
-  }
 
   // Set the provided identity as the wallet's default
   await wallet.addId(identityKeystore);
+
+
+  if (typeof dcpConfig.worker.unhandledRejectionCleanupTimeout !== 'undefined')
+    unhandledRejectionHandler.timeout = dcpConfig.worker.unhandledRejectionCleanupTimeout;
+
+  // Leave the public compute group, if desired
+  if (cliArgs.leavePublicGroup || cliArgs.publicGroupFallback)
+    dcpConfig.worker.leavePublicGroup = true;
+
+
+  // Set up "evaluator has gone away" detection
+  let workerHasStarted = false;
+  sawOptions.onsocketerror = function saw$onsocketerror(error, worker) {
+    // If we've been connected to the evalserver, then we should
+    // return any work we have, and exit
+    if (workerHasStarted) {
+      console.info('167: evaluator server has gone away; terminating worker.');
+      exitGuard.exit(EXIT_HARD);
+    }
+  };
+
 
   /** @type {string[]} */
   const dcpWorkerOptions = {
@@ -245,20 +262,15 @@ async function startWorking(cliArgs) {
     //console.log(dcpWorkerOptions.computeGroups);
   }
   
-  if (typeof dcpConfig.worker.unhandledRejectionCleanupTimeout !== 'undefined')
-    unhandledRejectionHandler.timeout = dcpConfig.worker.unhandledRejectionCleanupTimeout;
-
-  if (cliArgs.jobId) {
+  if (cliArgs.jobId)
+  {
     dcpWorkerOptions.jobAddresses = cliArgs.jobId;
     dcpWorkerOptions.priorityOnly = true;
   }
-  if (cliArgs.allowedOrigins) {
+  if (cliArgs.allowedOrigins)
     dcpConfig.worker.allowOrigins.any = cliArgs.allowedOrigins;
-  }
-  if (cliArgs.watchdogInterval) {
+  if (cliArgs.watchdogInterval)
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
-  }
-
 
 
   worker = new DCPWorker(dcpWorkerOptions);
@@ -310,6 +322,7 @@ async function startWorking(cliArgs) {
    * implementation of the worker that should be addressed in Supervisor 2
    */
   await worker.supervisor.setDefaultIdentityKeystore();
+
 
   startWorkerLogger(worker, {
     verbose: cliArgs.verbose,
