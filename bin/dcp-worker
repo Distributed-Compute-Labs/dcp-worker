@@ -170,13 +170,13 @@ async function main () {
   .wrap(process.stdout.columns || 80)
   .argv;
 
-  await startWorking(cliArgs);
+  return startWorking(cliArgs);
 }
 
 // Preserve console.error, the dashboard replaces it with a custom logger
 const logError = console.error;
 main()
-.then(() => process.exit(0))
+.then(exitcode => process.exit(exitcode || 0))
 .catch(e => {
   logError("Script failed:");
   logError(e);
@@ -227,14 +227,33 @@ async function startWorking(cliArgs) {
     dcpConfig.worker.leavePublicGroup = true;
 
 
+  // The exitGuard will hold an "exit" method, and a Promise to await for
+  // the exit code passed to exitGuard.exit()
+  const EXIT_SIGQUIT = 2;
+  const EXIT_EVALUATOR_GONE = 3;
+  let exitcode = 0;
+  const exitGuard = {
+    promise: Promise.resolve(0),                     // will be overwritten when worker starts
+    exit(code) { process.exit(code||exitcode||0) },  // will be overwritten when worker starts
+  };
+  process.on('SIGQUIT', () => {
+    exitcode = EXIT_SIGQUIT;
+    console.info(`240: Caught SIGQUIT; exiting worker with exitcode ${exitcode}`);
+    exitGuard.exit(exitcode);
+  });
+
+
   // Set up "evaluator has gone away" detection
   let workerHasStarted = false;
   sawOptions.onsocketerror = function saw$onsocketerror(error, worker) {
-    // If we've been connected to the evalserver, then we should
-    // return any work we have, and exit
+    // If we've ever been connected to the evalserver, then this probably
+    // means the screensaver has gone away, so we should stop the worker,
+    // return any outstanding work, and exit the frontend so the service
+    // manager can restart the worker
     if (workerHasStarted) {
-      console.info('167: evaluator server has gone away; terminating worker.');
-      exitGuard.exit(EXIT_HARD);
+      exitcode = EXIT_EVALUATOR_GONE;
+      console.info('167: evaluator server has gone away; terminating worker with exitcode' + exitcode);
+      exitGuard.exit(exitcode);
     }
   };
 
@@ -298,17 +317,21 @@ async function startWorking(cliArgs) {
   await worker.supervisor.setDefaultIdentityKeystore();
 
 
-  worker.supervisor.addEventListener('submitSliceFailed', (error) => {
-    console.error('submitSliceFailed handler in dcp-worker', error);
-  });
-
   if (cliArgs.eventDebug) {
     worker.debug = true;
     worker.supervisor.debug = true;
   }
 
 
+  // if the worker stops internally (eg. schedmsg stop), then exit without
+  // changing the saved exitcode
+  worker.on('stop', () => {
+    exitGuard.exit();
+  });
+
+
   startWorkerLogger(worker, {
+    exitGuard,
     verbose: cliArgs.verbose,
     outputMode: cliArgs.outputMode,
   });
@@ -349,11 +372,44 @@ async function startWorking(cliArgs) {
   console.log(' . ready');
 
 
+  // Set the exit guard - this method can be called by signal and exception
+  // handlers
+  exitGuard.promise = new Promise(resolve => {
+    exitGuard.exit = resolve;
+  });
+
+
+  // Set the flag to indicate when we've seen the evalserver
+  worker.on('fetch', () => {
+    workerHasStarted = true;
+  });
+
+
   await worker.start();
 
-  await new Promise(resolve => process.on('SIGQUIT', resolve));
-  console.log('\n*** caught SIGQUIT; exiting...\n');
-  await worker.stop(true);
+  exitcode = await exitGuard.promise;
+
+  console.log(`418: exit guard called with ${exitcode}; workerHasStarted=${workerHasStarted}`);
+
+  const exitTimeAllowed = 30;   // seconds to allow for worker to stop gracefully
+  const forceExitTimeout = setTimeout(() => {
+    console.error(`396: Worker failed to exit within ${exitTimeAllowed} seconds; terminating forcibly.`);
+    process.exit(exitcode || EXIT_TIMEDOUT)
+  }, exitTimeAllowed * 1000);
+
+  await worker.stop(true)
+  .catch(error => {
+    if (error.message.includes('Already stopped'))
+      return;
+    console.error('255: Unexpected error stopping worker:',
+      error.code
+      ? `${error.code}: ${error.message}`
+      : error.message);
+  });
+
+  clearTimeout(forceExitTimeout);
+
+  return exitcode;
 }
 
 /** 
