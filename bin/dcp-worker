@@ -121,6 +121,10 @@ async function main () {
         type: 'number',
         group: 'Output options',
       },
+      eventDebug: {
+        hide: true,
+        describe: 'If set, dump all sandbox and worker events',
+      },
 
       logfile: {
         describe: 'Path to log file (if --output=file)',
@@ -275,36 +279,6 @@ async function startWorking(cliArgs) {
 
   worker = new DCPWorker(dcpWorkerOptions);
 
-  /* Delay log messages so that they appear in TUI window */
-  setImmediate(() => {
-    console.log(` * Starting DCP Worker`);
-    console.log(` . Configured for scheduler ${dcpConfig.scheduler.location}`);
-    console.log(` . Bank is ${dcpConfig.bank.location}`);
-    console.log(` . Earned funds will be deposited in account ${paymentAddress}`);
-    console.log(` . Identity is ${identityKeystore.address}`);
-
-    function qty(amount, singular, plural) /* XXX i18n */
-    {
-      if (Array.isArray(amount))
-        amount = amount.length;
-      if (!plural)
-        plural = singular + 's';
-      if (!amount)
-        return plural;
-      if (amount == 1)
-        return singular;
-      return plural;
-    }
-
-    if (dcpWorkerOptions.jobAddresses)
-      console.log(` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')}`, dcpWorkerOptions.jobAddresses.join(', '));
-    if (dcpWorkerOptions.computeGroups.length)
-      console.log(` * Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')}`, dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', '));
-    if (dcpWorkerOptions.leavePublicGroup)
-      console.log(' * Leaving the public compute group');
-    console.log(' . ready');
-  });
-
   /**
    * NOTE: In Supervisor2 this function is a NOOP.
    * When (and if) we stop using Supevisor1, delete this reference to setDefaultIdentityKeystore
@@ -324,22 +298,58 @@ async function startWorking(cliArgs) {
   await worker.supervisor.setDefaultIdentityKeystore();
 
 
+  worker.supervisor.addEventListener('submitSliceFailed', (error) => {
+    console.error('submitSliceFailed handler in dcp-worker', error);
+  });
+
+  if (cliArgs.eventDebug) {
+    worker.debug = true;
+    worker.supervisor.debug = true;
+  }
+
+
   startWorkerLogger(worker, {
     verbose: cliArgs.verbose,
     outputMode: cliArgs.outputMode,
   });
 
-  worker.supervisor.addEventListener('submitSliceFailed', (error) => {
-    console.error('submitSliceFailed handler in dcp-worker', error);
-  });
+
+  console.log(` * Starting DCP Worker`);
+  console.log(` . Configured for scheduler ${dcpConfig.scheduler.location}`);
+  console.log(` . Bank is ${dcpConfig.bank.location}`);
+  console.log(` . Earned funds will be deposited in account ${paymentAddress}`);
+  console.log(` . Identity is ${identityKeystore.address}`);
+
+  function qty(amount, singular, plural) /* XXX i18n */
+  {
+    if (Array.isArray(amount))
+      amount = amount.length;
+    if (!plural)
+      plural = singular + 's';
+    if (!amount)
+      return plural;
+    if (amount == 1)
+      return singular;
+    return plural;
+  }
+
+  if (dcpWorkerOptions.jobAddresses)
+    console.log(` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')}`, dcpWorkerOptions.jobAddresses.join(', '));
+  if (dcpWorkerOptions.computeGroups.length)
+    console.log(` * Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')}`, dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', '));
+  if (dcpWorkerOptions.publicGroupFallback)
+    console.log(' * Falling back on public group when preferred groups have no work');
+  else if (dcpWorkerOptions.leavePublicGroup)
+    console.log(' * Leaving the public compute group');
+  if (cliArgs.verbose)
+    console.log(` + Verbosity level: ${cliArgs.verbose}`);
+  if (cliArgs.eventDebug)
+    console.log(' + Event debug on');
+  console.log(' . output mode: ' + cliArgs.output);
+  console.log(' . ready');
+
 
   await worker.start();
-
-  /** XXXpfr @todo Testing for stopWork. Please save. Please delete on or after October 2022. */
-  //setTimeout(async () => {await worker.stop(), console.log('stop1........................................................')}, 4000);
-  //setTimeout(async () => {await worker.start(), console.log('start1........................................................')}, 8000);
-  //setTimeout(async () => {await worker.stop(), console.log('stop2........................................................')}, 12000);
-  //setTimeout(async () => {await worker.start(), console.log('start2........................................................')}, 16000);
 
   await new Promise(resolve => process.on('SIGQUIT', resolve));
   console.log('\n*** caught SIGQUIT; exiting...\n');
