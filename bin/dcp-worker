@@ -57,7 +57,7 @@ async function main () {
         describe: 'Set the output mode',
         type: 'string',
         default: 'detect',
-        choices: ['detect', 'console', 'dashboard', 'event-log', 'syslog', 'file'],
+        choices: ['detect', 'console', 'dashboard', 'event-log', 'syslog', 'logfile'],
         group: 'Output options',
       },
       hostname: {
@@ -334,6 +334,12 @@ async function startWorking(cliArgs) {
     exitGuard,
     verbose: cliArgs.verbose,
     outputMode: cliArgs.outputMode,
+
+    logfile: cliArgs.logfile,
+
+    syslogAddress: cliArgs.syslogAddress,
+    syslogTransport: cliArgs.syslogTransport,
+    syslogPort: cliArgs.syslogPort,
   });
 
 
