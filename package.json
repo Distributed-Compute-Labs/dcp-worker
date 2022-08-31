@@ -45,5 +45,8 @@
   "devDependencies": {
     "@kingsds/eslint-config": "1.0.1",
     "eslint": "7.30.0"
+  },
+  "peerDependencies": {
+    "node-eventlog": "^1.0.2"
   }
 }
