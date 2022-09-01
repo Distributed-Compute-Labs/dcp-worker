@@ -28,6 +28,8 @@ async function main () {
   if (!ANALYZE_UNHANDELD_REJECTION)
     process.on('unhandledRejection', unhandledRejectionHandler);
 
+  require('../lib/remote-console').init();
+
   await require('dcp-client').init(require(process.env.DCP_CONFIG || '../etc/dcp-config'));
   dcpConfig = require('dcp/dcp-config');
   require('../lib/check-scheduler-version').check();
@@ -173,6 +175,8 @@ async function main () {
 
   return startWorking(cliArgs);
 }
+
+require('../lib/remote-console').init();
 
 // Preserve console.error, the dashboard replaces it with a custom logger
 const logError = console.error;
