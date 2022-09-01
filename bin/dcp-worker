@@ -253,7 +253,7 @@ async function startWorking(cliArgs) {
     // manager can restart the worker
     if (workerHasStarted) {
       exitcode = EXIT_EVALUATOR_GONE;
-      cliArgs.verbose >= 1 && console.info('167: evaluator server has gone away; terminating worker with exitcode' + exitcode);
+      console.info('167: evaluator server has gone away; terminating worker with exitcode ' + exitcode);
       exitGuard.exit(exitcode);
     }
   };
