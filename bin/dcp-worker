@@ -580,6 +580,6 @@ async function unhandledRejectionHandler (error) {
     console.log('Error during worker.stop:', e);
   }
 
-  setImmediate(() => bail(EXIT_UNHANDLED);
+  setImmediate(() => bail(EXIT_UNHANDLED));
 };
 unhandledRejectionHandler.timeout = 5;
