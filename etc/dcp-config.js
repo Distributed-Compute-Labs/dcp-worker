@@ -13,9 +13,6 @@
 const dcpConfig =
 {
   worker: { /******* Note: all properties passed to web; no filtering! ********/
-    maxAllowedSandboxes: 0,    // this feature has unforseen side-effects, defaulted to off for now
-    maxSandboxErrorsPerSlice: 2, // more than this many sandbox errors per slice cause it to be returned
-
     /* Allow lists permitting supervisor network access beyond DCP messages to services */
     allowOrigins: {
       any: [],
@@ -32,11 +29,14 @@ const dcpConfig =
       out:  0,
     },
 
-    computeGroups: {},        // integer-one-indexed; format is 1:{ joinKey,joinHash } or 2:{ joinKey, joinSecret }
-    leavePublicGroup: false,  // if true, will not fetch work from public group
-    
+    computeGroups: {},              // integer-one-indexed; format is 1:{ joinKey,joinHash } or 2:{ joinKey, joinSecret }
+    leavePublicGroup: false,        // if true, will not fetch work from public group
     allowConsoleAccess: false,
     trustComputeGroupOrigins: true,
+    jobAddresses: [],               // Specific job addresses the worker may work on. If not empty, worker will only work on those jobs.
+    maxWorkingSandboxes: 1,
+    defaultPaymentAddress: null,    // user must to specify
+    evaluatorOptions: {}            /** @todo: add default options here. Note: right now they will be a bit off until we get localexec's evaluator a bit less special cased. */
   },
   evaluator:
   {
@@ -55,14 +55,6 @@ const dcpConfig =
       backoffFactor: 1.1            // each fail, back off by 10%
     },
     reloadBehaviour: 'process.exit(12)',
-  },
-  worker:
-  {
-    sandbox: {
-      progressTimeout: 30 * 1000,
-    },
-    leavePublicGroup: false,
-    allowConsoleAccess: false,
   },
 }
 
