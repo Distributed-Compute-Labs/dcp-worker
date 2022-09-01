@@ -53,7 +53,7 @@ async function main () {
         group: 'Output options',
       },
       outputMode: {
-        alias: 'o',
+        alias: ['o', 'output'],
         describe: 'Set the output mode',
         type: 'string',
         default: 'detect',
@@ -346,9 +346,11 @@ async function startWorking(cliArgs) {
   require('../lib/remote-console').init(cliArgs.replPort, {
     help: {
       report: 'Print a worker status & slice report',
+      kill: 'Kill the worker',
     },
     commands: {
       report: printReport,
+      kill: exitcode => exitGuard.exit(exitcode),
     },
   });
   require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) });
