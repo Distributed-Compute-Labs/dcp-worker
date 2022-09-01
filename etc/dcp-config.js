@@ -13,6 +13,9 @@
 const dcpConfig =
 {
   worker: { /******* Note: all properties passed to web; no filtering! ********/
+
+    trustComputeGroupOrigins: true, // trust the scheduler to give network access to origins on a per-compute-group basis
+
     /* Allow lists permitting supervisor network access beyond DCP messages to services */
     allowOrigins: {
       any: [],
@@ -30,9 +33,6 @@ const dcpConfig =
     },
 
     computeGroups: {},              // integer-one-indexed; format is 1:{ joinKey,joinHash } or 2:{ joinKey, joinSecret }
-    leavePublicGroup: false,        // if true, will not fetch work from public group
-    allowConsoleAccess: false,
-    trustComputeGroupOrigins: true,
     jobAddresses: [],               // Specific job addresses the worker may work on. If not empty, worker will only work on those jobs.
     maxWorkingSandboxes: 1,
     defaultPaymentAddress: null,    // user must to specify
