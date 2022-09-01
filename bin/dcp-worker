@@ -343,10 +343,14 @@ async function startWorking(cliArgs) {
     syslogPort: cliArgs.syslogPort,
   });
 
-  if (cliArgs.replPort)
-    require('../lib/remote-console').init(cliArgs.replPort);
-  else
-    require('../lib/remote-console').init();
+  require('../lib/remote-console').init(cliArgs.replPort, {
+    help: {
+      report: 'Print a worker status & slice report',
+    },
+    commands: {
+      report: printReport,
+    },
+  });
   require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) });
 
   console.log(` * Starting DCP Worker`);
@@ -383,7 +387,94 @@ async function startWorking(cliArgs) {
   console.log(' . output mode: ' + cliArgs.output);
   console.log(' . ready');
 
-  
+
+  /** print the slice report via console.log */
+  function printReport() {
+    console.log(sliceReport());
+  }
+
+  /** retrieve a slice report screen */
+  function sliceReport() {
+    const sup = worker.supervisor;
+    let report = '';
+
+    report += ('='.repeat(78)) + '\n';
+
+    const sbStates = {
+      WORKING: 0,
+      ASSIGNED: 0,
+      READY: 0,
+      TERMINATED: 0,
+    };
+    const stateNames = {
+      WORKING: 'Working',
+      ASSIGNED: 'Assigned',
+      READY: 'Ready',
+      TERMINATED: 'Terminated',
+    };
+    sup.sandboxes.forEach(sb => {
+      const { state } = sb;
+      if (!sbStates[state])
+        sbStates[state] = 0;
+      sbStates[state]++;
+    });
+
+    report += (Date()) + '\n';
+    report += ('Sandboxes:') + '\n';
+    Object.keys(sbStates).forEach(state => {
+      const stateName = stateNames[state] || state;
+      report += (`  ${(stateName + ':').padEnd(12)} ${sbStates[state]}`) + '\n';
+    })
+    report += (`  * ALL:       ${sup.sandboxes.length}`) + '\n';
+
+    report += ('Progress:') + '\n';
+    sup.workingSandboxes.forEach(sb => {
+      const jobName = sb.job && sb.job.public && sb.job.public.name || `idek (${sb.jobAddress})`;
+      let el = Date.now() - sb.sliceStartTime;
+      const t = el < 1000000
+        ? toInterval(el)
+        : 'new';
+
+      el = sb.progressReports && sb.progressReports.last
+        ? Date.now() - (sb.sliceStartTime + sb.progressReports.last.timestamp)
+        : 0;
+      const pct = (typeof sb.progress) === 'number'
+        ? `${Number(sb.progress).toFixed(0).padStart(2)}%`
+        : 'ind';
+      const stale = (el < 2000) ? '' : `(stale: ${toInterval(el)})`;
+
+      report += (` ${String(sb.id).padStart(4)}: ${sb.jobAddress} ${jobName.padEnd(34)} `+ `${t} ${pct} ${stale}`.padStart(13)) + '\n';
+    });
+
+    report += ('Slices:') + '\n';
+    report += (`  working:     ${sup.allocatedSlices.length}`) + '\n';
+    report += (`  queued:      ${sup.queuedSlices.length}`) + '\n';
+
+    report += ('='.repeat(78)) + '\n';
+
+    return report;
+  }
+
+  /**
+   *  Convert a timespan in ms to a human-readable interval in minutes and seconds
+   *
+   *  @param  {number} el Milliseconds to convert
+   *  @return {string}    Timespan formatted as `m:ss`
+   */
+  function toInterval(el) {
+    const m = Math.floor((el / 1000) / 60).toString(10);
+    const s = Math.floor((el / 1000) % 60).toString(10).padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  if (parseFloat(cliArgs.reportInterval))
+  {
+    if (cliArgs.outputMode !== 'dashboard')
+      setInterval(printReport, parseFloat(cliArgs.reportInterval) * 1000);
+    else
+      console.log('Ignoring --reportInterval in dashboard output mode');
+  }
+
 
   // Set the exit guard - this method can be called by signal and exception
   // handlers
