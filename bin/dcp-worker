@@ -239,7 +239,7 @@ async function startWorking(cliArgs) {
   };
   process.on('SIGQUIT', () => {
     exitcode = EXIT_SIGQUIT;
-    console.info(`240: Caught SIGQUIT; exiting worker with exitcode ${exitcode}`);
+    cliArgs.verbose >= 1 && console.info(`240: Caught SIGQUIT; exiting worker with exitcode ${exitcode}`);
     exitGuard.exit(exitcode);
   });
 
@@ -253,7 +253,7 @@ async function startWorking(cliArgs) {
     // manager can restart the worker
     if (workerHasStarted) {
       exitcode = EXIT_EVALUATOR_GONE;
-      console.info('167: evaluator server has gone away; terminating worker with exitcode' + exitcode);
+      cliArgs.verbose >= 1 && console.info('167: evaluator server has gone away; terminating worker with exitcode' + exitcode);
       exitGuard.exit(exitcode);
     }
   };
@@ -495,7 +495,7 @@ async function startWorking(cliArgs) {
 
   exitcode = await exitGuard.promise;
 
-  console.log(`418: exit guard called with ${exitcode}; workerHasStarted=${workerHasStarted}`);
+  cliArgs.verbose >= 1 && console.log(`418: exit guard called with ${exitcode}; workerHasStarted=${workerHasStarted}`);
 
   const exitTimeAllowed = 30;   // seconds to allow for worker to stop gracefully
   const forceExitTimeout = setTimeout(() => {
@@ -547,6 +547,7 @@ async function unhandledRejectionHandler (error) {
     if (screen) {
       screen.log(error.message + '\n' + error.stack);
       screen.destroy();
+      logError
     } else {
       console.error('Unhandled rejection - preparing to exit:', error.message);
     }
