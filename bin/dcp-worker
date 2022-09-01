@@ -28,8 +28,6 @@ async function main () {
   if (!ANALYZE_UNHANDELD_REJECTION)
     process.on('unhandledRejection', unhandledRejectionHandler);
 
-  require('../lib/remote-console').init();
-
   await require('dcp-client').init(require(process.env.DCP_CONFIG || '../etc/dcp-config'));
   dcpConfig = require('dcp/dcp-config');
   require('../lib/check-scheduler-version').check();
@@ -175,8 +173,6 @@ async function main () {
 
   return startWorking(cliArgs);
 }
-
-require('../lib/remote-console').init();
 
 // Preserve console.error, the dashboard replaces it with a custom logger
 const logError = console.error;
@@ -347,6 +343,11 @@ async function startWorking(cliArgs) {
     syslogPort: cliArgs.syslogPort,
   });
 
+  if (cliArgs.replPort)
+    require('../lib/remote-console').init(cliArgs.replPort);
+  else
+    require('../lib/remote-console').init();
+  require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) });
 
   console.log(` * Starting DCP Worker`);
   console.log(` . Configured for scheduler ${dcpConfig.scheduler.location}`);
@@ -382,6 +383,7 @@ async function startWorking(cliArgs) {
   console.log(' . output mode: ' + cliArgs.output);
   console.log(' . ready');
 
+  
 
   // Set the exit guard - this method can be called by signal and exception
   // handlers

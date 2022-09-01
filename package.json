@@ -40,7 +40,8 @@
     "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#develop",
     "kvin": "^1.2.7",
     "semver": "^7.3.5",
-    "syslog-client": "^1.1.1"
+    "syslog-client": "^1.1.1",
+    "telnet-console": "^1.0.4"
   },
   "optionalDependencies": {},
   "devDependencies": {
