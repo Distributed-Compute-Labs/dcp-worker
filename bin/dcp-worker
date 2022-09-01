@@ -57,8 +57,8 @@ async function main () {
         describe: 'Set the output mode',
         type: 'string',
         default: 'detect',
-        choices: ['detect', 'console', 'dashboard', /*'event-log', */'syslog', 'logfile']
-          .concat(require('os')==='win32' ? ['event-log'] : []),
+        choices: ['detect', 'console', 'dashboard', 'event-log', 'syslog', 'logfile'],
+          // .concat(require('os')==='win32' ? ['event-log'] : []),
         group: 'Output options',
       },
       hostname: {
