@@ -230,9 +230,14 @@ async function startWorking(cliArgs) {
 
   // The exitGuard will hold an "exit" method, and a Promise to await for
   // the exit code passed to exitGuard.exit()
-  const EXIT_SIGQUIT = 2;
-  const EXIT_EVALUATOR_GONE = 3;
-  let exitcode = 0;
+  const EXIT_CLEAN           = 0;   // normal exit, no error
+  const EXIT_ERROR           = 1;   // otherwise unspecified error
+  const EXIT_SIGQUIT         = 2;   // received SIGQUIT
+  const EXIT_EVALUATOR_GONE  = 3;   // evalserver went away
+  const EXIT_ERROR_STOPPING  = 4;   // failed to stop worker, no other error
+  const EXIT_TIMED_OUT       = 5;   // failed to exit after requesting graceful exit
+  const EXIT_UNHANDLED       = 6;   // unhandled rejection
+  let exitcode = EXIT_CLEAN;
   const exitGuard = {
     promise: Promise.resolve(0),                     // will be overwritten when worker starts
     exit(code) { process.exit(code||exitcode||0) },  // will be overwritten when worker starts
@@ -391,12 +396,14 @@ async function startWorking(cliArgs) {
 
 
   /** print the slice report via console.log */
-  function printReport() {
+  function printReport()
+  {
     console.log(sliceReport());
   }
 
   /** retrieve a slice report screen */
-  function sliceReport() {
+  function sliceReport()
+  {
     const sup = worker.supervisor;
     let report = '';
 
@@ -463,7 +470,8 @@ async function startWorking(cliArgs) {
    *  @param  {number} el Milliseconds to convert
    *  @return {string}    Timespan formatted as `m:ss`
    */
-  function toInterval(el) {
+  function toInterval(el)
+  {
     const m = Math.floor((el / 1000) / 60).toString(10);
     const s = Math.floor((el / 1000) % 60).toString(10).padStart(2, '0');
     return `${m}:${s}`;
@@ -500,7 +508,7 @@ async function startWorking(cliArgs) {
   const exitTimeAllowed = 30;   // seconds to allow for worker to stop gracefully
   const forceExitTimeout = setTimeout(() => {
     console.error(`396: Worker failed to exit within ${exitTimeAllowed} seconds; terminating forcibly.`);
-    process.exit(exitcode || EXIT_TIMEDOUT)
+    process.exit(exitcode || EXIT_TIMED_OUT)
   }, exitTimeAllowed * 1000);
 
   await worker.stop(true)
@@ -511,6 +519,7 @@ async function startWorking(cliArgs) {
       error.code
       ? `${error.code}: ${error.message}`
       : error.message);
+    exitcode = exitcode || EXIT_ERROR_STOPPING;
   });
 
   clearTimeout(forceExitTimeout);
@@ -547,7 +556,7 @@ async function unhandledRejectionHandler (error) {
     if (screen) {
       screen.log(error.message + '\n' + error.stack);
       screen.destroy();
-      logError
+      logError(error.message + '\n' + error.stack);
     } else {
       console.error('Unhandled rejection - preparing to exit:', error.message);
     }
@@ -561,7 +570,7 @@ async function unhandledRejectionHandler (error) {
     } catch(e) {
       console.error(error);
     }
-    process.exit(exitCode || 3);
+    process.exit(exitCode || EXIT_UNHANDLED);
   }
   setTimeout(bail, 1000 * unhandledRejectionHandler.timeout);
 
@@ -571,6 +580,6 @@ async function unhandledRejectionHandler (error) {
     console.log('Error during worker.stop:', e);
   }
 
-  setImmediate(() => bail(33));
+  setImmediate(() => bail(EXIT_UNHANDLED);
 };
 unhandledRejectionHandler.timeout = 5;
