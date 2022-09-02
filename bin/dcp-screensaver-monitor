@@ -1,0 +1,131 @@
+#! /usr/bin/env node
+/**
+ * @file        dcp-screensaver-evaluator               
+ *              Daemon to monitor the state of the system screensaver, and
+ *              enable/disable the evaluator as appropriate.
+ *
+ *              The actual mechanics of communicating with the evaluator is
+ *              similar in principle to how inetd workers, and the code is, in
+ *              fact, based on the dcp inet-daemon.
+ *
+ * @author      Wes Garland, wes@distributive.network
+ * @date        June 2018, Sep 2022
+ */
+'use strict';
+
+const daemonConfig = {
+  net:  new URL('tcpip://localhost:9000/'),
+  proc: './dcp-evaluator-start',
+  argv: []
+};
+
+const net   = require('net')
+const dns   = require('dns');
+const debug = process.env.DCP_SCREENSAVER_MONITOR_DEBUG
+
+async function listenForConnections(config)
+{
+  var server = net.createServer((socket) => handleConnection(socket, config));
+  var hostaddr;
+  
+  if (config.net.hostname === 'localhost')
+    hostaddr = '::';
+  else
+    hostaddr = await dns.promises.lookup(config.net.hostname, { family: 4 });
+
+  server.listen({ host: hostaddr, port: config.net.port }, function daemonReady(shit) {
+    console.log('Listening for connections on', server._connectionKey);
+  });
+}
+
+function handleConnection (socket, config)
+{
+  if (debug.indexOf('verbose') !== -1)
+    console.debug('New connection; spawning ', config.proc, config.argv);
+
+  const child = require('child_process').spawn(config.proc, config.argv);
+
+  if (debug)
+    console.debug('Spawned a new worker process, PID:', child.pid, 'Index:', child.index);
+
+  child.stderr.setEncoding('ascii')
+
+  socket.on('end', function socketEnd() {
+    if (debug)
+      console.debug('Socket end; killing child', child.index);
+    child.kill();
+  })
+
+  socket.on('error', function socketError(error) {
+    if (debug)
+    {
+      console.debug('Socket error; killing child', child.index);
+      console.error(error);
+    }
+    socket.destroy();
+    child.kill();
+  })
+
+  child.on('error', function childError(error) {
+    console.error('Error from worker ' + child.index + ':', error);
+    socket.destroy();
+    child.kill();
+  })
+
+  child.on('exit', function(code) {
+    if (debug)
+      console.debug('child exited; closing socket', code || '', 'index:', child.index);
+    socket.end();
+    socket.destroy();
+  })
+
+  child.stdout.on('data', function (data) {
+    if (debug.indexOf('network') !== -1)
+      console.debug('<', child.index, bufToDisplayStr(data), 93);
+    socket.write(data)
+  })
+
+  child.stderr.on('data', function (data) {
+    console.log('child ' + child.index + ' stderr: ', data);
+  });
+
+  socket.on('data', function (data) {
+    if (debug.indexOf('network') !== -1)
+      console.debug('>', child.index, bufToDisplayStr(data, 93));
+
+    try
+    {
+      child.stdin.write(data)
+    }
+    catch (error)
+    {
+      console.warn('could not write to child process (', child.pid, ', index', child.index, ') stdin')
+      throw error;
+    }
+  })
+}
+
+function bufToDisplayStr (buf, limit)
+{
+  const str = buf.toString('utf-8').replace(/\n/, '\u2424').toString('utf-8');
+
+  if (typeof limit === 'number' && str.length > limit)
+    return str.substr(0, limit) + '\u2026';
+  else
+    return str;
+}
+
+process.on('uncaughtException', function (e) {
+  console.error('\n---', (new Date()).toLocaleString(), '-------------------------------------------------')
+  console.error('uncaught exception:', e.stack)
+  console.error('\n')
+});
+
+process.on('unhandledRejection', function (e) {
+  console.error('\n---', (new Date()).toLocaleString(), '-------------------------------------------------')
+  console.error('unhandled rejection:', e.stack)
+  console.error('\n')
+})
+
+console.log('DCP screensaver monitor starting...')
+listenForConnections(daemonConfig);

@@ -49,6 +49,7 @@
     "eslint": "7.30.0"
   },
   "peerDependencies": {
+    "dbus-native": "^0.4.0",
     "node-eventlog": "^1.0.2"
   }
 }
