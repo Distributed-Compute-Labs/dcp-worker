@@ -13,15 +13,16 @@
  */
 'use strict';
 
-const daemonConfig = {
-  net:  new URL('tcpip://localhost:9000/'),
-  proc: './dcp-evaluator-start',
-  argv: []
-};
-
 const net   = require('net')
 const dns   = require('dns');
-const debug = process.env.DCP_SCREENSAVER_MONITOR_DEBUG
+const debug = process.env.DCP_SCREENSAVER_MONITOR_DEBUG || '';
+var ssActive = false;
+
+const daemonConfig = {
+  net:  new URL('tcpip://localhost:9000/'),
+  proc: require.resolve('./dcp-evaluator-start'),
+  argv: ['-se', '/opt/dcp/bin/dcp-evaluator', '-l', '/opt/dcp/libexec/evaluator/']
+};
 
 async function listenForConnections(config)
 {
@@ -41,8 +42,20 @@ async function listenForConnections(config)
 function handleConnection (socket, config)
 {
   if (debug.indexOf('verbose') !== -1)
-    console.debug('New connection; spawning ', config.proc, config.argv);
-
+  {
+    if (ssActive)
+      console.debug('New connection; spawning ', config.proc, config.argv);
+    else
+      console.debug('New connection; closing');
+  }
+  
+  if (!ssActive)
+  {
+    socket.end();
+    socket.destroy();
+    return;
+  }
+  
   const child = require('child_process').spawn(config.proc, config.argv);
 
   if (debug)
@@ -77,13 +90,13 @@ function handleConnection (socket, config)
       console.debug('child exited; closing socket', code || '', 'index:', child.index);
     socket.end();
     socket.destroy();
-  })
+  });
 
   child.stdout.on('data', function (data) {
     if (debug.indexOf('network') !== -1)
       console.debug('<', child.index, bufToDisplayStr(data), 93);
     socket.write(data)
-  })
+  });
 
   child.stderr.on('data', function (data) {
     console.log('child ' + child.index + ' stderr: ', data);
@@ -129,3 +142,18 @@ process.on('unhandledRejection', function (e) {
 
 console.log('DCP screensaver monitor starting...')
 listenForConnections(daemonConfig);
+
+var dbus = require('dbus-native');
+var bus = dbus.sessionBus();
+
+console.log('starting screensaver monitor');
+var notify = bus.getService('com.canonical.Unity');
+notify.getInterface('/org/gnome/ScreenSaver', 'org.gnome.ScreenSaver', function(e, iface) {
+  if (debug.indexOf('dbus') !== -1)
+    console.debug(e,iface);
+
+  iface.on('ActiveChanged', function screenSaverChangeHandler(active) {
+    if (debug)
+      console.log(`screen saver ${active ? 'started' : 'finished'} at`, new Date());
+  });
+});
