@@ -35,7 +35,7 @@ const dcpConfig =
     computeGroups: {},              // integer-one-indexed; format is 1:{ joinKey,joinHash } or 2:{ joinKey, joinSecret }
     jobAddresses: [],               // Specific job addresses the worker may work on. If not empty, worker will only work on those jobs.
     maxWorkingSandboxes: 1,
-    defaultPaymentAddress: null,    // user must to specify
+    paymentAddress: null,    // user must to specify
     evaluatorOptions: {}            /** @todo: add default options here. Note: right now they will be a bit off until we get localexec's evaluator a bit less special cased. */
   },
   evaluator:
