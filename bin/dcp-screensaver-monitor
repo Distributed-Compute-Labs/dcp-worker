@@ -15,6 +15,8 @@
 
 const net   = require('net')
 const dns   = require('dns');
+const debug = require('debug');
+
 var ssActive = false; /* true => allow evaluator connections */
 
 const daemonConfig = {
@@ -23,6 +25,9 @@ const daemonConfig = {
   argv: ['-se', '/opt/dcp/bin/dcp-evaluator', '-l', '/opt/dcp/libexec/evaluator/']
 };
 
+/**
+ * Establish listening socket evaluator proxy 
+ */
 async function listenForConnections(config)
 {
   var server = net.createServer((socket) => handleConnection(socket, config));
@@ -44,14 +49,17 @@ async function listenForConnections(config)
   });
 }
 
+/**
+ * Handle and incoming connection. If the screensaver is not active, the conneciton
+ * is immediately rejected. Otherwise, we spin up an evaluator process and proxy its
+ * stdio to the socket.
+ */
 function handleConnection (socket, config)
 {
   if (debug.indexOf('verbose') !== -1)
   {
-    if (ssActive)
-      console.debug('New connection; spawning ', config.proc, config.argv);
-    else
-      console.debug('New connection; closing');
+    debug('dcp-screensaver')('New connection; spawning ', config.proc, config.argv);
+    debug('dcp-screensaver')('New connection; closing');
   }
   
   if (!ssActive)
@@ -63,23 +71,18 @@ function handleConnection (socket, config)
   
   const child = require('child_process').spawn(config.proc, config.argv);
 
-  if (debug)
-    console.debug('Spawned a new worker process, PID:', child.pid, 'Index:', child.index);
+  debug('dcp-screensaver')('Spawned a new worker process, PID:', child.pid, 'Index:', child.index);
 
   child.stderr.setEncoding('ascii')
 
   socket.on('end', function socketEnd() {
-    if (debug)
-      console.debug('Socket end; killing child', child.index);
+    debug('dcp-screensaver')('Socket end; killing child', child.index);
     child.kill();
   })
 
   socket.on('error', function socketError(error) {
-    if (debug)
-    {
-      console.debug('Socket error; killing child', child.index);
-      console.error(error);
-    }
+    debug('dcp-screensaver')('Socket error; killing child', child.index);
+    debug('dcp-screensaver')(error);
     socket.destroy();
     child.kill();
   })
@@ -91,15 +94,13 @@ function handleConnection (socket, config)
   })
 
   child.on('exit', function(code) {
-    if (debug)
-      console.debug('child exited; closing socket', code || '', 'index:', child.index);
+    debug('dcp-screensaver')('child exited; closing socket', code || '', 'index:', child.index);
     socket.end();
     socket.destroy();
   });
 
   child.stdout.on('data', function (data) {
-    if (debug.indexOf('network') !== -1)
-      console.debug('<', child.index, bufToDisplayStr(data), 93);
+    debug('dcp-screensaver:network')('<', child.index, bufToDisplayStr(data), 93);
     socket.write(data)
   });
 
@@ -108,8 +109,7 @@ function handleConnection (socket, config)
   });
 
   socket.on('data', function (data) {
-    if (debug.indexOf('network') !== -1)
-      console.debug('>', child.index, bufToDisplayStr(data, 93));
+    debug('dcp-screensaver:network')('>', child.index, bufToDisplayStr(data, 93));
 
     try
     {
@@ -123,6 +123,9 @@ function handleConnection (socket, config)
   })
 }
 
+/** 
+ * Format detailed debug output of raw socket traffic
+ */
 function bufToDisplayStr (buf, limit)
 {
   const str = buf.toString('utf-8').replace(/\n/, '\u2424').toString('utf-8');
@@ -132,18 +135,6 @@ function bufToDisplayStr (buf, limit)
   else
     return str;
 }
-
-process.on('uncaughtException', function (e) {
-  console.error('\n---', (new Date()).toLocaleString(), '-------------------------------------------------')
-  console.error('uncaught exception:', e.stack)
-  console.error('\n')
-});
-
-process.on('unhandledRejection', function (e) {
-  console.error('\n---', (new Date()).toLocaleString(), '-------------------------------------------------')
-  console.error('unhandled rejection:', e.stack)
-  console.error('\n')
-})
 
 /** 
  * Monitor dbus messages for screensaver start / stop events.
@@ -173,8 +164,7 @@ async function dbusMonitor()
     }
     catch (error)
     {
-      if (debug)
-        console.error('Could not acquire screensaver', ss + '; trying next', error);
+      debug('dcp-screensaver:dbus')('Could not acquire screensaver', ss + '; trying next', error);
     }
   }
 
@@ -185,12 +175,10 @@ async function dbusMonitor()
   }
 
   ssActive = await iface.GetActive();
-  if (debug)
-    console.debug('Screen saver active:', ssActive);
+  debug('dcp-screensaver')('Screen saver active:', ssActive);
 
   iface.on('ActiveChanged', function screenSaverChangeHandler(active) {
-    if (debug)
-      console.log(`screen saver ${active ? 'started' : 'finished'} at`, new Date());
+    debug('dcp-screensaver')(`screen saver ${active ? 'started' : 'finished'} at`, new Date());
   });
 
   console.log('Monitoring screensaver', iface.$name);
@@ -199,6 +187,20 @@ async function dbusMonitor()
 /* Main program entry point */
 function main()
 {
+  process.on('uncaughtException', function (e) {
+    console.error('\n---', (new Date()).toLocaleString(), '-------------------------------------------------')
+    console.error('uncaught exception:', e.stack)
+    console.error('\n')
+  });
+
+  process.on('unhandledRejection', function (e) {
+    console.error('\n---', (new Date()).toLocaleString(), '-------------------------------------------------')
+    console.error('unhandled rejection:', e.stack)
+    console.error('\n')
+  })
+
   dbusMonitor();
   listenForConnections(daemonConfig);
 }
+
+main();
