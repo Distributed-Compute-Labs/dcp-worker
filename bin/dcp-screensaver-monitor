@@ -5,7 +5,7 @@
  *              enable/disable the evaluator as appropriate.
  *
  *              The actual mechanics of communicating with the evaluator is
- *              similar in principle to how inetd workers, and the code is, in
+ *              similar in principle to how inetd works, and the code is, in
  *              fact, based on the dcp inet-daemon.
  *
  * @author      Wes Garland, wes@distributive.network
@@ -15,8 +15,7 @@
 
 const net   = require('net')
 const dns   = require('dns');
-const debug = process.env.DCP_SCREENSAVER_MONITOR_DEBUG || '';
-var ssActive = false;
+var ssActive = false; /* true => allow evaluator connections */
 
 const daemonConfig = {
   net:  new URL('tcpip://localhost:9000/'),
@@ -34,7 +33,13 @@ async function listenForConnections(config)
   else
     hostaddr = await dns.promises.lookup(config.net.hostname, { family: 4 });
 
-  server.listen({ host: hostaddr, port: config.net.port }, function daemonReady(shit) {
+  server.on('error', (error) => {
+    delete error.stack;
+    console.error(error);
+    process.exit(2);
+  });
+
+  server.listen({ host: hostaddr, port: config.net.port }, function daemonReady() {
     console.log('Listening for connections on', server._connectionKey);
   });
 }
@@ -140,20 +145,60 @@ process.on('unhandledRejection', function (e) {
   console.error('\n')
 })
 
-console.log('DCP screensaver monitor starting...')
-listenForConnections(daemonConfig);
+/** 
+ * Monitor dbus messages for screensaver start / stop events.
+ */
+async function dbusMonitor()
+{
+  const dbus = require('dbus-next');
+  const bus = dbus.sessionBus();
+  const screensaverList = [
+    'org.gnome.ScreenSaver',
+    'org.cinnamon.ScreenSaver',
+    'org.kde.screensaver',
+    'org.freedesktop.ScreenSaver'
+  ];
+  var iface;
 
-var dbus = require('dbus-native');
-var bus = dbus.sessionBus();
+  for (let ss of screensaverList)
+  {
+    try
+    {
+      let obj = await bus.getProxyObject(ss, '/' + ss.replace(/\./g, '/'));
+      if (obj)
+      {
+        iface = obj.interfaces[ss];
+        break;
+      }
+    }
+    catch (error)
+    {
+      if (debug)
+        console.error('Could not acquire screensaver', ss + '; trying next', error);
+    }
+  }
 
-console.log('starting screensaver monitor');
-var notify = bus.getService('com.canonical.Unity');
-notify.getInterface('/org/gnome/ScreenSaver', 'org.gnome.ScreenSaver', function(e, iface) {
-  if (debug.indexOf('dbus') !== -1)
-    console.debug(e,iface);
+  if (!iface)
+  {
+    console.error('Could not open dbus session to any screensaver, tried', screensaverListe);
+    process.exit(3);
+  }
+
+  ssActive = await iface.GetActive();
+  if (debug)
+    console.debug('Screen saver active:', ssActive);
 
   iface.on('ActiveChanged', function screenSaverChangeHandler(active) {
     if (debug)
       console.log(`screen saver ${active ? 'started' : 'finished'} at`, new Date());
   });
-});
+
+  console.log('Monitoring screensaver', iface.$name);
+}
+
+/* Main program entry point */
+function main()
+{
+  dbusMonitor();
+  listenForConnections(daemonConfig);
+}
