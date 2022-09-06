@@ -249,21 +249,6 @@ async function startWorking(cliArgs) {
   });
 
 
-  // Set up "evaluator has gone away" detection
-  let workerHasStarted = false;
-  sawOptions.onsocketerror = function saw$onsocketerror(error, worker) {
-    // If we've ever been connected to the evalserver, then this probably
-    // means the screensaver has gone away, so we should stop the worker,
-    // return any outstanding work, and exit the frontend so the service
-    // manager can restart the worker
-    if (workerHasStarted) {
-      exitcode = EXIT_EVALUATOR_GONE;
-      console.info('167: evaluator server has gone away; terminating worker with exitcode ' + exitcode);
-      exitGuard.exit(exitcode);
-    }
-  };
-
-
   /** @type {string[]} */
   const dcpWorkerOptions = {
     paymentAddress,
@@ -493,17 +478,11 @@ async function startWorking(cliArgs) {
   });
 
 
-  // Set the flag to indicate when we've seen the evalserver
-  worker.on('fetch', () => {
-    workerHasStarted = true;
-  });
-
-
   await worker.start();
 
   exitcode = await exitGuard.promise;
 
-  cliArgs.verbose >= 1 && console.log(`418: exit guard called with ${exitcode}; workerHasStarted=${workerHasStarted}`);
+  cliArgs.verbose >= 1 && console.log(`418: exit guard called with ${exitcode}`);
 
   const exitTimeAllowed = 30;   // seconds to allow for worker to stop gracefully
   const forceExitTimeout = setTimeout(() => {
