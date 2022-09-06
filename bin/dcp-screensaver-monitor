@@ -18,6 +18,8 @@ const dns   = require('dns');
 const debug = require('debug');
 
 var ssActive = false; /* true => allow evaluator connections */
+var children;
+var seq = 0;
 
 const daemonConfig = {
   net:  new URL('tcpip://localhost:9000/'),
@@ -44,6 +46,9 @@ async function listenForConnections(config)
     process.exit(2);
   });
 
+  require('dcp-client');
+  children = new (require('dcp/utils').Inventory)();
+
   server.listen({ host: hostaddr, port: config.net.port }, function daemonReady() {
     console.log('Listening for connections on', server._connectionKey);
   });
@@ -56,60 +61,63 @@ async function listenForConnections(config)
  */
 function handleConnection (socket, config)
 {
-  if (debug.indexOf('verbose') !== -1)
-  {
+  var child;
+   
+  if (ssActive)
     debug('dcp-screensaver')('New connection; spawning ', config.proc, config.argv);
-    debug('dcp-screensaver')('New connection; closing');
-  }
-  
-  if (!ssActive)
+  else
   {
+    debug('dcp-screensaver')('New connection; closing');
     socket.end();
     socket.destroy();
     return;
   }
   
-  const child = require('child_process').spawn(config.proc, config.argv);
-
-  debug('dcp-screensaver')('Spawned a new worker process, PID:', child.pid, 'Index:', child.index);
-
+  child = require('child_process').spawn(config.proc, config.argv);
   child.stderr.setEncoding('ascii')
+  child.socket = socket;
+  children.add(child);
+  child.id = ++seq;
+  debug('dcp-screensaver')(`Spawned worker process ${child.pid} for child ${child.id}`);
 
   socket.on('end', function socketEnd() {
-    debug('dcp-screensaver')('Socket end; killing child', child.index);
+    debug('dcp-screensaver')('Socket end; killing child', child.id);
     child.kill();
-  })
+  });
 
   socket.on('error', function socketError(error) {
-    debug('dcp-screensaver')('Socket error; killing child', child.index);
+    debug('dcp-screensaver')(`Socket error ${error.code}; killing child`, child.id);
     debug('dcp-screensaver')(error);
     socket.destroy();
     child.kill();
-  })
+  });
 
   child.on('error', function childError(error) {
-    console.error('Error from worker ' + child.index + ':', error);
+    console.error('Error from worker ' + child.id + ':', error);
     socket.destroy();
     child.kill();
-  })
+    children.delete(child);
+  });
 
   child.on('exit', function(code) {
-    debug('dcp-screensaver')('child exited; closing socket', code || '', 'index:', child.index);
+    debugger;
+    debug('dcp-screensaver')(`child ${child.id} exited; closing socket`, code || '');
     socket.end();
     socket.destroy();
+    children.delete(child);
   });
 
   child.stdout.on('data', function (data) {
-    debug('dcp-screensaver:network')('<', child.index, bufToDisplayStr(data), 93);
+    debug('dcp-screensaver:network')('<', child.id, bufToDisplayStr(data), 93);
     socket.write(data)
   });
 
   child.stderr.on('data', function (data) {
-    console.log('child ' + child.index + ' stderr: ', data);
+    console.log('child ' + child.id + ' stderr: ', data);
   });
 
   socket.on('data', function (data) {
-    debug('dcp-screensaver:network')('>', child.index, bufToDisplayStr(data, 93));
+    debug('dcp-screensaver:network')('>', child.id, bufToDisplayStr(data, 93));
 
     try
     {
@@ -117,7 +125,7 @@ function handleConnection (socket, config)
     }
     catch (error)
     {
-      console.warn('could not write to child process (', child.pid, ', index', child.index, ') stdin')
+      console.warn('could not write to child process (', child.pid, ', index', child.id, ') stdin')
       throw error;
     }
   })
@@ -134,6 +142,18 @@ function bufToDisplayStr (buf, limit)
     return str.substr(0, limit) + '\u2026';
   else
     return str;
+}
+
+/**
+ * Kill all evaluators as quickly as possible.
+ */
+async function killChildren()
+{
+  for (let child of children)
+  {
+    debug('dcp-screensaver')(`killing child ${child.pid}`);
+    child.kill('SIGKILL');
+  }
 }
 
 /** 
@@ -178,6 +198,9 @@ async function dbusMonitor()
   debug('dcp-screensaver')('Screen saver active:', ssActive);
 
   iface.on('ActiveChanged', function screenSaverChangeHandler(active) {
+    ssActive = active;
+    if (!active)
+      killChildren();
     debug('dcp-screensaver')(`screen saver ${active ? 'started' : 'finished'} at`, new Date());
   });
 
