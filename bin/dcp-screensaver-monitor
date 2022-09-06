@@ -13,9 +13,10 @@
  */
 'use strict';
 
-const net   = require('net')
-const dns   = require('dns');
-const debug = require('debug');
+const net    = require('net')
+const dns    = require('dns');
+const debug  = require('debug');
+const getopt = require('posix-getopt');
 
 var ssActive = false; /* true => allow evaluator connections */
 var children;
@@ -24,8 +25,23 @@ var seq = 0;
 const daemonConfig = {
   net:  new URL('tcpip://localhost:9000/'),
   proc: require.resolve('./dcp-evaluator-start'),
-  argv: ['-se', '/opt/dcp/bin/dcp-evaluator', '-l', '/opt/dcp/libexec/evaluator/']
+  argv: ['-se', '/usr/bin/dcp-evaluator', '-l', '/usr/libexec/evaluator/']
 };
+
+function usage()
+{
+  console.log(
+`
+DCP Screensaver Monitor - Copyright (c) 2022 Distributive Corp.
+Released under the terms of the MIT License.
+
+Usage: ${process.argv[0]} [--prefix=<dir>] [-h | --help]
+Where:
+ - --prefix specifies the directory where the DCP evaluator was installed
+`);
+
+  process.exit(0);
+}
 
 /**
  * Establish listening socket evaluator proxy 
@@ -210,6 +226,33 @@ async function dbusMonitor()
 /* Main program entry point */
 function main()
 {
+  const parser = new getopt.BasicParser('h(help)p:(prefix)', process.argv);
+  var option;
+  
+  while ((option = parser.getopt()) !== undefined)
+  {
+    console.log(option.option);
+    switch (option.option)
+    {
+      case 'h':
+        usage();
+        break;
+      
+      default:
+        throw new Error('defined but unspecified option', option);
+
+      case '?':
+        process.exit(1);
+
+      case 'p':
+      {
+        for (let i=0; i < daemonConfig.argv.length; i++)
+          daemonConfig.argv[i] = daemonConfig.argv[i].replace(/^\/usr/, option.optarg);
+        console.log(daemonConfig);
+      }
+    }
+  }
+  
   process.on('uncaughtException', function (e) {
     console.error('\n---', (new Date()).toLocaleString(), '-------------------------------------------------')
     console.error('uncaught exception:', e.stack)
