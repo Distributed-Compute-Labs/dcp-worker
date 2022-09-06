@@ -30,7 +30,6 @@ async function main () {
 
   await require('dcp-client').init(require(process.env.DCP_CONFIG || '../etc/dcp-config'));
   dcpConfig = require('dcp/dcp-config');
-  require('../lib/check-scheduler-version').check();
 
   const cliArgs = require('dcp/cli')
   .base('Standalone NodeJS DCP Worker')
@@ -377,6 +376,9 @@ async function startWorking(cliArgs) {
   if (cliArgs.eventDebug)
     console.log(' + Event debug on');
   console.log(' . output mode: ' + cliArgs.output);
+  
+  require('../lib/check-scheduler-version').check();
+
   console.log(' . ready');
 
 
