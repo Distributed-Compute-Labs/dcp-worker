@@ -65,7 +65,6 @@ async function main () {
         type: 'string',
         default: 'detect',
         choices: ['detect', 'console', 'dashboard', 'event-log', 'syslog', 'logfile'],
-          // .concat(require('os')==='win32' ? ['event-log'] : []),
         group: 'Output options',
       },
       hostname: {
@@ -105,7 +104,7 @@ async function main () {
       leavePublicGroup: {
         type: 'boolean',
         describe: 'Do not fetch slices from public compute group',
-        default: false
+        default: false,
       },
       publicGroupFallback: {
         describe: 'If set, worker will prefer private groups but fall back on the public group if no preferred work is available',
@@ -308,7 +307,8 @@ async function startWorking(cliArgs) {
   await worker.supervisor.setDefaultIdentityKeystore();
 
 
-  if (cliArgs.eventDebug) {
+  if (cliArgs.eventDebug)
+  {
     worker.debug = true;
     worker.supervisor.debug = true;
   }
