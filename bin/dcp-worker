@@ -19,6 +19,14 @@ const TOTAL_CPU_VCORES = os.cpus().length;
 const DEFAULT_CORES = TOTAL_CPU_VCORES - 1;
 var worker, dcpConfig;
 
+const EXIT_CLEAN           = 0;   // normal exit, no error
+const EXIT_ERROR           = 1;   // otherwise unspecified error
+const EXIT_SIGQUIT         = 2;   // received SIGQUIT
+const EXIT_EVALUATOR_GONE  = 3;   // evalserver went away
+const EXIT_ERROR_STOPPING  = 4;   // failed to stop worker, no other error
+const EXIT_TIMED_OUT       = 5;   // failed to exit after requesting graceful exit
+const EXIT_UNHANDLED       = 6;   // unhandled rejection
+
 
 process.on('unhandledRejection', (error) => {
   console.error('Unhandled rejection:', error);
@@ -229,13 +237,6 @@ async function startWorking(cliArgs) {
 
   // The exitGuard will hold an "exit" method, and a Promise to await for
   // the exit code passed to exitGuard.exit()
-  const EXIT_CLEAN           = 0;   // normal exit, no error
-  const EXIT_ERROR           = 1;   // otherwise unspecified error
-  const EXIT_SIGQUIT         = 2;   // received SIGQUIT
-  const EXIT_EVALUATOR_GONE  = 3;   // evalserver went away
-  const EXIT_ERROR_STOPPING  = 4;   // failed to stop worker, no other error
-  const EXIT_TIMED_OUT       = 5;   // failed to exit after requesting graceful exit
-  const EXIT_UNHANDLED       = 6;   // unhandled rejection
   let exitcode = EXIT_CLEAN;
   const exitGuard = {
     promise: Promise.resolve(0),                     // will be overwritten when worker starts
