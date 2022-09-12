@@ -30,6 +30,14 @@ const dcpConfig =
     },
     reloadBehaviour: 'process.exit(12)',
   },
+  worker:
+  {
+    sandbox: {
+      progressTimeout: 30 * 1000,
+    },
+    leavePublicGroup: false,
+    allowConsoleAccess: false,
+  },
 }
 
 if (!dcpConfig.evaluator.location)
