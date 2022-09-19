@@ -168,12 +168,23 @@ async function main () {
         alias: 'W',
         describe: 'Number of milliseconds between watchdog cycles',
         type: 'number',
-        hidden: 'true',
+        hidden: true,
       },
+      dumpConfig: {
+        describe: 'If set, dump the configuration and exit',
+        type: 'boolean',
+        hidden: true,
+      }
     })
   .strict()
   .wrap(process.stdout.columns || 80)
   .argv;
+
+  if (cliArgs.dumpConfig)
+  {
+    console.debug(JSON.stringify(require('dcp/dcp-config'), null, 2));
+    process.exit(1);
+  }
 
   return startWorking(cliArgs);
 }
