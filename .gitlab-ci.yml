@@ -27,3 +27,4 @@ tidelift:
     - chmod +x tidelift
     - echo "Running alignment and saving to Tidelift"
     - ./tidelift alignment save --wait
+  cache: []
