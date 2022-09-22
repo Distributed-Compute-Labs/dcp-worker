@@ -1,0 +1,29 @@
+# @file    .gitlab-ci.yml - GitLab CI configuration file.
+# @author  Bryan Hoang <bryan@distributive.network>
+# @date    September 2022
+
+# Note: The CLI requires `glibc`.
+image: node:lts
+
+stages:
+  - build
+
+# Use in-house GitLab runners.
+default:
+  tags:
+    - dcp
+    - linux
+
+tidelift:
+  stage: build
+  variables:
+    # This should be kept in a GitLab Variable. Read more:
+    # https://docs.gitlab.com/ee/ci/variables/#create-a-custom-variable-in-the-ui
+    TIDELIFT_API_KEY: $TIDELIFT_API_KEY
+  script:
+    - echo "Downloading Tidelift CLI"
+    - curl https://download.tidelift.com/cli/tidelift -o tidelift
+    - echo "Setting permissions"
+    - chmod +x tidelift
+    - echo "Running alignment and saving to Tidelift"
+    - ./tidelift alignment save --wait
