@@ -3,7 +3,7 @@
 # @date    September 2022
 
 # Note: The CLI requires `glibc`.
-image: node:lts
+image: node:14
 
 stages:
   - build
