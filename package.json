@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "3.2.11",
+  "version": "3.2.12",
   "description": "JavaScript portion of DCP Workers for Node.js",
   "main": "bin/dcp-worker",
   "keywords": [
@@ -20,6 +20,7 @@
     "node": ">=14.0.0"
   },
   "bin": {
+    "dcp-evaluator-manager": "bin/dcp-evaluator-manager",
     "dcp-evaluator-start": "bin/dcp-evaluator-start",
     "dcp-worker": "bin/dcp-worker"
   },
@@ -37,7 +38,6 @@
     "blessed-contrib": "^4.11.0",
     "bravojs": "^1.0.15",
     "chalk": "^4.1.0",
-    "dbus-next": "^0.10.2",
     "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#develop",
     "kvin": "^1.2.7",
     "posix-getopt": "^1.2.1",
@@ -51,7 +51,7 @@
     "eslint": "7.30.0"
   },
   "peerDependencies": {
-    "dbus-native": "^0.4.0",
+    "dbus-next": "^0.10.2",
     "node-eventlog": "^1.0.2"
   }
 }
