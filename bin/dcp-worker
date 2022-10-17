@@ -30,7 +30,6 @@ async function main () {
 
   await require('dcp-client').init(require(process.env.DCP_CONFIG || '../etc/dcp-config'));
   dcpConfig = require('dcp/dcp-config');
-  require('../lib/check-scheduler-version').check();
 
   const cliArgs = require('dcp/cli')
   .base('Standalone NodeJS DCP Worker')
@@ -127,6 +126,11 @@ async function main () {
         describe: 'If set, dump all sandbox and worker events',
       },
 
+      showConfig: {
+        hide: false,
+        describe: 'Show merged configuration node (eg worker)',
+      },
+
       logfile: {
         describe: 'Path to log file (if --output=file)',
         type: 'string',
@@ -171,6 +175,13 @@ async function main () {
   .wrap(process.stdout.columns || 80)
   .argv;
 
+  if (cliArgs.showConfig)
+  {
+    console.log(eval('dcpConfig.' + cliArgs.showConfig));
+    process.exit();
+  }
+
+  require('../lib/check-scheduler-version').check();
   return startWorking(cliArgs);
 }
 
