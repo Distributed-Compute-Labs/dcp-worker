@@ -342,23 +342,31 @@ async function startWorking(cliArgs) {
     syslogPort: cliArgs.syslogPort,
   });
 
-  require('../lib/remote-console').init(cliArgs.replPort, {
-    help: {
-      report: 'Print a worker status & slice report',
-      kill: 'Kill the worker',
-    },
-    commands: {
-      report: printReport,
-      kill: exitcode => exitGuard.exit(exitcode),
-    },
-  });
-  require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) });
+  try
+  {
+    require('../lib/remote-console').init(cliArgs.replPort, {
+      help: {
+        report: 'Print a worker status & slice report',
+        kill: 'Kill the worker',
+      },
+      commands: {
+        report: printReport,
+        kill: exitcode => exitGuard.exit(exitcode),
+      },
+    });
+    require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) });
+  }
+  catch (error)
+  {
+    console.warn('350: Failed to initialize remote console:', error.message);
+  }
 
-  console.log(` * Starting DCP Worker`);
-  console.log(` . Configured for scheduler ${dcpConfig.scheduler.location}`);
-  console.log(` . Bank is ${dcpConfig.bank.location}`);
-  console.log(` . Earned funds will be deposited in account ${paymentAddress}`);
-  console.log(` . Identity is ${identityKeystore.address}`);
+  let introBanner = '';
+  introBanner += ` * Starting DCP Worker` + '\n';
+  introBanner += ` . Configured for scheduler ${dcpConfig.scheduler.location}` + '\n';
+  introBanner += ` . Bank is ${dcpConfig.bank.location}` + '\n';
+  introBanner += ` . Earned funds will be deposited in account ${paymentAddress}` + '\n';
+  introBanner += ` . Identity is ${identityKeystore.address}` + '\n';
 
   function qty(amount, singular, plural) /* XXX i18n */
   {
@@ -374,22 +382,24 @@ async function startWorking(cliArgs) {
   }
 
   if (dcpWorkerOptions.jobAddresses)
-    console.log(` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')}`, dcpWorkerOptions.jobAddresses.join(', '));
+    introBanner += ` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')}` + dcpWorkerOptions.jobAddresses.join(', ') + '\n';
   if (dcpWorkerOptions.computeGroups.length)
-    console.log(` * Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')}`, dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', '));
+    introBanner += ` * Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')}` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', ') + '\n';
   if (dcpWorkerOptions.publicGroupFallback)
-    console.log(' * Falling back on public group when preferred groups have no work');
+    introBanner += ' * Falling back on public group when preferred groups have no work' + '\n';
   else if (dcpWorkerOptions.leavePublicGroup)
-    console.log(' * Leaving the public compute group');
+    introBanner += ' * Leaving the public compute group' + '\n';
   if (cliArgs.verbose)
-    console.log(` + Verbosity level: ${cliArgs.verbose}`);
+    introBanner += ` + Verbosity level: ${cliArgs.verbose}` + '\n';
   if (cliArgs.eventDebug)
-    console.log(' + Event debug on');
-  console.log(' . output mode: ' + cliArgs.output);
+    introBanner += ' + Event debug on' + '\n';
+  introBanner += ' . output mode: ' + cliArgs.output + '\n';
   
-  require('../lib/check-scheduler-version').check();
+  introBanner += ' . ready' + '\n';
 
-  console.log(' . ready');
+  console.log(introBanner);
+
+  require('../lib/check-scheduler-version').check();
 
 
   /** print the slice report via console.log */
