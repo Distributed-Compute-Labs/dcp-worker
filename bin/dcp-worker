@@ -382,9 +382,9 @@ async function startWorking(cliArgs) {
   }
 
   if (dcpWorkerOptions.jobAddresses)
-    introBanner += ` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')}` + dcpWorkerOptions.jobAddresses.join(', ') + '\n';
+    introBanner += ` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')} ` + dcpWorkerOptions.jobAddresses.join(', ') + '\n';
   if (dcpWorkerOptions.computeGroups.length)
-    introBanner += ` * Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')}` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', ') + '\n';
+    introBanner += ` * Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')} ` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', ') + '\n';
   if (dcpWorkerOptions.publicGroupFallback)
     introBanner += ' * Falling back on public group when preferred groups have no work' + '\n';
   else if (dcpWorkerOptions.leavePublicGroup)
@@ -393,7 +393,7 @@ async function startWorking(cliArgs) {
     introBanner += ` + Verbosity level: ${cliArgs.verbose}` + '\n';
   if (cliArgs.eventDebug)
     introBanner += ' + Event debug on' + '\n';
-  introBanner += ' . output mode: ' + cliArgs.output + '\n';
+  introBanner += ' . output mode: ' + cliArgs.outputMode + '\n';
   
   introBanner += ' . ready' + '\n';
 
