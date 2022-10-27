@@ -19,6 +19,12 @@ const TOTAL_CPU_VCORES = os.cpus().length;
 const DEFAULT_CORES = TOTAL_CPU_VCORES - 1;
 var worker, dcpConfig;
 
+const EXIT_CLEAN           = 0;   // normal exit, no error
+const EXIT_SIGQUIT         = 2;   // received SIGQUIT
+const EXIT_ERROR_STOPPING  = 3;   // failed to stop worker, no other error
+const EXIT_TIMED_OUT       = 4;   // failed to exit after requesting graceful exit
+const EXIT_UNHANDLED       = 5;   // unhandled rejection
+
 
 process.on('unhandledRejection', (error) => {
   console.error('Unhandled rejection:', error);
@@ -30,7 +36,6 @@ async function main () {
 
   await require('dcp-client').init(require(process.env.DCP_CONFIG || '../etc/dcp-config'));
   dcpConfig = require('dcp/dcp-config');
-  require('../lib/check-scheduler-version').check();
 
   const cliArgs = require('dcp/cli')
   .base('Standalone NodeJS DCP Worker')
@@ -48,15 +53,17 @@ async function main () {
       verbose: {
         alias: 'v',
         describe: 'Enable verbose output',
-        type: 'boolean',
+        type: 'count',
         default: false,
+        group: 'Output options',
       },
       outputMode: {
-        alias: 'o',
+        alias: ['o', 'output'],
         describe: 'Set the output mode',
         type: 'string',
         default: 'detect',
-        choices: ['detect', 'console', 'dashboard'],
+        choices: ['detect', 'console', 'dashboard', 'event-log', 'syslog', 'logfile'],
+        group: 'Output options',
       },
       hostname: {
         alias: 'H',
@@ -76,47 +83,116 @@ async function main () {
         type: 'boolean',
         default: false
       },
-      watchdogInterval: {
-        alias: 'W',
-        describe: 'Number of milliseconds between watchdog cycles',
-        type: 'number',
-      },
       'job-id': {
         alias: 'j',
         describe: 'Restrict worker to a specific job (use N times for N jobs)',
         type: 'array',
       },
-      'leave-public-group': {
-        type: 'boolean',
-        describe: 'Do not fetch slices from public compute group',
-        default: false
-      },
-      'join': {
+
+      join: {
         alias: 'g',
-        describe: 'Join compute group',
+        describe: 'Join compute group; the format is "joinKey,joinSecret" or "joinKey,eh1-joinHash"',
         type: 'array'
       },
-      'join-keystore': {
+      joinKeystore: {
         hidden: true,
         /* future */
       },
-      'allowed-origins': {
+
+      leavePublicGroup: {
+        type: 'boolean',
+        describe: 'Do not fetch slices from public compute group',
+        default: false,
+      },
+      publicGroupFallback: {
+        describe: 'If set, worker will prefer private groups but fall back on the public group if no preferred work is available',
+        type: 'boolean',
+        default: false,
+      },
+
+      identityKey: {
+        describe: 'Identity key, in hex format',
+        type: 'string',
+        group: 'Identity options',
+      },
+      identityKeystore: {
+        describe: 'Identity keystore, in json format',
+        type: 'string',
+        group: 'Identity options',
+      },
+
+      reportInterval: {
+        describe: 'If set, output a status summary every [interval] seconds in console output mode',
+        type: 'number',
+        group: 'Output options',
+      },
+      eventDebug: {
+        hide: true,
+        describe: 'If set, dump all sandbox and worker events',
+      },
+
+      logfile: {
+        describe: 'Path to log file (if --output=file)',
+        type: 'string',
+        group: 'Log File output options',
+      },
+      syslogAddress: {
+        describe: 'Address of rsyslog server (if --output=syslog)',
+        type: 'string',
+        group: 'Syslog output options',
+      },
+      syslogTransport: {
+        describe: 'Transport to connect to rsyslog daemon (if --output=syslog)',
+        type: 'string',
+        choices: ['udp','tcp'],
+        group: 'Syslog output options',
+      },
+      syslogPort: {
+        describe: 'UDP/TCP port of rsyslog server',
+        type: 'number',
+        group: 'Syslog output options',
+      },
+
+      allowedOrigins: {
         alias: 'a',
         describe: 'modify the \'any\' allow origins of dcpConfig',
         type: 'array'
       },
+
+      replPort: {
+        describe: 'If set, open a REPL on specified TCP port',
+        type: 'number',
+        default: undefined,
+      },
+      watchdogInterval: {
+        alias: 'W',
+        describe: 'Number of milliseconds between watchdog cycles',
+        type: 'number',
+        hidden: true,
+      },
+      dumpConfig: {
+        describe: 'If set, dump the configuration and exit',
+        type: 'boolean',
+        hidden: true,
+      }
     })
   .strict()
   .wrap(process.stdout.columns || 80)
   .argv;
 
-  await startWorking(cliArgs);
+  if (cliArgs.dumpConfig)
+  {
+    console.debug(JSON.stringify(require('dcp/dcp-config'), null, 2));
+    process.exit(1);
+  }
+
+  return startWorking(cliArgs);
 }
 
 // Preserve console.error, the dashboard replaces it with a custom logger
 const logError = console.error;
 main()
-.then(() => process.exit(0))
+.then(exitcode => process.exit(exitcode || 0))
 .catch(e => {
   logError("Script failed:");
   logError(e);
@@ -133,18 +209,53 @@ async function startWorking(cliArgs) {
   const wallet = require('dcp/wallet');
   const DCPWorker = require('dcp/worker').Worker;
   const { startWorkerLogger } = require('../lib/startWorkerLogger');
-  const identityKeystore = await wallet.getId();
   const sawOptions = {
     hostname: cliArgs.hostname,
     port:     cliArgs.port
   };
 
   let paymentAddress;
-  if (cliArgs.paymentAddress) {
+  if (cliArgs.paymentAddress)
     paymentAddress = new wallet.Address(cliArgs.paymentAddress);
-  } else {
+  else
     paymentAddress = (await wallet.get()).address;
-  }
+
+
+  // Different ways to get the identity: 
+  let identityKeystore = false;
+
+  if (cliArgs.identityKey)
+    identityKeystore = await new wallet.IdKeystore(cliArgs.identityKey, '');
+  else if (cliArgs.identityKeystore)
+    identityKeystore = await new wallet.IdKeystore(JSON.parse(cliArgs.identityKeystore), '');
+  else
+    identityKeystore = await wallet.getId();
+
+  // Set the provided identity as the wallet's default
+  await wallet.addId(identityKeystore);
+
+
+  if (typeof dcpConfig.worker.unhandledRejectionCleanupTimeout !== 'undefined')
+    unhandledRejectionHandler.timeout = dcpConfig.worker.unhandledRejectionCleanupTimeout;
+
+  // Leave the public compute group, if desired
+  if (cliArgs.leavePublicGroup || cliArgs.publicGroupFallback)
+    dcpConfig.worker.leavePublicGroup = true;
+
+
+  // The exitGuard will hold an "exit" method, and a Promise to await for
+  // the exit code passed to exitGuard.exit()
+  let exitcode = EXIT_CLEAN;
+  const exitGuard = {
+    promise: Promise.resolve(0),                     // will be overwritten when worker starts
+    exit(code) { process.exit(code||exitcode||0) },  // will be overwritten when worker starts
+  };
+  process.on('SIGQUIT', () => {
+    exitcode = EXIT_SIGQUIT;
+    cliArgs.verbose >= 1 && console.info(`240: Caught SIGQUIT; exiting worker with exitcode ${exitcode}`);
+    exitGuard.exit(exitcode);
+  });
+
 
   /** @type {string[]} */
   const dcpWorkerOptions = dcpConfig.worker;
@@ -154,7 +265,6 @@ async function startWorking(cliArgs) {
     maxWorkingSandboxes: cliArgs.cores,
     cores:               { cpu: TOTAL_CPU_VCORES, gpu: undefined }, /** XXXpfr @todo: Figure out how many gpus. */
     targetLoad:          { cpu: 1.0, gpu: 1.0 }, /** Use 100%: XXXpfr @todo Allow command-line override. */
-    priorityOnly:        cliArgs.priorityOnly,
     sandboxOptions: {
       SandboxConstructor: require('dcp-client/lib/standaloneWorker').workerFactory(sawOptions)
     },
@@ -175,55 +285,17 @@ async function startWorking(cliArgs) {
     //console.log(dcpWorkerOptions.computeGroups);
   }
   
-  if (typeof dcpConfig.worker.unhandledRejectionCleanupTimeout !== 'undefined')
-    unhandledRejectionHandler.timeout = dcpConfig.worker.unhandledRejectionCleanupTimeout;
-
-  if (cliArgs.jobId) {
+  if (cliArgs.jobId)
+  {
     dcpWorkerOptions.jobAddresses = cliArgs.jobId;
+    dcpWorkerOptions.priorityOnly = true;
   }
-  if (cliArgs.allowedOrigins) {
+  if (cliArgs.allowedOrigins)
     dcpConfig.worker.allowOrigins.any = cliArgs.allowedOrigins;
-  }
-  if (cliArgs.watchdogInterval) {
+  if (cliArgs.watchdogInterval)
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
-  }
 
-  worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
-
-  if (process.env.TEST_HARNESS) {
-    const { bindToTestHarness } = require('../lib/bindToTestHarness');
-    bindToTestHarness(worker);
-  }
-
-  /* Delay log messages so that they appear in TUI window */
-  setImmediate(() => {
-    console.log(` * Starting DCP Worker`);
-    console.log(` . Configured for scheduler ${dcpConfig.scheduler.location}`);
-    console.log(` . Bank is ${dcpConfig.bank.location}`);
-    console.log(` . Earned funds will be deposited in account ${paymentAddress}`);
-    console.log(` . Identity is ${identityKeystore.address}`);
-
-    function qty(amount, singular, plural) /* XXX i18n */
-    {
-      if (Array.isArray(amount))
-        amount = amount.length;
-      if (!plural)
-        plural = singular + 's';
-      if (!amount)
-        return plural;
-      if (amount == 1)
-        return singular;
-      return plural;
-    }
-
-    if (dcpWorkerOptions.jobAddresses)
-      console.log(` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')}`, dcpWorkerOptions.jobAddresses.join(', '));
-    if (dcpWorkerOptions.computeGroups.length)
-      console.log(` * Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')}`, dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', '));
-    if (dcpWorkerOptions.leavePublicGroup)
-      console.log(' * Leaving the public compute group');
-    console.log(' . ready');
-  });
+    worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
 
   /**
    * NOTE: In Supervisor2 this function is a NOOP.
@@ -243,26 +315,217 @@ async function startWorking(cliArgs) {
    */
   await worker.supervisor.setDefaultIdentityKeystore();
 
-  startWorkerLogger(worker, {
-    verbose: cliArgs.verbose,
-    outputMode: cliArgs.outputMode,
+
+  if (cliArgs.eventDebug)
+  {
+    worker.debug = true;
+    worker.supervisor.debug = true;
+  }
+
+
+  // if the worker stops internally (eg. schedmsg stop), then exit without
+  // changing the saved exitcode
+  worker.on('stop', () => {
+    exitGuard.exit();
   });
 
-  worker.supervisor.addEventListener('submitSliceFailed', (error) => {
-    console.error('submitSliceFailed handler in dcp-worker', error);
+
+  startWorkerLogger(worker, {
+    exitGuard,
+    verbose: cliArgs.verbose,
+    outputMode: cliArgs.outputMode,
+
+    logfile: cliArgs.logfile,
+
+    syslogAddress: cliArgs.syslogAddress,
+    syslogTransport: cliArgs.syslogTransport,
+    syslogPort: cliArgs.syslogPort,
   });
+
+  try
+  {
+    require('../lib/remote-console').init(cliArgs.replPort, {
+      help: {
+        report: 'Print a worker status & slice report',
+        kill: 'Kill the worker',
+      },
+      commands: {
+        report: printReport,
+        kill: exitcode => exitGuard.exit(exitcode),
+      },
+    });
+    require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) });
+  }
+  catch (error)
+  {
+    console.warn('350: Failed to initialize remote console:', error.message);
+  }
+
+  let introBanner = '';
+  introBanner += ` * Starting DCP Worker` + '\n';
+  introBanner += ` . Configured for scheduler ${dcpConfig.scheduler.location}` + '\n';
+  introBanner += ` . Bank is ${dcpConfig.bank.location}` + '\n';
+  introBanner += ` . Earned funds will be deposited in account ${paymentAddress}` + '\n';
+  introBanner += ` . Identity is ${identityKeystore.address}` + '\n';
+
+  function qty(amount, singular, plural) /* XXX i18n */
+  {
+    if (Array.isArray(amount))
+      amount = amount.length;
+    if (!plural)
+      plural = singular + 's';
+    if (!amount)
+      return plural;
+    if (amount == 1)
+      return singular;
+    return plural;
+  }
+
+  if (dcpWorkerOptions.jobAddresses)
+    introBanner += ` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')} ` + dcpWorkerOptions.jobAddresses.join(', ') + '\n';
+  if (dcpWorkerOptions.computeGroups.length)
+    introBanner += ` * Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')} ` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', ') + '\n';
+  if (dcpWorkerOptions.publicGroupFallback)
+    introBanner += ' * Falling back on public group when preferred groups have no work' + '\n';
+  else if (dcpWorkerOptions.leavePublicGroup)
+    introBanner += ' * Leaving the public compute group' + '\n';
+  if (cliArgs.verbose)
+    introBanner += ` + Verbosity level: ${cliArgs.verbose}` + '\n';
+  if (cliArgs.eventDebug)
+    introBanner += ' + Event debug on' + '\n';
+  introBanner += ' . output mode: ' + cliArgs.outputMode + '\n';
+  
+  introBanner += ' . ready' + '\n';
+
+  console.log(introBanner);
+
+  require('../lib/check-scheduler-version').check();
+
+
+  /** print the slice report via console.log */
+  function printReport()
+  {
+    console.log(sliceReport());
+  }
+
+  /** retrieve a slice report screen */
+  function sliceReport()
+  {
+    const sup = worker.supervisor;
+    let report = '';
+
+    report += ('='.repeat(78)) + '\n';
+
+    const sbStates = {
+      WORKING: 0,
+      ASSIGNED: 0,
+      READY: 0,
+      TERMINATED: 0,
+    };
+    const stateNames = {
+      WORKING: 'Working',
+      ASSIGNED: 'Assigned',
+      READY: 'Ready',
+      TERMINATED: 'Terminated',
+    };
+    sup.sandboxes.forEach(sb => {
+      const { state } = sb;
+      if (!sbStates[state])
+        sbStates[state] = 0;
+      sbStates[state]++;
+    });
+
+    report += (Date()) + '\n';
+    report += ('Sandboxes:') + '\n';
+    Object.keys(sbStates).forEach(state => {
+      const stateName = stateNames[state] || state;
+      report += (`  ${(stateName + ':').padEnd(12)} ${sbStates[state]}`) + '\n';
+    })
+    report += (`  * ALL:       ${sup.sandboxes.length}`) + '\n';
+
+    report += ('Progress:') + '\n';
+    sup.workingSandboxes.forEach(sb => {
+      const jobName = sb.job && sb.job.public && sb.job.public.name || `idek (${sb.jobAddress})`;
+      let el = Date.now() - sb.sliceStartTime;
+      const t = el < 1000000
+        ? toInterval(el)
+        : 'new';
+
+      el = sb.progressReports && sb.progressReports.last
+        ? Date.now() - (sb.sliceStartTime + sb.progressReports.last.timestamp)
+        : 0;
+      const pct = (typeof sb.progress) === 'number'
+        ? `${Number(sb.progress).toFixed(0).padStart(2)}%`
+        : 'ind';
+      const stale = (el < 2000) ? '' : `(stale: ${toInterval(el)})`;
+
+      report += (` ${String(sb.id).padStart(4)}: ${sb.jobAddress} ${jobName.padEnd(34)} `+ `${t} ${pct} ${stale}`.padStart(13)) + '\n';
+    });
+
+    report += ('Slices:') + '\n';
+    report += (`  working:     ${sup.allocatedSlices.length}`) + '\n';
+    report += (`  queued:      ${sup.queuedSlices.length}`) + '\n';
+
+    report += ('='.repeat(78)) + '\n';
+
+    return report;
+  }
+
+  /**
+   *  Convert a timespan in ms to a human-readable interval in minutes and seconds
+   *
+   *  @param  {number} el Milliseconds to convert
+   *  @return {string}    Timespan formatted as `m:ss`
+   */
+  function toInterval(el)
+  {
+    const m = Math.floor((el / 1000) / 60).toString(10);
+    const s = Math.floor((el / 1000) % 60).toString(10).padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  if (parseFloat(cliArgs.reportInterval))
+  {
+    if (cliArgs.outputMode !== 'dashboard')
+      setInterval(printReport, parseFloat(cliArgs.reportInterval) * 1000);
+    else
+      console.log('Ignoring --reportInterval in dashboard output mode');
+  }
+
+
+  // Set the exit guard - this method can be called by signal and exception
+  // handlers
+  exitGuard.promise = new Promise(resolve => {
+    exitGuard.exit = resolve;
+  });
+
 
   await worker.start();
 
-  /** XXXpfr @todo Testing for stopWork. Please save. Please delete on or after October 2022. */
-  //setTimeout(async () => {await worker.stop(), console.log('stop1........................................................')}, 4000);
-  //setTimeout(async () => {await worker.start(), console.log('start1........................................................')}, 8000);
-  //setTimeout(async () => {await worker.stop(), console.log('stop2........................................................')}, 12000);
-  //setTimeout(async () => {await worker.start(), console.log('start2........................................................')}, 16000);
+  exitcode = await exitGuard.promise;
 
-  await new Promise(resolve => process.on('SIGQUIT', resolve));
-  console.log('\n*** caught SIGQUIT; exiting...\n');
-  await worker.stop(true);
+  cliArgs.verbose >= 1 && console.log(`418: exit guard called with ${exitcode}`);
+
+  const exitTimeAllowed = 30;   // seconds to allow for worker to stop gracefully
+  const forceExitTimeout = setTimeout(() => {
+    console.error(`396: Worker failed to exit within ${exitTimeAllowed} seconds; terminating forcibly.`);
+    process.exit(exitcode || EXIT_TIMED_OUT)
+  }, exitTimeAllowed * 1000);
+
+  await worker.stop(true)
+  .catch(error => {
+    if (error.message.includes('Already stopped'))
+      return;
+    console.error('255: Unexpected error stopping worker:',
+      error.code
+      ? `${error.code}: ${error.message}`
+      : error.message);
+    exitcode = exitcode || EXIT_ERROR_STOPPING;
+  });
+
+  clearTimeout(forceExitTimeout);
+
+  return exitcode;
 }
 
 /** 
@@ -294,6 +557,7 @@ async function unhandledRejectionHandler (error) {
     if (screen) {
       screen.log(error.message + '\n' + error.stack);
       screen.destroy();
+      logError(error.message + '\n' + error.stack);
     } else {
       console.error('Unhandled rejection - preparing to exit:', error.message);
     }
@@ -307,7 +571,7 @@ async function unhandledRejectionHandler (error) {
     } catch(e) {
       console.error(error);
     }
-    process.exit(exitCode || 3);
+    process.exit(exitCode || EXIT_UNHANDLED);
   }
   setTimeout(bail, 1000 * unhandledRejectionHandler.timeout);
 
@@ -317,6 +581,6 @@ async function unhandledRejectionHandler (error) {
     console.log('Error during worker.stop:', e);
   }
 
-  setImmediate(() => bail(33));
+  setImmediate(() => bail(EXIT_UNHANDLED));
 };
 unhandledRejectionHandler.timeout = 5;
