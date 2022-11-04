@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "3.2.15",
+  "version": "3.2.16",
   "description": "JavaScript portion of DCP Workers for Node.js",
   "main": "bin/dcp-worker",
   "keywords": [
@@ -34,11 +34,10 @@
   "dependencies": {
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.11.0",
-    "bravojs": "^1.0.15",
-    "chalk": "^4.1.1",
-    "dcp-client": "^4.2.20",
-    "kvin": "^1.2.10",
-    "semver": "^7.3.5"
+    "bravojs": "^1.0.16",
+    "chalk": "^4.1.0",
+    "dcp-client": "^4.2.21",
+    "semver": "^7.3.8"
   },
   "optionalDependencies": {
     "telnet-console": "^1.0.4"
