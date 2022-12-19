@@ -295,7 +295,7 @@ async function startWorking(cliArgs) {
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
 
 
-  worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
+  worker = new DCPWorker(/*identityKeystore, */dcpWorkerOptions);
 
   /**
    * NOTE: In Supervisor2 this function is a NOOP.
