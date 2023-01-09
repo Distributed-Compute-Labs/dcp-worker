@@ -15,6 +15,15 @@ const fs = require('fs');
 // Set to true to try to understand unhandled rejection.
 const ANALYZE_UNHANDELD_REJECTION = false;
 
+// Set default location for pid file
+let DEFAULT_PID_LOC;
+if (fs.existsSync('/var/dcp/run'))
+  DEFAULT_PID_LOC = '/var/dcp/run/';
+else if (fs.existsSync('/var/run'))
+  DEFAULT_PID_LOC = '/var/run/';
+else
+  DEFAULT_PID_LOC = os.tmpdir();
+
 const TOTAL_CPU_VCORES = os.cpus().length;
 const DEFAULT_CORES = TOTAL_CPU_VCORES - 1;
 var worker, dcpConfig;
@@ -174,6 +183,12 @@ async function main () {
         describe: 'If set, dump the configuration and exit',
         type: 'boolean',
         hidden: true,
+      },
+      pidFileLoc: {
+        alias: 'F',
+        describe: 'If set, location to generate the worker pid file',
+        type: 'string',
+        default: false,
       }
     })
   .strict()
@@ -220,6 +235,8 @@ async function startWorking(cliArgs) {
   else
     paymentAddress = (await wallet.get()).address;
 
+  if (cliArgs.pidFileLoc)
+    memoizePid(cliArgs.pidFileLoc)
 
   // Different ways to get the identity: 
   let identityKeystore = false;
@@ -526,6 +543,70 @@ async function startWorking(cliArgs) {
   clearTimeout(forceExitTimeout);
 
   return exitcode;
+}
+
+// Create the PID file for the worker
+function memoizePid(dir)
+{
+  const path = require('path');
+  const program = path.basename(require.main.filename, '.js');
+  let location;
+
+  if (fs.existsSync(dir))
+    location = dir;
+  else
+    location = DEFAULT_PID_LOC;
+
+  const pidfile = path.join(
+    location,
+    program + '.pid'
+  )
+  try
+  {
+    if (fs.existsSync(pidfile))
+    {
+      let buf = new Buffer.alloc(16);
+      let nread;
+      
+      memoizePid.fd = fs.openSync(pidfile, 'r+');
+      nread = fs.readSync(memoizePid.fd, buf);
+      console.warn(`Warning: Previous invocation${nread ? ' pid#' + parseInt(String(buf)) : ''} did not remove ${pidfile}`);
+    }
+    else
+      memoizePid.fd = fs.openSync(pidfile, 'wx');
+
+    fs.writeSync(memoizePid.fd, Buffer.from(process.pid + '\n'), 0);
+  }
+  catch (error)
+  {
+    console.warn(`Warning: Could not create pidfile at ${pidfile} (${error.code || error.message})`);
+    
+    if (typeof memoizePid.fd === 'number')
+    {
+      fs.closeSync(memoizePid.fd);
+      delete memoizePid.fd;
+    }
+    return;
+  }
+
+  
+
+  function exitHandler()
+  {
+    try
+    {
+      fs.unlinkSync(pidfile);
+      fs.closeSync(memoizePid.fd);
+      delete memoizePid.fd;
+    }
+    catch (error)
+    {
+      console.warn(`Warning: Could not remove pidfile at ${pidfile} (${error.code})`);
+    }
+  }
+  
+  // Cleanup PID file
+  process.on('dcpExit', exitHandler);
 }
 
 /** 
