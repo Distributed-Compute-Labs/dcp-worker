@@ -18,8 +18,6 @@ function main() {
   const dcpClientDir = path.dirname(require.resolve('dcp-client'));
   var evaluator;
 
-
-
   /* All evaluators must understand the following command-line options:
    * -l - location of libs
    * -p - port to listen on; unspecified => stdio
