@@ -12,6 +12,8 @@
 function main() {
   const { clearLine, cursorTo } = require('readline');
   const path = require('path');
+  const fs = require('fs');
+  const os = require('os');
   const dcpConfig = require('dcp/dcp-config');
   const dcpClientDir = path.dirname(require.resolve('dcp-client'));
   var evaluator;
@@ -82,6 +84,10 @@ function main() {
         .option('verbose', {
           alias: ['v'],
           desc: 'Generate verbose output',
+        })
+        .option('pidFileLoc', {
+          alias: ['F'],
+          desc: 'Location for dcp-evaluator PID file',
         })
         .options('debugLogLevel', {
           alias: ['d'],
@@ -190,6 +196,9 @@ function main() {
     console.log('');
   }
 
+  if (options.pidFileLoc)
+    memoizePid(options.pidFileLoc)
+
   if (options.verbose) {
     console.log('. cwd:', path.join(options.prefix));
     console.log('. run:', [evaluator].concat(args).concat(files).map(a => `"${a}"`).join(' '));
@@ -229,5 +238,106 @@ if (!localConfig.scheduler)
 localConfig.bundle.location = false;
 localConfig.scheduler.configLocation = false;
 Object.assign(dcpConfig, require('dcp/utils').leafMerge(dcpConfig, localConfig));
+
+// Create the PID file for the worker
+function memoizePid(dir)
+{
+  const path = require('path');
+  const fs = require('fs');
+  const program = path.basename(require.main.filename, '.js');
+  let location;
+  let filename;
+  let fileType = '.pid';
+
+  // Set default location for pid file
+  let DEFAULT_PID_LOC;
+  if (fs.existsSync('/var/dcp/run'))
+    DEFAULT_PID_LOC = '/var/dcp/run/';
+  else if (fs.existsSync('/var/run'))
+    DEFAULT_PID_LOC = '/var/run/';
+  else
+    DEFAULT_PID_LOC = require('os').tmpdir();
+
+  if (dir.length && dir.length > 0)
+  {
+    if (fs.existsSync(dir))
+    {
+      if (fs.statSync(dir).isDirectory())
+      {
+        location = dir;
+        filename = program;
+      }
+      else
+      {
+        console.warn('Previous PID file was not cleaned up');
+        location = path.dirname(dir);
+        filename = path.basename(dir);
+        fileType = '';
+      }
+    }
+    else if (dir.endsWith(path.sep))
+    {
+      location = dir;
+      filename = program;
+    }
+    else
+    {
+      location = path.dirname(dir)
+      filename = path.basename(dir);
+      fileType = '';
+    }
+  }
+  else
+  {
+    location = DEFAULT_PID_LOC;
+    filename = program;
+  }
+  
+  const pidfile = path.join(
+    location,
+    filename + fileType
+  )
+  try
+  {
+    if (fs.existsSync(pidfile))
+    {
+      const oldPid = fs.readFileSync(pidfile, 'utf8')
+      console.warn(`Warning: Previous invocation${oldPid.length ? ' pid#' + parseInt(String(oldPid)) : ''} did not remove ${pidfile}`);
+    }
+    else
+      memoizePid.fd = fs.openSync(pidfile, 'wx');
+
+    fs.writeSync(memoizePid.fd, Buffer.from(process.pid + '\n'), 0);
+  }
+  catch (error)
+  {
+    console.warn(`Warning: Could not create pidfile at ${pidfile} (${error.code || error.message})`);
+    
+    if (typeof memoizePid.fd === 'number')
+    {
+      fs.closeSync(memoizePid.fd);
+      delete memoizePid.fd;
+    }
+    return;
+  }
+
+  function exitHandler()
+  {
+    try
+    {
+      fs.unlinkSync(pidfile);
+      fs.closeSync(memoizePid.fd);
+      delete memoizePid.fd;
+    }
+    catch (error)
+    {
+      console.warn(`Warning: Could not remove pidfile at ${pidfile} (${error.code})`);
+    }
+  }
+  
+  // Cleanup PID file
+  require('dcp/signal-handler').init();
+  process.on('dcpExit', exitHandler);
+}
 main();
 
