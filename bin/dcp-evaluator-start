@@ -258,7 +258,6 @@ function memoizePid(dir)
   else
     DEFAULT_PID_LOC = require('os').tmpdir();
 
-  debugger
   if (dir.length && dir.length > 0)
   {
     if (fs.existsSync(dir))

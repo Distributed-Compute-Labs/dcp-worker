@@ -234,7 +234,6 @@ async function startWorking(cliArgs) {
   else
     paymentAddress = (await wallet.get()).address;
 
-  debugger
   if (cliArgs.pidFileLoc)
     memoizePid(cliArgs.pidFileLoc)
 
