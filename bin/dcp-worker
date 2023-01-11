@@ -187,9 +187,8 @@ async function main () {
       pidFileLoc: {
         alias: 'F',
         describe: 'If set, location to generate the worker pid file',
-        type: 'string',
-        default: false,
-      }
+        normalize: true
+      },
     })
   .strict()
   .wrap(process.stdout.columns || 80)
@@ -235,6 +234,7 @@ async function startWorking(cliArgs) {
   else
     paymentAddress = (await wallet.get()).address;
 
+  debugger
   if (cliArgs.pidFileLoc)
     memoizePid(cliArgs.pidFileLoc)
 
@@ -551,26 +551,42 @@ function memoizePid(dir)
   const path = require('path');
   const program = path.basename(require.main.filename, '.js');
   let location;
+  let filename;
 
-  if (fs.existsSync(dir))
-    location = dir;
+  if (dir.length && dir.length > 0)
+  {
+    location = path.dirname(dir);
+    if (fs.existsSync(dir))
+    {
+      if (fs.statSync(dir).isDirectory())
+        filename = program;
+      else
+      {
+        console.warn('Previous PID file was not cleaned up');
+        filename = path.basename(dir);
+      }
+    }
+    else if (dir.endsWith(path.sep))
+      filename = program;
+    else
+      filename = path.basename(dir);
+  }
   else
+  {
     location = DEFAULT_PID_LOC;
+    filename = program;
+  }
 
   const pidfile = path.join(
     location,
-    program + '.pid'
+    filename + '.pid'
   )
   try
   {
     if (fs.existsSync(pidfile))
     {
-      let buf = new Buffer.alloc(16);
-      let nread;
-      
-      memoizePid.fd = fs.openSync(pidfile, 'r+');
-      nread = fs.readSync(memoizePid.fd, buf);
-      console.warn(`Warning: Previous invocation${nread ? ' pid#' + parseInt(String(buf)) : ''} did not remove ${pidfile}`);
+      const oldPid = fs.readFileSync(pidfile, 'utf8')
+      console.warn(`Warning: Previous invocation${oldPid.length ? ' pid#' + parseInt(String(oldPid)) : ''} did not remove ${pidfile}`);
     }
     else
       memoizePid.fd = fs.openSync(pidfile, 'wx');

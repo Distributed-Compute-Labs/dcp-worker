@@ -88,7 +88,6 @@ function main() {
         .option('pidFileLoc', {
           alias: ['F'],
           desc: 'Location for dcp-evaluator PID file',
-          default: false,
         })
         .options('debugLogLevel', {
           alias: ['d'],
@@ -247,6 +246,8 @@ function memoizePid(dir)
   const fs = require('fs');
   const program = path.basename(require.main.filename, '.js');
   let location;
+  let filename;
+  let fileType = '.pid';
 
   // Set default location for pid file
   let DEFAULT_PID_LOC;
@@ -257,25 +258,52 @@ function memoizePid(dir)
   else
     DEFAULT_PID_LOC = require('os').tmpdir();
 
-  if (fs.existsSync(dir))
-    location = dir;
+  debugger
+  if (dir.length && dir.length > 0)
+  {
+    if (fs.existsSync(dir))
+    {
+      if (fs.statSync(dir).isDirectory())
+      {
+        location = dir;
+        filename = program;
+      }
+      else
+      {
+        console.warn('Previous PID file was not cleaned up');
+        location = path.dirname(dir);
+        filename = path.basename(dir);
+        fileType = '';
+      }
+    }
+    else if (dir.endsWith(path.sep))
+    {
+      location = dir;
+      filename = program;
+    }
+    else
+    {
+      location = path.dirname(dir)
+      filename = path.basename(dir);
+      fileType = '';
+    }
+  }
   else
+  {
     location = DEFAULT_PID_LOC;
-
+    filename = program;
+  }
+  
   const pidfile = path.join(
     location,
-    program + '.pid'
+    filename + fileType
   )
   try
   {
     if (fs.existsSync(pidfile))
     {
-      let buf = new Buffer.alloc(16);
-      let nread;
-      
-      memoizePid.fd = fs.openSync(pidfile, 'r+');
-      nread = fs.readSync(memoizePid.fd, buf);
-      console.warn(`Warning: Previous invocation${nread ? ' pid#' + parseInt(String(buf)) : ''} did not remove ${pidfile}`);
+      const oldPid = fs.readFileSync(pidfile, 'utf8')
+      console.warn(`Warning: Previous invocation${oldPid.length ? ' pid#' + parseInt(String(oldPid)) : ''} did not remove ${pidfile}`);
     }
     else
       memoizePid.fd = fs.openSync(pidfile, 'wx');
