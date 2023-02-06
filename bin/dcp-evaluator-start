@@ -88,7 +88,7 @@ function main() {
           desc: 'Generate verbose output',
         })
         .option('pidFileLoc', {
-          alias: ['F'],
+          alias: ['f'],
           desc: 'Location for dcp-evaluator PID file',
         })
         .options('debugLogLevel', {

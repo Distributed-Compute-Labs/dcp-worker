@@ -185,7 +185,7 @@ async function main () {
         hidden: true,
       },
       pidFileLoc: {
-        alias: 'F',
+        alias: 'f',
         describe: 'If set, location to generate the worker pid file',
         normalize: true
       },
