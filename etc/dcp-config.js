@@ -33,7 +33,8 @@ const dcpConfig =
   worker:
   {
     sandbox: {
-      progressTimeout: 30 * 1000,
+      progressTimeout:         5 * 60 * 1000, /* 5 minutes in ms */
+      progressReportInterval: 20 * 60 * 1000, /* 20 minutes in ms */
     },
     leavePublicGroup: false,
     allowConsoleAccess: false,
