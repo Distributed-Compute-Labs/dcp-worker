@@ -43,7 +43,10 @@ async function main () {
   if (!ANALYZE_UNHANDELD_REJECTION)
     process.on('unhandledRejection', unhandledRejectionHandler);
 
-  await require('dcp-client').init(require(process.env.DCP_CONFIG || '../etc/dcp-config'));
+  await require('dcp-client').init({
+    configName: '../etc/dcp-config',
+  });
+
   dcpConfig = require('dcp/dcp-config');
 
   const cliArgs = require('dcp/cli')
