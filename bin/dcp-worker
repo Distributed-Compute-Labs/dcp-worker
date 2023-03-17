@@ -43,7 +43,10 @@ async function main () {
   if (!ANALYZE_UNHANDELD_REJECTION)
     process.on('unhandledRejection', unhandledRejectionHandler);
 
-  await require('dcp-client').init(require(process.env.DCP_CONFIG || '../etc/dcp-config'));
+  await require('dcp-client').init({
+    configName: '../etc/dcp-config',
+  });
+
   dcpConfig = require('dcp/dcp-config');
 
   const cliArgs = require('dcp/cli')
@@ -274,9 +277,10 @@ async function startWorking(cliArgs) {
 
 
   /** @type {string[]} */
-  const dcpWorkerOptions = {
+  const dcpWorkerOptions = dcpConfig.worker;
+
+  Object.assign(dcpWorkerOptions, {
     paymentAddress,
-    identity: identityKeystore,
     maxWorkingSandboxes: cliArgs.cores,
     cores:               { cpu: TOTAL_CPU_VCORES, gpu: undefined }, /** XXXpfr @todo: Figure out how many gpus. */
     targetLoad:          { cpu: 1.0, gpu: 1.0 }, /** Use 100%: XXXpfr @todo Allow command-line override. */
@@ -285,7 +289,7 @@ async function startWorking(cliArgs) {
     },
     computeGroups: [], /* public group is implied */
     leavePublicGroup: cliArgs.leavePublicGroup || dcpConfig.worker.leavePublicGroup,
-  };
+  });
 
   /* cliArgs.join is the list of compute groups to join */
   if (cliArgs.join && cliArgs.join.length)
@@ -310,8 +314,7 @@ async function startWorking(cliArgs) {
   if (cliArgs.watchdogInterval)
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
 
-
-  worker = new DCPWorker(/*identityKeystore, */dcpWorkerOptions);
+    worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
 
   /**
    * NOTE: In Supervisor2 this function is a NOOP.
