@@ -310,7 +310,7 @@ async function startWorking(cliArgs) {
     dcpWorkerOptions.priorityOnly = true;
   }
   if (cliArgs.allowedOrigins)
-    dcpConfig.worker.allowOrigins.any = cliArgs.allowedOrigins;
+    dcpConfig.worker.allowOrigins.any.concat( cliArgs.allowedOrigins );
   if (cliArgs.watchdogInterval)
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
 
