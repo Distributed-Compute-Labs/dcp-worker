@@ -10,6 +10,7 @@ default:
 
 stages:
   - build
+  - deploy
 
 tidelift:
   stage: build
@@ -30,3 +31,29 @@ tidelift:
     - ./tidelift alignment save --wait
   allow_failure: true
   cache: []
+
+publish_docs:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_REF_NAME == "develop"'
+    - if: '$CI_COMMIT_REF_NAME == "main"'
+    - changes:
+        - catalog-info.yaml
+        - docs/mkdocs.yml
+        - docs/*.md
+  variables:
+    AWS_ACCESS_KEY_ID: $BACKSTAGE_ACCESS_KEY
+    AWS_SECRET_ACCESS_KEY: $BACKSTAGE_ACCESS_SECRET
+    AWS_DEFAULT_REGION: 'us-east-1'
+    AWS_REGION: 'us-east-1'
+  stage: deploy
+  tags: [dcp, linux]
+  image: node:latest
+  script:
+    - apt-get update && apt-get install tree fd-find python3 python3-pip python-is-python3 -y
+    - npm install -g @techdocs/cli
+    - python3 -m pip install mkdocs mkdocs-techdocs-core==1.*
+    - pip install mkdocs-same-dir
+    - wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && chmod a+x /usr/local/bin/yq
+    - ./publish-docs.sh
