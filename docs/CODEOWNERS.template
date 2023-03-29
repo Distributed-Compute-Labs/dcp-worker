@@ -1,0 +1,10 @@
+# @file    CODEOWNERS - Defines who develops and maintains a feature, and own
+#          the resulting files or directories in the repository.
+#
+#          See https://docs.gitlab.com/ee/user/project/code_owners.html
+#
+# @author  Bryan Hoang <bryan@distributive.network>
+# @date    August 2022
+
+# Username mapping:
+# @wesgarland -> Wes Garland <wes@distributive.network>
