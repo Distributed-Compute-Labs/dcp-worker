@@ -30,7 +30,9 @@
   "scripts": {
     "start": "node bin/dcp-worker start",
     "start-evaluator": "node bin/dcp-evaluator-start",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "peter tests",
+    "postpublish": "npm-hooks/postpublish",
+    "prepublishOnly": "npm-hooks/prepublish"
   },
   "dependencies": {
     "blessed": "^0.1.81",
