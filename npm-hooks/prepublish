@@ -8,9 +8,6 @@
 #
 cd `dirname "$0"`/..
 
-set
-exit 1
-
 yellow='\e[33m'
 normal='\e[0m'
 
