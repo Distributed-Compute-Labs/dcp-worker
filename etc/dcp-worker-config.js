@@ -1,6 +1,19 @@
 /**
- * @file        dcp-config.js
- *              Default configuration for the standalone Worker package.
+ * @file        dcp-worker-config.js
+ *              Default configuration for the standalone DCP Worker package.
+ *              Copy this file before modifying, so that changes are preserved
+ *              during the upgrade cycle. Suggested locations:
+ *              - /etc/dcp/dcp-worker/dcp-config.js, or 
+ *              - ~/.dcp/dcp-worker/dcp-config.js.
+ *
+ *              Those files have a higher precedence than the configuration
+ *              that ships with the npm package; changes made in those files
+ *              will be merged into the running configuration, overriding the
+ *              defaults specified here.
+ *
+ *              Windows users can also affect these changes by adding entries
+ *              to the registry. This is the preferred method for enterprise
+ *              deployment.
  *
  * @author      Wes Garland
  * @date        Feb 2021
