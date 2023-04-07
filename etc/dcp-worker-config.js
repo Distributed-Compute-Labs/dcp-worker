@@ -29,6 +29,7 @@ const workerConfig =
       fetchArguments:     [ dcpConfig.scheduler.location ],
       fetchData:          [ dcpConfig.scheduler.location ],
       sendResults:        [ dcpConfig.scheduler.location ],
+      any:                [],
     },
 
     /* Vector describing the lowest-value work this worker will accept. */
@@ -47,10 +48,8 @@ const workerConfig =
       // myGroupLabel2: { joinKey: 'scott', joinHash: 'eh1-672937c2b944982e071185b888770f8b8ea67c11f56d545e403e0d513c609b87' },
     },
 
-    jobAddresses: [],               // Specific job addresses the worker may work on. If not empty, worker will only work on those jobs.
-    maxWorkingSandboxes: 1,
-    paymentAddress: null,           // user must to specify
-    evaluatorOptions: {}            /** @todo: add default options here. Note: right now they will be a bit off until we get localexec's evaluator a bit less special cased. */
+    jobAddresses: [],               /* If specified, restrict the worker to only these jobs */
+    paymentAddress: undefined,      /* Bank account where earned funds are transfered if not specified on command-line */
   },
 
   /* The evaluator is a secure environment for creating DCP Worker sandboxes, based on the
