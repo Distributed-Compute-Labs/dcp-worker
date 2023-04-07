@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 /**
  *  @file       dcp-worker.js
  *              Standalone NodeJS DCP Worker
@@ -11,19 +12,10 @@
 const process = require('process');
 const os = require('os');
 const fs = require('fs');
+const path = require('path');
 
 // Set to true to try to understand unhandled rejection.
 const ANALYZE_UNHANDELD_REJECTION = false;
-
-// Set default location for pid file
-let DEFAULT_PID_LOC;
-if (fs.existsSync('/var/dcp/run'))
-  DEFAULT_PID_LOC = '/var/dcp/run/';
-else if (fs.existsSync('/var/run'))
-  DEFAULT_PID_LOC = '/var/run/';
-else
-  DEFAULT_PID_LOC = os.tmpdir();
-
 const TOTAL_CPU_VCORES = os.cpus().length;
 const DEFAULT_CORES = TOTAL_CPU_VCORES - 1;
 var worker, dcpConfig;
@@ -34,21 +26,56 @@ const EXIT_ERROR_STOPPING  = 3;   // failed to stop worker, no other error
 const EXIT_TIMED_OUT       = 4;   // failed to exit after requesting graceful exit
 const EXIT_UNHANDLED       = 5;   // unhandled rejection
 
+// The exitGuard will hold an "exit" method, and a Promise to await for
+// the exit code passed to exitGuard.exit()
+let exitcode = EXIT_CLEAN;
+const exitGuard = {
+  promise: Promise.resolve(0),                     // will be overwritten when worker starts
+  exit(code) { process.exit(code||exitcode||0) },  // will be overwritten when worker starts
+};
 
-process.on('unhandledRejection', (error) => {
-  console.error('Unhandled rejection:', error);
+/* Setup the telnet REPL up early to ensure early-failure log messages are captured */
+const replHelpers = {
+  help: {
+    report: 'Print a worker status & slice report',
+    kill: 'Try to kill the worker',
+    die:  'Kill the worker',
+  },
+  commands: {
+    report: printReport,
+    kill:   exitcode => exitGuard.exit(exitcode),
+    die:    process.exit
+  },
+};
+require('../lib/remote-console').init(replHelpers);
+const __console = console;
+
+require('dcp-client').init({ configName: process.env.DCP_CONFIG || '../etc/dcp-worker-config' })
+.then(main)
+.then((exitcode = 0) => process.exit(exitcode))
+.catch(e => {
+  __console.error('DCP Worker fatal error:');
+  __console.error(e);
+  process.exit(12);
 });
 
-async function main () {
+async function main ()
+{
+  var defaultPidFileName;
+  
+  process.on('SIGINT', handleSigInt);
+  process.on('unhandledRejection', (error) => {
+    console.error('Unhandled rejection:', error);
+  });
+
   if (!ANALYZE_UNHANDELD_REJECTION)
     process.on('unhandledRejection', unhandledRejectionHandler);
 
-  await require('dcp-client').init({
-    configName: '../etc/dcp-config',
-  });
-
   dcpConfig = require('dcp/dcp-config');
-
+  defaultPidFileName = dcpConfig.worker.pidfile || path.basename(require.main.filename, '.js') + '.pid';
+  if (!path.isAbsolute(defaultPidFileName))
+    defaultPidFileName = path.resolve(__dirname, '..', 'run', defaultPidFileName);
+  
   const cliArgs = require('dcp/cli')
   .base('Standalone NodeJS DCP Worker')
     .options({
@@ -171,11 +198,6 @@ async function main () {
         type: 'array'
       },
 
-      replPort: {
-        describe: 'If set, open a REPL on specified TCP port',
-        type: 'number',
-        default: undefined,
-      },
       watchdogInterval: {
         alias: 'W',
         describe: 'Number of milliseconds between watchdog cycles',
@@ -187,9 +209,9 @@ async function main () {
         type: 'boolean',
         hidden: true,
       },
-      pidFileLoc: {
+      pidFile: {
         alias: 'f',
-        describe: 'If set, location to generate the worker pid file',
+        describe: `create a .pid file for the worker; value overrides default location (${defaultPidFileName})`,
         normalize: true
       },
     })
@@ -206,15 +228,6 @@ async function main () {
   return startWorking(cliArgs);
 }
 
-// Preserve console.error, the dashboard replaces it with a custom logger
-const logError = console.error;
-main()
-.then(exitcode => process.exit(exitcode || 0))
-.catch(e => {
-  logError("Script failed:");
-  logError(e);
-  process.exit(12);
-});
 
 // Imperfect, but handles CG { joinKey, joinHash }.
 function isHash(b) {
@@ -222,7 +235,6 @@ function isHash(b) {
 }
 
 async function startWorking(cliArgs) {
-  //console.log('cliArgs', cliArgs);
   const wallet = require('dcp/wallet');
   const DCPWorker = require('dcp/worker').Worker;
   const { startWorkerLogger } = require('../lib/startWorkerLogger');
@@ -231,14 +243,16 @@ async function startWorking(cliArgs) {
     port:     cliArgs.port
   };
 
-  let paymentAddress;
-  if (cliArgs.paymentAddress)
-    paymentAddress = new wallet.Address(cliArgs.paymentAddress);
-  else
-    paymentAddress = (await wallet.get()).address;
+  let paymentAddress = false
+      || cliArgs.paymentAddress
+      || dcpConfig.worker.paymentAddress
+      || (await wallet.get()).address;
 
-  if (cliArgs.pidFileLoc)
-    memoizePid(cliArgs.pidFileLoc)
+  if (typeof paymentAddress === 'string')
+    paymentAddress = new wallet.Address(paymentAddress);
+    
+  if (cliArgs.pidFile)
+    await memoizePid(cliArgs.pidFile)
 
   // Different ways to get the identity: 
   let identityKeystore = false;
@@ -253,7 +267,6 @@ async function startWorking(cliArgs) {
   // Set the provided identity as the wallet's default
   await wallet.addId(identityKeystore);
 
-
   if (typeof dcpConfig.worker.unhandledRejectionCleanupTimeout !== 'undefined')
     unhandledRejectionHandler.timeout = dcpConfig.worker.unhandledRejectionCleanupTimeout;
 
@@ -261,20 +274,11 @@ async function startWorking(cliArgs) {
   if (cliArgs.leavePublicGroup || cliArgs.publicGroupFallback)
     dcpConfig.worker.leavePublicGroup = true;
 
-
-  // The exitGuard will hold an "exit" method, and a Promise to await for
-  // the exit code passed to exitGuard.exit()
-  let exitcode = EXIT_CLEAN;
-  const exitGuard = {
-    promise: Promise.resolve(0),                     // will be overwritten when worker starts
-    exit(code) { process.exit(code||exitcode||0) },  // will be overwritten when worker starts
-  };
   process.on('SIGQUIT', () => {
     exitcode = EXIT_SIGQUIT;
     cliArgs.verbose >= 1 && console.info(`240: Caught SIGQUIT; exiting worker with exitcode ${exitcode}`);
     exitGuard.exit(exitcode);
   });
-
 
   /** @type {string[]} */
   const dcpWorkerOptions = dcpConfig.worker;
@@ -315,7 +319,7 @@ async function startWorking(cliArgs) {
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
 
     worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
-
+  
   /**
    * NOTE: In Supervisor2 this function is a NOOP.
    * When (and if) we stop using Supevisor1, delete this reference to setDefaultIdentityKeystore
@@ -334,13 +338,11 @@ async function startWorking(cliArgs) {
    */
   await worker.supervisor.setDefaultIdentityKeystore();
 
-
   if (cliArgs.eventDebug)
   {
     worker.debug = true;
     worker.supervisor.debug = true;
   }
-
 
   // if the worker stops internally (eg. schedmsg stop), then exit without
   // changing the saved exitcode
@@ -348,37 +350,18 @@ async function startWorking(cliArgs) {
     exitGuard.exit();
   });
 
-
   startWorkerLogger(worker, {
     exitGuard,
-    verbose: cliArgs.verbose,
-    outputMode: cliArgs.outputMode,
+    verbose:         cliArgs.verbose,
+    outputMode:      cliArgs.outputMode,
+    logfile:         cliArgs.logfile,
 
-    logfile: cliArgs.logfile,
-
-    syslogAddress: cliArgs.syslogAddress,
+    syslogAddress:   cliArgs.syslogAddress,
     syslogTransport: cliArgs.syslogTransport,
-    syslogPort: cliArgs.syslogPort,
+    syslogPort:      cliArgs.syslogPort,
   });
 
-  try
-  {
-    require('../lib/remote-console').init(cliArgs.replPort, {
-      help: {
-        report: 'Print a worker status & slice report',
-        kill: 'Kill the worker',
-      },
-      commands: {
-        report: printReport,
-        kill: exitcode => exitGuard.exit(exitcode),
-      },
-    });
-    require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) });
-  }
-  catch (error)
-  {
-    console.warn('350: Failed to initialize remote console:', error.message);
-  }
+  require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) });
 
   let introBanner = '';
   introBanner += ` * Starting DCP Worker` + '\n';
@@ -419,76 +402,6 @@ async function startWorking(cliArgs) {
   console.log(introBanner);
 
   require('../lib/check-scheduler-version').check();
-
-
-  /** print the slice report via console.log */
-  function printReport()
-  {
-    console.log(sliceReport());
-  }
-
-  /** retrieve a slice report screen */
-  function sliceReport()
-  {
-    const sup = worker.supervisor;
-    let report = '';
-
-    report += ('='.repeat(78)) + '\n';
-
-    const sbStates = {
-      WORKING: 0,
-      ASSIGNED: 0,
-      READY: 0,
-      TERMINATED: 0,
-    };
-    const stateNames = {
-      WORKING: 'Working',
-      ASSIGNED: 'Assigned',
-      READY: 'Ready',
-      TERMINATED: 'Terminated',
-    };
-    sup.sandboxes.forEach(sb => {
-      const { state } = sb;
-      if (!sbStates[state])
-        sbStates[state] = 0;
-      sbStates[state]++;
-    });
-
-    report += (Date()) + '\n';
-    report += ('Sandboxes:') + '\n';
-    Object.keys(sbStates).forEach(state => {
-      const stateName = stateNames[state] || state;
-      report += (`  ${(stateName + ':').padEnd(12)} ${sbStates[state]}`) + '\n';
-    })
-    report += (`  * ALL:       ${sup.sandboxes.length}`) + '\n';
-
-    report += ('Progress:') + '\n';
-    sup.workingSandboxes.forEach(sb => {
-      const jobName = sb.job && sb.job.public && sb.job.public.name || `idek (${sb.jobAddress})`;
-      let el = Date.now() - sb.sliceStartTime;
-      const t = el < 1000000
-        ? toInterval(el)
-        : 'new';
-
-      el = sb.progressReports && sb.progressReports.last
-        ? Date.now() - (sb.sliceStartTime + sb.progressReports.last.timestamp)
-        : 0;
-      const pct = (typeof sb.progress) === 'number'
-        ? `${Number(sb.progress).toFixed(0).padStart(2)}%`
-        : 'ind';
-      const stale = (el < 2000) ? '' : `(stale: ${toInterval(el)})`;
-
-      report += (` ${String(sb.id).padStart(4)}: ${sb.jobAddress} ${jobName.padEnd(34)} `+ `${t} ${pct} ${stale}`.padStart(13)) + '\n';
-    });
-
-    report += ('Slices:') + '\n';
-    report += (`  working:     ${sup.allocatedSlices.length}`) + '\n';
-    report += (`  queued:      ${sup.queuedSlices.length}`) + '\n';
-
-    report += ('='.repeat(78)) + '\n';
-
-    return report;
-  }
 
   /**
    *  Convert a timespan in ms to a human-readable interval in minutes and seconds
@@ -548,83 +461,64 @@ async function startWorking(cliArgs) {
 }
 
 // Create the PID file for the worker
-function memoizePid(dir)
+async function memoizePid(filename)
 {
-  const path = require('path');
-  const program = path.basename(require.main.filename, '.js');
-  let location;
-  let filename;
-
-  if (dir.length && dir.length > 0)
+  if (fs.existsSync(filename))
   {
-    location = path.dirname(dir);
-    if (fs.existsSync(dir))
+    console.warn(`Warning: found pidfile at ${filename}`);
+    let oldPid = parseInt(fs.readFileSync(filename, 'utf8'), 10);
+
+    try
     {
-      if (fs.statSync(dir).isDirectory())
-        filename = program;
-      else
+      if (oldPid)
+        process.kill(oldPid, 0);
+    }
+    catch(error)
+    {
+      if (error.code === 'ESRCH') /* no such process */
       {
-        console.warn('Previous PID file was not cleaned up');
-        filename = path.basename(dir);
+        oldPid = 0;
+        removePidFile();
       }
     }
-    else if (dir.endsWith(path.sep))
-      filename = program;
-    else
-      filename = path.basename(dir);
-  }
-  else
-  {
-    location = DEFAULT_PID_LOC;
-    filename = program;
+
+    if (oldPid)
+    {
+      console.error(`Worker at PID ${oldPid} is still running; cannot start new worker with pidfile ${filename}`);
+      await require('dcp/utils').a$sleep(3); /* put the brakes on a respawn loop */
+      process.exit(13);
+    }
   }
 
-  const pidfile = path.join(
-    location,
-    filename + '.pid'
-  )
   try
   {
-    if (fs.existsSync(pidfile))
-    {
-      const oldPid = fs.readFileSync(pidfile, 'utf8')
-      console.warn(`Warning: Previous invocation${oldPid.length ? ' pid#' + parseInt(String(oldPid)) : ''} did not remove ${pidfile}`);
-    }
-    else
-      memoizePid.fd = fs.openSync(pidfile, 'wx');
+      console.log('XXX123', filename);
 
+    memoizePid.fd = fs.openSync(filename, 'wx');
     fs.writeSync(memoizePid.fd, Buffer.from(process.pid + '\n'), 0);
+    process.on('dcpExit', removePidFile);   // Cleanup PID file on exit
+      console.log('XXX123', filename);
   }
   catch (error)
   {
-    console.warn(`Warning: Could not create pidfile at ${pidfile} (${error.code || error.message})`);
-    
+    console.warn(`Warning: Could not create pidfile at ${filename} (${error.code || error.message})`);
     if (typeof memoizePid.fd === 'number')
-    {
-      fs.closeSync(memoizePid.fd);
-      delete memoizePid.fd;
-    }
-    return;
+      removePidFile();
   }
 
-  
-
-  function exitHandler()
+  function removePidFile()
   {
     try
     {
-      fs.unlinkSync(pidfile);
+      fs.unlinkSync(filename);
       fs.closeSync(memoizePid.fd);
       delete memoizePid.fd;
     }
     catch (error)
     {
-      console.warn(`Warning: Could not remove pidfile at ${pidfile} (${error.code})`);
+      console.warn(`Warning: Could not remove pidfile at ${filename} (${error.code})`);
     }
   }
-  
-  // Cleanup PID file
-  process.on('dcpExit', exitHandler);
 }
 
 /** 
@@ -683,3 +577,89 @@ async function unhandledRejectionHandler (error) {
   setImmediate(() => bail(EXIT_UNHANDLED));
 };
 unhandledRejectionHandler.timeout = 5;
+
+/** print the slice report via console.log */
+function printReport()
+{
+  console.log(sliceReport());
+}
+
+/** retrieve a slice report screen */
+function sliceReport()
+{
+  const sup = worker.supervisor;
+  let report = '';
+
+  report += ('='.repeat(78)) + '\n';
+
+  const sbStates = {
+    WORKING: 0,
+    ASSIGNED: 0,
+    READY: 0,
+    TERMINATED: 0,
+  };
+  const stateNames = {
+    WORKING: 'Working',
+    ASSIGNED: 'Assigned',
+    READY: 'Ready',
+    TERMINATED: 'Terminated',
+  };
+  sup.sandboxes.forEach(sb => {
+    const { state } = sb;
+    if (!sbStates[state])
+      sbStates[state] = 0;
+    sbStates[state]++;
+  });
+
+  report += (Date()) + '\n';
+  report += ('Sandboxes:') + '\n';
+  Object.keys(sbStates).forEach(state => {
+    const stateName = stateNames[state] || state;
+    report += (`  ${(stateName + ':').padEnd(12)} ${sbStates[state]}`) + '\n';
+  })
+  report += (`  * ALL:       ${sup.sandboxes.length}`) + '\n';
+
+  report += ('Progress:') + '\n';
+  sup.workingSandboxes.forEach(sb => {
+    const jobName = sb.job && sb.job.public && sb.job.public.name || `idek (${sb.jobAddress})`;
+    let el = Date.now() - sb.sliceStartTime;
+    const t = el < 1000000
+          ? toInterval(el)
+          : 'new';
+
+    el = sb.progressReports && sb.progressReports.last
+      ? Date.now() - (sb.sliceStartTime + sb.progressReports.last.timestamp)
+      : 0;
+    const pct = (typeof sb.progress) === 'number'
+          ? `${Number(sb.progress).toFixed(0).padStart(2)}%`
+          : 'ind';
+    const stale = (el < 2000) ? '' : `(stale: ${toInterval(el)})`;
+
+    report += (` ${String(sb.id).padStart(4)}: ${sb.jobAddress} ${jobName.padEnd(34)} `+ `${t} ${pct} ${stale}`.padStart(13)) + '\n';
+  });
+
+  report += ('Slices:') + '\n';
+  report += (`  working:     ${sup.allocatedSlices.length}`) + '\n';
+  report += (`  queued:      ${sup.queuedSlices.length}`) + '\n';
+
+  report += ('='.repeat(78)) + '\n';
+
+  return report;
+}
+
+/**
+ * Handle sigint by stopping the worker and unregistering the handler; this allows
+ * a second sigint to forcibly terminate the worker.
+ */
+function handleSigInt()
+{
+  process.off('SIGINT', handleSigInt);
+
+  if (!worker)
+    console.error('trapped SIGINT');
+  else
+  {
+    console.error('trapped SIGINT -- stopping worker');
+    worker.stop();
+  }
+}
