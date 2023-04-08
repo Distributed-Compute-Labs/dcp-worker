@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 /**
  *  @file       dcp-worker.js
  *              Standalone NodeJS DCP Worker
@@ -14,25 +13,11 @@ const os = require('os');
 const fs = require('fs');
 const path = require('path');
 
-// Set to true to try to understand unhandled rejection.
-const ANALYZE_UNHANDELD_REJECTION = false;
 const TOTAL_CPU_VCORES = os.cpus().length;
 const DEFAULT_CORES = TOTAL_CPU_VCORES - 1;
 var worker, dcpConfig;
 
-const EXIT_CLEAN           = 0;   // normal exit, no error
-const EXIT_SIGQUIT         = 2;   // received SIGQUIT
-const EXIT_ERROR_STOPPING  = 3;   // failed to stop worker, no other error
-const EXIT_TIMED_OUT       = 4;   // failed to exit after requesting graceful exit
-const EXIT_UNHANDLED       = 5;   // unhandled rejection
-
-// The exitGuard will hold an "exit" method, and a Promise to await for
-// the exit code passed to exitGuard.exit()
-let exitcode = EXIT_CLEAN;
-const exitGuard = {
-  promise: Promise.resolve(0),                     // will be overwritten when worker starts
-  exit(code) { process.exit(code||exitcode||0) },  // will be overwritten when worker starts
-};
+const EXIT_UNHANDLED = 5;
 
 /* Setup the telnet REPL up early to ensure early-failure log messages are captured */
 const replHelpers = {
@@ -43,33 +28,25 @@ const replHelpers = {
   },
   commands: {
     report: printReport,
-    kill:   exitcode => exitGuard.exit(exitcode),
-    die:    process.exit
+    kill:   process.exit,
+    die:    () => worker && worker.stop()
   },
 };
 require('../lib/remote-console').init(replHelpers);
-const __console = console;
 
 require('dcp-client').init({ configName: process.env.DCP_CONFIG || '../etc/dcp-worker-config' })
-.then(main)
-.then((exitcode = 0) => process.exit(exitcode))
-.catch(e => {
-  __console.error('DCP Worker fatal error:');
-  __console.error(e);
-  process.exit(12);
-});
+  .then(main)
+  .catch(handleUnhandled);
 
 async function main ()
 {
   var defaultPidFileName;
   
-  process.on('SIGINT', handleSigInt);
-  process.on('unhandledRejection', (error) => {
-    console.error('Unhandled rejection:', error);
-  });
-
-  if (!ANALYZE_UNHANDELD_REJECTION)
-    process.on('unhandledRejection', unhandledRejectionHandler);
+  process.on('SIGINT', handleSigDeath);
+  process.on('SIGTERM', handleSigDeath);
+  process.on('SIGQUIT', handleSigDeath);
+  process.on('unhandledRejection', handleUnhandled);
+  process.on('uncaughtException', handleUnhandled);
 
   dcpConfig = require('dcp/dcp-config');
   defaultPidFileName = dcpConfig.worker.pidfile || path.basename(require.main.filename, '.js') + '.pid';
@@ -222,10 +199,10 @@ async function main ()
   if (cliArgs.dumpConfig)
   {
     console.debug(JSON.stringify(require('dcp/dcp-config'), null, 2));
-    process.exit(11);
+    process.exit(0);
   }
 
-  return startWorking(cliArgs);
+  await startWorking(cliArgs);
 }
 
 
@@ -267,18 +244,9 @@ async function startWorking(cliArgs) {
   // Set the provided identity as the wallet's default
   await wallet.addId(identityKeystore);
 
-  if (typeof dcpConfig.worker.unhandledRejectionCleanupTimeout !== 'undefined')
-    unhandledRejectionHandler.timeout = dcpConfig.worker.unhandledRejectionCleanupTimeout;
-
   // Leave the public compute group, if desired
   if (cliArgs.leavePublicGroup || cliArgs.publicGroupFallback)
     dcpConfig.worker.leavePublicGroup = true;
-
-  process.on('SIGQUIT', () => {
-    exitcode = EXIT_SIGQUIT;
-    cliArgs.verbose >= 1 && console.info(`240: Caught SIGQUIT; exiting worker with exitcode ${exitcode}`);
-    exitGuard.exit(exitcode);
-  });
 
   /** @type {string[]} */
   const dcpWorkerOptions = dcpConfig.worker;
@@ -318,8 +286,17 @@ async function startWorking(cliArgs) {
   if (cliArgs.watchdogInterval)
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
 
-    worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
-  
+  worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
+  worker.on('error', console.error);
+
+  /* Let incorrect event-loop references keep us alive when linked with a debug library, but
+   * exit quickly/accurately for production code even when the library isn't perfect.
+   */
+  if (require('dcp/build').config.build !== 'debug')
+    worker.on('end', process.exit);
+  else
+    worker.on('end', () => setTimeout(process.exit, Number(dcpConfig.worker.cleanupTimeout || "60") * 1000).unref());
+
   /**
    * NOTE: In Supervisor2 this function is a NOOP.
    * When (and if) we stop using Supevisor1, delete this reference to setDefaultIdentityKeystore
@@ -344,22 +321,9 @@ async function startWorking(cliArgs) {
     worker.supervisor.debug = true;
   }
 
-  // if the worker stops internally (eg. schedmsg stop), then exit without
-  // changing the saved exitcode
-  worker.on('stop', () => {
-    exitGuard.exit();
-  });
-
-  startWorkerLogger(worker, {
-    exitGuard,
-    verbose:         cliArgs.verbose,
-    outputMode:      cliArgs.outputMode,
-    logfile:         cliArgs.logfile,
-
-    syslogAddress:   cliArgs.syslogAddress,
-    syslogTransport: cliArgs.syslogTransport,
-    syslogPort:      cliArgs.syslogPort,
-  });
+  worker.on('stop', () => { console.log('Worker is stopping') });
+  worker.on('end',  () => { logClosing('log', 'Worker has stopped') });
+  startWorkerLogger(worker, cliArgs);
 
   require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) });
 
@@ -425,39 +389,8 @@ async function startWorking(cliArgs) {
   }
 
 
-  // Set the exit guard - this method can be called by signal and exception
-  // handlers
-  exitGuard.promise = new Promise(resolve => {
-    exitGuard.exit = resolve;
-  });
-
-
+  /* Start the worker. Normal process exit happens by virtue of the worker<end> event */
   await worker.start();
-
-  exitcode = await exitGuard.promise;
-
-  cliArgs.verbose >= 1 && console.log(`418: exit guard called with ${exitcode}`);
-
-  const exitTimeAllowed = 30;   // seconds to allow for worker to stop gracefully
-  const forceExitTimeout = setTimeout(() => {
-    console.error(`396: Worker failed to exit within ${exitTimeAllowed} seconds; terminating forcibly.`);
-    process.exit(exitcode || EXIT_TIMED_OUT)
-  }, exitTimeAllowed * 1000);
-
-  await worker.stop(true)
-  .catch(error => {
-    if (error.message.includes('Already stopped'))
-      return;
-    console.error('255: Unexpected error stopping worker:',
-      error.code
-      ? `${error.code}: ${error.message}`
-      : error.message);
-    exitcode = exitcode || EXIT_ERROR_STOPPING;
-  });
-
-  clearTimeout(forceExitTimeout);
-
-  return exitcode;
 }
 
 // Create the PID file for the worker
@@ -492,12 +425,9 @@ async function memoizePid(filename)
 
   try
   {
-      console.log('XXX123', filename);
-
     memoizePid.fd = fs.openSync(filename, 'wx');
     fs.writeSync(memoizePid.fd, Buffer.from(process.pid + '\n'), 0);
     process.on('dcpExit', removePidFile);   // Cleanup PID file on exit
-      console.log('XXX123', filename);
   }
   catch (error)
   {
@@ -521,20 +451,62 @@ async function memoizePid(filename)
   }
 }
 
+/**
+ * Log a closing message (or messages). Since the dashboard clears the screen on exit, we use the
+ * memoized console property to log the message after we destroy the instance of screen.
+ */
+function logClosing(facility, ...message) 
+{
+  var screen = require('../lib/worker-loggers/dashboard').screen;
+
+  if (!screen)
+    console[facility](message);
+  else
+  {
+    /* Turn off TUI and resume "normal" console logging.
+     * FUTURE: dashboard API should know how to unregister its hook.
+     */
+    screen.log(...message);
+    screen.destroy();
+    screen = false;
+    console = new (require('console').Console)(process);
+    require('../lib/remote-console').reintercept();
+    console[facility](...message);
+  }
+}
+
 /** 
- * Unhandled rejection handler: __must not ever throw no matter what__.
- * If we hit an unhandled rejection, we are by definition no longer confident of our program state, meaning that
+ * Fatal error handler: __must not ever throw no matter what__.
+ * If we hit a fatal error, we are by definition no longer confident of our program state, meaning that
  * the worker must be restarted. This handler does its best to report the rejection and give the worker a few
  * seconds in which to attempt to return slices to the scheduler before it gives up completely.
  */
-async function unhandledRejectionHandler (error) {
-  let _worker = worker;
-  
-  if (!worker)
-    return;
-  else
-    worker = false;
+async function handleUnhandled(error)
+{
+  var _worker = worker;
+  worker = false;
 
+  process.exitCode = process.exitCode || EXIT_UNHANDLED;
+  
+  try
+  {
+    logClosing(error);
+  } catch(e) {};
+
+  if (!_worker)
+    console.error('trapped unhandled error:', error)
+  else
+  {
+    console.error('trapped unhandled error -- stopping worker:', error);
+    _worker.on('end', process.exit);
+    _worker.stop();
+  }
+
+  const cleanupTimer = setTimeout(() => {
+    logClosing('error', 'handleFatalError timeout - exiting now');
+    process.exit();
+  }, Number(dcpConfig.worker.cleanupTimeout || "60") * 1000).unref();
+  
   try {
     let log = dcpConfig && dcpConfig.worker && dcpConfig.worker.unhandledRejectionLog;
     if (!log) log = process.env.DCP_WORKER_UNHANDLED_REJECTION_LOG;
@@ -543,40 +515,7 @@ async function unhandledRejectionHandler (error) {
                         `${Date.now()}: ${error.message}\n${error.stack}\n\n`);
     }
   } catch(e) {};
-
-  try {
-    let screen = require('../lib/worker-loggers/dashboard').screen;
-
-    if (screen) {
-      screen.log(error.message + '\n' + error.stack);
-      screen.destroy();
-      logError(error.message + '\n' + error.stack);
-    } else {
-      console.error('Unhandled rejection - preparing to exit:', error.message);
-    }
-  } catch(e) {};
-  
-  function bail(exitCode) {
-    try {
-      const util = require('util');
-      process.stderr.write('\nWorker stop timeout; bailing due to earlier unhandled rejection:\n');
-      process.stderr.write(util.inspect(error) + '\n');
-    } catch(e) {
-      console.error(error);
-    }
-    process.exit(exitCode || EXIT_UNHANDLED);
-  }
-  setTimeout(bail, 1000 * unhandledRejectionHandler.timeout);
-
-  try {
-    await _worker.stop(true);
-  } catch(e) {
-    console.log('Error during worker.stop:', e);
-  }
-
-  setImmediate(() => bail(EXIT_UNHANDLED));
-};
-unhandledRejectionHandler.timeout = 5;
+}
 
 /** print the slice report via console.log */
 function printReport()
@@ -648,18 +587,26 @@ function sliceReport()
 }
 
 /**
- * Handle sigint by stopping the worker and unregistering the handler; this allows
- * a second sigint to forcibly terminate the worker.
+ * Handle a signal which requests our the death of the Worker by 
+ *  - stopping the worker
+ *  - unregistering the handler (this allows a second signal to forcibly terminate the process
+ *    if that is the default behaviour)
+ *  - set a long timeout (dcpConfig.worker.cleanupTimeout seconds), after which the process
+ *    exits forcibly with a non-zero exit code (unix standard for various signals)
  */
-function handleSigInt()
+function handleSigDeath(signalName, signal)
 {
-  process.off('SIGINT', handleSigInt);
+  process.off(signalName, handleSigDeath);
 
   if (!worker)
-    console.error('trapped SIGINT');
+    console.error(`trapped ${signalName}, signal ${signal}`);
   else
   {
-    console.error('trapped SIGINT -- stopping worker');
+    console.error(`trapped ${signalName}, signal ${signal} -- stopping worker`);
     worker.stop();
   }
+
+  const cleanupTimer = setTimeout(() => process.exit(signal - 128),
+                                  Number(dcpConfig.worker.cleanupTimeout || "60") * 1000).unref();
 }
+
