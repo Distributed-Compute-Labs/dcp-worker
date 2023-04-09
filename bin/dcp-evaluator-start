@@ -134,13 +134,14 @@ function main() {
   if (options._)
     args = args.concat(options._);
 
+  const dcpClientRequire = require('module').createRequire(dcpClientDir);
   /* Definitions in the JSON file are either in the sandboxLibexecDir, or pathed
    * via normal CommonJS (node_modules) rules.  The syntax for detecting which must
    * stay synchronized with dcp/src/dcp-client/worker/evaluators/browser.js.
    */
   for (let def of sandboxSetupDefs) {
     if (def.match(/\//))
-      files.push(require.resolve(def));
+      files.push(dcpClientRequire.resolve(def));
     else
       files.push(require.resolve(options.sandboxLibexecDir + '/' + def));
   }
