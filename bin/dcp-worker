@@ -40,7 +40,7 @@ require('dcp-client').init({ configName: process.env.DCP_CONFIG || '../etc/dcp-w
 
 async function main ()
 {
-  var defaultPidFileName;
+  var defaultPidFileName = require('../lib/pidfile').getDefaultPidFileName(dcpConfig.worker.pidfile);
   
   process.on('SIGINT', handleSigDeath);
   process.on('SIGTERM', handleSigDeath);
@@ -49,9 +49,6 @@ async function main ()
   process.on('uncaughtException', handleUnhandled);
 
   dcpConfig = require('dcp/dcp-config');
-  defaultPidFileName = dcpConfig.worker.pidfile || path.basename(require.main.filename, '.js') + '.pid';
-  if (!path.isAbsolute(defaultPidFileName))
-    defaultPidFileName = path.resolve(__dirname, '..', 'run', defaultPidFileName);
   
   const cliArgs = require('dcp/cli')
   .base('Standalone NodeJS DCP Worker')
@@ -229,7 +226,7 @@ async function startWorking(cliArgs) {
     paymentAddress = new wallet.Address(paymentAddress);
     
   if (cliArgs.pidFile)
-    await memoizePid(cliArgs.pidFile)
+    require('../lib/pidfile').write(cliArgs.pidFile)
 
   // Different ways to get the identity: 
   let identityKeystore = false;
@@ -391,64 +388,6 @@ async function startWorking(cliArgs) {
 
   /* Start the worker. Normal process exit happens by virtue of the worker<end> event */
   await worker.start();
-}
-
-// Create the PID file for the worker
-async function memoizePid(filename)
-{
-  if (fs.existsSync(filename))
-  {
-    console.warn(`Warning: found pidfile at ${filename}`);
-    let oldPid = parseInt(fs.readFileSync(filename, 'utf8'), 10);
-
-    try
-    {
-      if (oldPid)
-        process.kill(oldPid, 0);
-    }
-    catch(error)
-    {
-      if (error.code === 'ESRCH') /* no such process */
-      {
-        oldPid = 0;
-        removePidFile();
-      }
-    }
-
-    if (oldPid)
-    {
-      console.error(`Worker at PID ${oldPid} is still running; cannot start new worker with pidfile ${filename}`);
-      await require('dcp/utils').a$sleep(3); /* put the brakes on a respawn loop */
-      process.exit(13);
-    }
-  }
-
-  try
-  {
-    memoizePid.fd = fs.openSync(filename, 'wx');
-    fs.writeSync(memoizePid.fd, Buffer.from(process.pid + '\n'), 0);
-    process.on('dcpExit', removePidFile);   // Cleanup PID file on exit
-  }
-  catch (error)
-  {
-    console.warn(`Warning: Could not create pidfile at ${filename} (${error.code || error.message})`);
-    if (typeof memoizePid.fd === 'number')
-      removePidFile();
-  }
-
-  function removePidFile()
-  {
-    try
-    {
-      fs.unlinkSync(filename);
-      fs.closeSync(memoizePid.fd);
-      delete memoizePid.fd;
-    }
-    catch (error)
-    {
-      console.warn(`Warning: Could not remove pidfile at ${filename} (${error.code})`);
-    }
-  }
 }
 
 /**
