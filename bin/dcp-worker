@@ -203,7 +203,6 @@ async function main ()
   await startWorking(cliArgs);
 }
 
-
 // Imperfect, but handles CG { joinKey, joinHash }.
 function isHash(b) {
   return b && b.length === 68 && b.startsWith('eh1-');
@@ -242,42 +241,53 @@ async function startWorking(cliArgs) {
   // Set the provided identity as the wallet's default
   await wallet.addId(identityKeystore);
 
-  // Leave the public compute group, if desired
-  if (cliArgs.leavePublicGroup || cliArgs.publicGroupFallback)
-    dcpConfig.worker.leavePublicGroup = true;
+  const leafMerge = require('dcp/utils').leafMerge;
 
-  /** @type {string[]} */
+  /* Build the worker options, which are largely given by dcpConfig.worker. We use a reference for 
+   * dcpConfig.worker rather than copying it, so that runtime modifications to the worker configuration
+   * in memory take effect immediately.
+   *
+   * forceOptions override any setting in dcpConfig; this can be used for settings calculated above
+   * which were derived from dcpConfig in the first place. defaultOptions are overrideable by the usual
+   * dcpConfig mechanisms, but since they are dynamic (or non-user-facing) they don't come from the
+   * etc/dcp-worker-config.js file that ships with the work.
+   */
   const dcpWorkerOptions = dcpConfig.worker;
-  Object.assign(dcpWorkerOptions, {
+  const forceOptions = {
     paymentAddress,
+    leavePublicGroup: cliArgs.leavePublicGroup || dcpConfig.worker.leavePublicGroup || false,
     maxWorkingSandboxes: cliArgs.cores,
-    cores:               { cpu: TOTAL_CPU_VCORES, gpu: undefined }, /** XXXpfr @todo: Figure out how many gpus. */
-    targetLoad:          { cpu: 1.0, gpu: 1.0 }, /** Use 100%: XXXpfr @todo Allow command-line override. */
+  };
+  const defaultOptions = {
+    cores: { cpu: TOTAL_CPU_VCORES, gpu: 0 }, /** XXXpfr @todo: Figure out how many gpus. */
     sandboxOptions: {
       SandboxConstructor: require('dcp-client/lib/standaloneWorker').workerFactory(sawOptions)
     },
-    leavePublicGroup: cliArgs.leavePublicGroup || dcpConfig.worker.leavePublicGroup || false,
-  });
+  };
+  makeTargetLoadMagical(dcpWorkerOptions);
+  Object.assign(dcpWorkerOptions, leafMerge(defaultOptions, dcpConfig.worker, forceOptions));
 
   /* cliArgs.join is the list of compute groups to join */
   if (cliArgs.join && cliArgs.join.length)
   {
-    dcpWorkerOptions.computeGroups = cliArgs.join
+    const cliComputeGroups = cliArgs.join
       .map((el) => {
         /* Map cliArgs.join to give us [{ joinKey, joinSecret/joinHash }...] */
         const [a, b] = el.split(',');
         return isHash(b) ? { joinKey: a, joinHash: b } : { joinKey: a, joinSecret: b };
       })
       .filter((el) => el.joinKey); /* Filter out entries with no joinKey */
+    leafmerge(dcpWorkerOptions.computeGroups, cliComputeGroups);
   }
   
   if (cliArgs.jobId)
   {
-    dcpWorkerOptions.jobAddresses = cliArgs.jobId;
+    dcpWorkerOptions.jobAddresses.push(...cliArgs.jobAddresses);
     dcpWorkerOptions.priorityOnly = true;
   }
+
   if (cliArgs.allowedOrigins)
-    dcpConfig.worker.allowOrigins.any.push(...cliArgs.allowedOrigins);
+    dcpWorkerOptions.allowOrigins.any.push(...cliArgs.allowedOrigins);
   if (cliArgs.watchdogInterval)
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
 
@@ -545,5 +555,38 @@ function handleSigDeath(signalName, signal)
 
   const cleanupTimer = setTimeout(() => process.exit(signal - 128),
                                   Number(dcpConfig.worker.cleanupTimeout || "60") * 1000).unref();
+}
+
+/**
+ * Factory function which creates a slightly-magical dcpConfig.worker.targetLoad node. The target load
+ * for CPU and GPU are calculated based on workerOptions.cores and workerOptions.gpu. If these values
+ * change, the targetLoad values change as well. If the ratios are unspecified in dcpConfig, reasonable
+ * defaults are used; if the ratios are changed at runtime, the new ratios take effect immediately.
+ *
+ * Corollary: copying the workerOptions.targetLoad object would be a bad idea; always use a reference
+ *            to that node, or the magic will stop.
+ */
+function makeTargetLoadMagical(workerOptions)
+{
+  var cpu, gpu;
+  
+  if (!workerOptions.targetLoad)
+    workerOptions.targetLoad = {};
+  if (typeof workerOptions.targetLoad.cpuRatio === 'undefined')
+    workerOptions.targetLoad.cpuRatio = 1.25;  /* Aim for a cpu density sum which is 125% of the CPU vcore count */
+  if (typeof workerOptions.targetLoad.gpuRatio === 'undefined')
+    workerOptions.targetLoad.gpuRatio = 0.75;  /* Aim for a gpu density sum which is 75% of the GPU count */
+
+  Object.defineProperty(workerOptions.targetLoad, 'cpu', {
+    get: () => typeof cpu === 'undefined' ? workerOptions.targetLoad.cpuRatio * workerOptions.cores : cpu,
+    set: value => cpu = value
+  });
+
+  Object.defineProperty(workerOptions.targetLoad, 'gpu', {
+    get: () => typeof gpu === 'undefined' ? workerOptions.targetLoad.cpuRatio * workerOptions.gpu : gpu,
+    set: value => gpu = value
+  });
+
+  return workerOptions.targetLoad;
 }
 
