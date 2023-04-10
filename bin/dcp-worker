@@ -9,9 +9,11 @@
 'use strict';
 
 const process = require('process');
-const os = require('os');
-const fs = require('fs');
-const path = require('path');
+const os      = require('os');
+const fs      = require('fs');
+const path    = require('path');
+const crypto  = require('crypto');
+const chalk   = require('chalk');
 
 const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
 const TOTAL_CPU_VCORES = os.cpus().length;
@@ -35,7 +37,7 @@ const replHelpers = {
 };
 require('../lib/remote-console').init(replHelpers);
 
-/* Initialize dcp-client with our local config and run the main function */
+/* Verify that the default config hasn't been changed, then initialize dcp-client with it and run the main function */
 require('dcp-client').init({ configName }).then(main).catch(handleUnhandled);
 
 function parseCliArgs()
@@ -216,6 +218,8 @@ async function main()
     hostname: cliArgs.hostname,
     port:     cliArgs.port
   };
+
+  verifyDefaultConfigIntegrity();
 
   process.on('SIGINT', handleSigDeath);
   process.on('SIGTERM', handleSigDeath);
@@ -599,4 +603,41 @@ function getCleanupTimeoutMs()
     }
   }
   return cleanupTimeout * 1000;
+}
+
+/**
+ * Ensure the default configuration hasn't been modified by the end-user-sysadmin. It is an 
+ * attractive nuisance, as it looks just like the file they should modify, but if they make
+ * security changes there that are overwritten in an subsequent update, it will be a problem.
+ *
+ * Every time a new package is generated, the default config file has its md5 checksum recorded
+ * via the pack npm hook; all we do is make sure it hasn't changed.
+ */
+function verifyDefaultConfigIntegrity()
+{
+  const workerConfPath = require('dcp-client').__cn;
+  const originalMd5sum = fs.readFileSync(workerConfPath + '.md5', 'ascii');
+  const actualMd5sum = crypto.createHash('md5')
+        .update(fs.readFileSync(workerConfPath, 'ascii'))
+        .digest('hex');
+
+  if (!originalMd5sum.startsWith(actualMd5sum))
+  {
+    console.warn(chalk.yellow(` ! Detected modified ${workerConfPath};`));
+    console.warn(' . DCP Worker configuration changes should not be made by updating the default');
+    console.warn('   config, as that file will be overwritten on the next npm update. Instead,');
+    console.warn('   make changes via one of the following locations:');
+    console.warn('    - ~/.dcp/dcp-worker/dcp-config.js');
+    console.warn('    - /etc/dcp/dcp-worker/dcp-config.js');
+    console.warn('    - /etc/override/dcp/dcp-worker/dcp-config.js');
+    console.warn('    - the Windows Registry');
+
+    if (require('dcp/build').config.build === 'debug')
+    {
+      console.log(chalk.bold.red.inverse("If this wasn't a debug build, the worker would exit now."));
+      require('dcp/utils').sleep(2);
+      return;
+    }
+    process.exit(1);
+  }
 }

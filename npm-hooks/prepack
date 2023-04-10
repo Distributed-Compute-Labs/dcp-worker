@@ -1,0 +1,17 @@
+#! /bin/bash
+#
+# @file         prepack
+#               Hook which generates the config md5 on pack (or publish)
+# @author       Wes Garland, wes@distributive.network
+# @date         April 2023
+#
+set -e
+set -u
+set -o pipefail
+
+cd `dirname "$0"`/..
+
+(
+  md5sum etc/dcp-worker-config.js
+  echo "### DO NOT MODIFY THIS FILE!!! ###"
+) > etc/dcp-worker-config.js.md5
