@@ -13,6 +13,7 @@ const os = require('os');
 const fs = require('fs');
 const path = require('path');
 
+const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
 const TOTAL_CPU_VCORES = os.cpus().length;
 const DEFAULT_CORES = TOTAL_CPU_VCORES - 1;
 var worker, dcpConfig;
@@ -34,20 +35,13 @@ const replHelpers = {
 };
 require('../lib/remote-console').init(replHelpers);
 
-require('dcp-client').init({ configName: process.env.DCP_CONFIG || '../etc/dcp-worker-config' })
-  .then(main)
-  .catch(handleUnhandled);
+/* Initialize dcp-client with our local config and run the main function */
+require('dcp-client').init({ configName }).then(main).catch(handleUnhandled);
 
-async function main ()
+function parseCliArgs()
 {
   var defaultPidFileName;
   
-  process.on('SIGINT', handleSigDeath);
-  process.on('SIGTERM', handleSigDeath);
-  process.on('SIGQUIT', handleSigDeath);
-  process.on('unhandledRejection', handleUnhandled);
-  process.on('uncaughtException', handleUnhandled);
-
   dcpConfig = require('dcp/dcp-config');
   defaultPidFileName = require('../lib/pidfile').getDefaultPidFileName(dcpConfig.worker.pidfile);
   
@@ -200,7 +194,7 @@ async function main ()
     process.exit(0);
   }
 
-  await startWorking(cliArgs);
+  return cliArgs;
 }
 
 // Imperfect, but handles CG { joinKey, joinHash }.
@@ -208,40 +202,46 @@ function isHash(b) {
   return b && b.length === 68 && b.startsWith('eh1-');
 }
 
-async function startWorking(cliArgs) {
+/**
+ * Main program entry point. Assumes DCP client is already initialized and console logging is ready.
+ */
+async function main()
+{
   const wallet = require('dcp/wallet');
   const DCPWorker = require('dcp/worker').Worker;
+  const { leafMerge } = require('dcp/utils');
   const { startWorkerLogger } = require('../lib/startWorkerLogger');
+  const cliArgs = parseCliArgs();
   const sawOptions = {
     hostname: cliArgs.hostname,
     port:     cliArgs.port
   };
 
+  process.on('SIGINT', handleSigDeath);
+  process.on('SIGTERM', handleSigDeath);
+  process.on('SIGQUIT', handleSigDeath);
+  process.on('unhandledRejection', handleUnhandled);
+  process.on('uncaughtException', handleUnhandled);
+
   let paymentAddress = false
       || cliArgs.paymentAddress
       || dcpConfig.worker.paymentAddress
       || (await wallet.get()).address;
-
   if (typeof paymentAddress === 'string')
     paymentAddress = new wallet.Address(paymentAddress);
     
   if (cliArgs.pidFile)
-    require('../lib/pidfile').write(cliArgs.pidFile)
+    require('../lib/pidfile').write(cliArgs.pidFile);
 
-  // Different ways to get the identity: 
+  /* Figure out of the worker's identity and put that keystore in the wallet */
   let identityKeystore = false;
-
   if (cliArgs.identityKey)
     identityKeystore = await new wallet.IdKeystore(cliArgs.identityKey, '');
   else if (cliArgs.identityKeystore)
     identityKeystore = await new wallet.IdKeystore(JSON.parse(cliArgs.identityKeystore), '');
   else
     identityKeystore = await wallet.getId();
-
-  // Set the provided identity as the wallet's default
   await wallet.addId(identityKeystore);
-
-  const leafMerge = require('dcp/utils').leafMerge;
 
   /* Build the worker options, which are largely given by dcpConfig.worker. We use a reference for 
    * dcpConfig.worker rather than copying it, so that runtime modifications to the worker configuration
@@ -287,7 +287,13 @@ async function startWorking(cliArgs) {
   }
 
   if (cliArgs.allowedOrigins)
+  {
+    if (!dcpWorkerOptions.allowOrigins)
+      dcpWorkerOptions.allowOrigins = {};
+    if (!dcpWorkerOptions.allowOrigins.any)
+      dcpWorkerOptions.allowOrigins.any = [];
     dcpWorkerOptions.allowOrigins.any.push(...cliArgs.allowedOrigins);
+  }
   if (cliArgs.watchdogInterval)
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
 
@@ -300,7 +306,7 @@ async function startWorking(cliArgs) {
   if (require('dcp/build').config.build !== 'debug')
     worker.on('end', process.exit);
   else
-    worker.on('end', () => setTimeout(process.exit, Number(dcpConfig.worker.cleanupTimeout || "60") * 1000).unref());
+    worker.on('end', () => setTimeout(process.exit, getCleanupTimeoutMs()).unref());
 
   if (cliArgs.eventDebug)
   {
@@ -375,7 +381,6 @@ async function startWorking(cliArgs) {
       console.log('Ignoring --reportInterval in dashboard output mode');
   }
 
-
   /* Start the worker. Normal process exit happens by virtue of the worker<end> event */
   await worker.start();
 }
@@ -435,8 +440,8 @@ async function handleUnhandled(error)
   const cleanupTimer = setTimeout(() => {
     logClosing('error', 'handleFatalError timeout - exiting now');
     process.exit();
-  }, Number(dcpConfig.worker.cleanupTimeout || "60") * 1000).unref();
-  
+  }, getCleanupTimeoutMs()).unref();
+
   try {
     let log = dcpConfig && dcpConfig.worker && dcpConfig.worker.unhandledRejectionLog;
     if (!log) log = process.env.DCP_WORKER_UNHANDLED_REJECTION_LOG;
@@ -536,8 +541,7 @@ function handleSigDeath(signalName, signal)
     worker.stop();
   }
 
-  const cleanupTimer = setTimeout(() => process.exit(signal - 128),
-                                  Number(dcpConfig.worker.cleanupTimeout || "60") * 1000).unref();
+  const cleanupTimer = setTimeout(() => process.exit(signal - 128), getCleanupTimeoutMs()).unref();
 }
 
 /**
@@ -573,3 +577,26 @@ function makeTargetLoadMagical(workerOptions)
   return workerOptions.targetLoad;
 }
 
+/**
+ * Returns the duration of the cleanup timeout in milliseconds. It is possible to specify zero.
+ */
+function getCleanupTimeoutMs()
+{
+  const defaultCT = 60;
+  var cleanupTimeout = dcpConfig.worker.cleanupTimeout;
+
+  if (typeof cleanupTimeout === 'undefined')
+    cleanupTimeout = defaultCT;
+  if (typeof cleanupTimeout !== 'number')
+    cleanupTimeout = Number(cleanupTimeout)
+  if (isNaN(cleanupTimeout))
+  {
+    cleanupTimeout = defaultCT;
+    if (!getCleanupTimeoutMs.warned)
+    {
+      console.warn(`warning: dcpConfig.worker.cleanupTimeout is not a number (${dcpConfig.worker.cleanupTimeout})`);
+      getCleanupTimeoutMs.warned = true;
+    }
+  }
+  return cleanupTimeout * 1000;
+}
