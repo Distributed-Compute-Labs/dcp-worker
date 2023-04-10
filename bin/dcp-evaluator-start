@@ -252,8 +252,8 @@ function main() {
     console.log('');
   }
 
-  if (options.pidFileLoc)
-    require('../lib/pidfile').write(cliArgs.pidFile);
+  if (options.pidFile)
+    require('../lib/pidfile').write(options.pidFile);
 
   if (options.verbose) {
     console.log('. cwd:', path.join(options.prefix));

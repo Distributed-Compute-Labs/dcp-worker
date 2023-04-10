@@ -40,7 +40,7 @@ require('dcp-client').init({ configName: process.env.DCP_CONFIG || '../etc/dcp-w
 
 async function main ()
 {
-  var defaultPidFileName = require('../lib/pidfile').getDefaultPidFileName(dcpConfig.worker.pidfile);
+  var defaultPidFileName;
   
   process.on('SIGINT', handleSigDeath);
   process.on('SIGTERM', handleSigDeath);
@@ -49,6 +49,7 @@ async function main ()
   process.on('uncaughtException', handleUnhandled);
 
   dcpConfig = require('dcp/dcp-config');
+  defaultPidFileName = require('../lib/pidfile').getDefaultPidFileName(dcpConfig.worker.pidfile);
   
   const cliArgs = require('dcp/cli')
   .base('Standalone NodeJS DCP Worker')
