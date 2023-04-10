@@ -248,7 +248,6 @@ async function startWorking(cliArgs) {
 
   /** @type {string[]} */
   const dcpWorkerOptions = dcpConfig.worker;
-
   Object.assign(dcpWorkerOptions, {
     paymentAddress,
     maxWorkingSandboxes: cliArgs.cores,
@@ -257,8 +256,7 @@ async function startWorking(cliArgs) {
     sandboxOptions: {
       SandboxConstructor: require('dcp-client/lib/standaloneWorker').workerFactory(sawOptions)
     },
-    computeGroups: [], /* public group is implied */
-    leavePublicGroup: cliArgs.leavePublicGroup || dcpConfig.worker.leavePublicGroup,
+    leavePublicGroup: cliArgs.leavePublicGroup || dcpConfig.worker.leavePublicGroup || false,
   });
 
   /* cliArgs.join is the list of compute groups to join */
@@ -271,7 +269,6 @@ async function startWorking(cliArgs) {
         return isHash(b) ? { joinKey: a, joinHash: b } : { joinKey: a, joinSecret: b };
       })
       .filter((el) => el.joinKey); /* Filter out entries with no joinKey */
-    //console.log(dcpWorkerOptions.computeGroups);
   }
   
   if (cliArgs.jobId)
