@@ -1,13 +1,23 @@
 #!/usr/bin/env node
-/** @file       dcp-evaluator-start
- *  @author     Eddie Roosenmaallen, eddie@kingsds.network
- *              Levi Stringer, levi@kingsds.network
- *  @date       September 2020
+/** 
+ * @file       dcp-evaluator-start
+ * @author     Eddie Roosenmaallen, eddie@kingsds.network
+ *             Levi Stringer, levi@kingsds.network
+ * @date       September 2020
  *
- *  This script starts a DCP Evaluator, with the
- *  appropriate list of worker startup files queued up
+ * This script starts a DCP Evaluator. It acts as a facade which takes a standardized command-line
+ * interface and spawns the selected evaluator type with the correct corresponding options. Evaluator
+ * support files (eg. those used to implement the host environment and sandboxes) are loaded from the
+ * dcp-client module or it's dependencies, and which of those files to use are specified by the 
+ * sandbox-definitions.json which is generated during a dcp-client build.
  */
 'use strict';
+
+function panic(...argv)
+{
+  console.error(...argv);
+  process.exit(1);
+}
 
 function main() {
   const { clearLine, cursorTo } = require('readline');
@@ -30,7 +40,6 @@ function main() {
         .option('port', {
           alias: ['p'],
           desc: 'Port to listen on',
-          deprecated: true,
           default: Number(dcpConfig.evaluator.listen.port),
         })
         .option('stdio', {
@@ -92,8 +101,7 @@ function main() {
         })
         .options('debugLogLevel', {
           alias: ['d'],
-          deprecated: true,
-          desc: 'Log level for evaluator output (max 8)',
+          desc: 'Log level for evaluator output (emerg, alert, crit, error, warn, notice, info, debug)',
         })
         .epilogue("To pass arguments to the evaluator, make sure to separate your arguments with a '--'. For example: 'dcp-evaluator-start -p 9000 -- --options=--max-old-space-size=2048'")
         .wrap(process.stdout.columns || 80)
@@ -118,30 +126,69 @@ function main() {
   let args = [];    /* Command-line arguments to pass to evaluator */
   let files = [];   /* Startup files passed to evaluator as supplementary arguments */
 
-  if (!options.stdio && options.port) {
-    console.warn(`Note: --port (-p) is deprecated. Please pass this argument to the evalutor 'dcp-evaluator-start ... -- -p ${options.port}'`);
+  if (!options.stdio && options.port)
     args = args.concat(['-p', options.port]);
-  }
+
   if (options.evaluatorLibDir) {
     console.warn(`Note: --evaluator-lib-dir (-l) is deprecated. Please pass this argument to the evalutor 'dcp-evaluator-start ... -- -l ${options.evaluatorLibDir}'`);
     options.evaluatorLibDir = path.resolve(options.prefix, 'etc', options.evaluatorLibDir);
     args = args.concat(['-l', options.evaluatorLibDir]);
   }
-  if (options.debugLogLevel){
-    console.warn(`Note: --debugLogLevel (-d) is deprecated. Please pass this argument to the evalutor 'dcp-evaluator-start ... -- --debug ${options.debugLogLevel}'`);
-    args = args.concat(['-d'], options.debugLogLevel)
+
+  /* Decode log-level parameters and translate as appropriate for the type of evaluator in use */
+  if (options.debugLogLevel || options.debugLogLevel === 0)
+  {
+    switch(options.sandboxType)
+    {
+      case 'native':
+      {
+        let level = {
+          'emerg':     0,
+          'emergency': 0,
+          'alert':     1,
+          'crit':      2,
+          'critical':  2,
+          'err':       3,
+          'error':     3,
+          'warn':      4,
+          'warning':   4,
+          '':          5,
+          'notice':    5,
+          'info':      6,
+          'debug':     7,
+        }[options.debugLogLevel];
+
+        if (typeof level === 'undefined' && (!isNaN(Number(options.debugLogLevel))))
+        {
+          console.warn('Warning: numeric log levels are deprecated');
+          level = Number(options.debugLogLevel);
+        }
+
+        if (typeof level === 'undefined')
+          panic(`unknown debug log level ${options.debugLogLevell}`);
+
+        args = args.concat('-d', level);
+      }
+      case 'node':
+        process.env.DCP_DEBUG_EVALUATOR = options.debugLogLevel;
+        break;
+      default:
+        panic(`debug log level not supported for ${options.sandboxType} evaluators`);
+        break;
+    }
   }
+
+  /* Pass options after -- as evaluator-specific options */
   if (options._)
     args = args.concat(options._);
 
-  const dcpClientRequire = require('module').createRequire(dcpClientDir);
   /* Definitions in the JSON file are either in the sandboxLibexecDir, or pathed
    * via normal CommonJS (node_modules) rules.  The syntax for detecting which must
    * stay synchronized with dcp/src/dcp-client/worker/evaluators/browser.js.
    */
   for (let def of sandboxSetupDefs) {
     if (def.match(/\//))
-      files.push(dcpClientRequire.resolve(def));
+      files.push(require('dcp-client').__require.resolve(def));
     else
       files.push(require.resolve(options.sandboxLibexecDir + '/' + def));
   }
@@ -241,5 +288,3 @@ require('dcp-client').init({
     bundle:    { location: false },
   }
 }).then(main);
-
-
