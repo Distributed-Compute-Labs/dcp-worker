@@ -302,24 +302,6 @@ async function startWorking(cliArgs) {
   else
     worker.on('end', () => setTimeout(process.exit, Number(dcpConfig.worker.cleanupTimeout || "60") * 1000).unref());
 
-  /**
-   * NOTE: In Supervisor2 this function is a NOOP.
-   * When (and if) we stop using Supevisor1, delete this reference to setDefaultIdentityKeystore
-   * and delete the corresponding fucntion from Supervisor2.
-   *
-   * startWorkerLogger needs to be called before the worker is started so that
-   * it can attach event listeners before the events fire, else UI events for
-   * things such as progress will never get attached.
-   *
-   * setDefaultIdentityKeystore needs to be called before the logger because it
-   * tries access the identity of the worker before it has started, i.e. where
-   * it sets its identity, throwing an assertion error.
-   *
-   * FIXME(bryan-hoang): This is a fragile solution that is too coupled with the
-   * implementation of the worker that should be addressed in Supervisor 2
-   */
-  await worker.supervisor.setDefaultIdentityKeystore();
-
   if (cliArgs.eventDebug)
   {
     worker.debug = true;
@@ -410,8 +392,9 @@ function logClosing(facility, ...message)
     console[facility](message);
   else
   {
-    /* Turn off TUI and resume "normal" console logging.
-     * FUTURE: dashboard API should know how to unregister its hook.
+    /* Turn off fullscreen TUI and resume "normal" console logging.
+     * FUTURE: dashboard API should know how to unregister its hook so that we don't have to clobber
+     *         it here.
      */
     screen.log(...message);
     screen.destroy();
