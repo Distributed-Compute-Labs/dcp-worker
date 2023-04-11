@@ -17,7 +17,6 @@ const chalk   = require('chalk');
 
 const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
 const TOTAL_CPU_VCORES = os.cpus().length;
-const DEFAULT_CORES = TOTAL_CPU_VCORES - 1;
 var worker, dcpConfig;
 
 const EXIT_UNHANDLED = 5;
@@ -58,7 +57,7 @@ function parseCliArgs()
         alias: 'c',
         describe: 'Number of cores to work with',
         type: 'number',
-        default: DEFAULT_CORES,
+        default: TOTAL_CPU_VCORES - 1,
       },
       verbose: {
         alias: 'v',
@@ -263,11 +262,9 @@ async function main()
     maxWorkingSandboxes: cliArgs.cores,
   };
   const defaultOptions = {
-    cores: { cpu: TOTAL_CPU_VCORES, gpu: 0 }, /** XXXpfr @todo: Figure out how many gpus. */
     sandboxOptions: {
       SandboxConstructor: require('dcp-client/lib/standaloneWorker').workerFactory(sawOptions)
     },
-    targetLoad: { cpu: 1.0, gpu: 1.0 },
   };
   Object.assign(dcpWorkerOptions, leafMerge(defaultOptions, dcpConfig.worker, forceOptions));
 
