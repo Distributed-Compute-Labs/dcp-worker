@@ -377,7 +377,7 @@ async function main()
   if (parseFloat(cliArgs.reportInterval))
   {
     if (cliArgs.outputMode !== 'dashboard')
-      setInterval(printReport, parseFloat(cliArgs.reportInterval) * 1000);
+      setInterval(printReport, parseFloat(cliArgs.reportInterval) * 1000).unref();
     else
       console.log('Ignoring --reportInterval in dashboard output mode');
   }
