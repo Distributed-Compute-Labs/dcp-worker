@@ -267,8 +267,8 @@ async function main()
     sandboxOptions: {
       SandboxConstructor: require('dcp-client/lib/standaloneWorker').workerFactory(sawOptions)
     },
+    targetLoad: { cpu: 1.0, gpu: 1.0 },
   };
-  makeTargetLoadMagical(dcpWorkerOptions);
   Object.assign(dcpWorkerOptions, leafMerge(defaultOptions, dcpConfig.worker, forceOptions));
 
   /* cliArgs.join is the list of compute groups to join */
@@ -546,39 +546,6 @@ function handleSigDeath(signalName, signal)
   }
 
   const cleanupTimer = setTimeout(() => process.exit(signal - 128), getCleanupTimeoutMs()).unref();
-}
-
-/**
- * Factory function which creates a slightly-magical dcpConfig.worker.targetLoad node. The target load
- * for CPU and GPU are calculated based on workerOptions.cores and workerOptions.gpu. If these values
- * change, the targetLoad values change as well. If the ratios are unspecified in dcpConfig, reasonable
- * defaults are used; if the ratios are changed at runtime, the new ratios take effect immediately.
- *
- * Corollary: copying the workerOptions.targetLoad object would be a bad idea; always use a reference
- *            to that node, or the magic will stop.
- */
-function makeTargetLoadMagical(workerOptions)
-{
-  var cpu, gpu;
-  
-  if (!workerOptions.targetLoad)
-    workerOptions.targetLoad = {};
-  if (typeof workerOptions.targetLoad.cpuRatio === 'undefined')
-    workerOptions.targetLoad.cpuRatio = 1.25;  /* Aim for a cpu density sum which is 125% of the CPU vcore count */
-  if (typeof workerOptions.targetLoad.gpuRatio === 'undefined')
-    workerOptions.targetLoad.gpuRatio = 0.75;  /* Aim for a gpu density sum which is 75% of the GPU count */
-
-  Object.defineProperty(workerOptions.targetLoad, 'cpu', {
-    get: () => typeof cpu === 'undefined' ? workerOptions.targetLoad.cpuRatio * workerOptions.cores : cpu,
-    set: value => cpu = value
-  });
-
-  Object.defineProperty(workerOptions.targetLoad, 'gpu', {
-    get: () => typeof gpu === 'undefined' ? workerOptions.targetLoad.cpuRatio * workerOptions.gpu : gpu,
-    set: value => gpu = value
-  });
-
-  return workerOptions.targetLoad;
 }
 
 /**
