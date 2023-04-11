@@ -18,7 +18,7 @@
  * @author      Wes Garland
  * @date        Feb 2021
  */
-const workerConfig =
+
 {
   worker: {
     trustComputeGroupOrigins: true,  /* Trust the scheduler to modify allowOrigins via Compute Group configuration */
@@ -59,12 +59,8 @@ const workerConfig =
    * worker will run in the background waiting for it to re-launch when this happens. 
    */
   evaluator: {
-    listen: url('dcpsaw://localhost:9000/'),
-    libDir: '../libexec/evaluator',
+    listen:   url('dcpsaw://localhost:9001/'),
   },
+
+  cookie: env.DCP_CONFIG_COOKIE /* used to verify that configuration file was actually loaded */
 }
-
-if (!dcpConfig.evaluator.location)
-  dcpConfig.evaluator.location = url(dcpConfig.evaluator.listen.href);
-
-return workerConfig;
