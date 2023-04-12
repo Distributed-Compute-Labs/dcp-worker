@@ -19,7 +19,7 @@
  * @date        Feb 2021
  */
 
-{
+({
   worker: {
     trustComputeGroupOrigins: true,  /* Trust the scheduler to modify allowOrigins via Compute Group configuration */
 
@@ -53,14 +53,14 @@
     paymentAddress: undefined,      /* Bank account where earned funds are transfered if not specified on command-line */
   },
 
-  /* The evaluator is a secure environment for creating DCP Worker sandboxes, based on the
-   * Google V8 Engine. This configuration specifies where this worker's evaluator daemon is
-   * listening. Killing the evaluator stops all work from happening on this worker; the
-   * worker will run in the background waiting for it to re-launch when this happens. 
+  /* The evaluator is a secure environment for creating DCP Worker sandboxes, used when the Worker
+   * is running in Node.js. This configuration specifies where this worker's evaluator daemon is
+   * listening. Killing the evaluator stops all work from happening on this worker; the worker
+   * will run in the background waiting for it to re-launch when this happens. 
    */
   evaluator: {
-    listen:   url('dcpsaw://localhost:9001/'),
+    listen:   new URL('dcpsaw://localhost:9000/'),
   },
 
-  cookie: env.DCP_CONFIG_COOKIE /* used to verify that configuration file was actually loaded */
-}
+  cookie: dcp['dcp-env'].getenv('DCP_CONFIG_COOKIE') /* used to verify that configuration file was actually loaded */
+})
