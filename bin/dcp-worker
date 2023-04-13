@@ -279,12 +279,12 @@ async function main()
         return isHash(b) ? { joinKey: a, joinHash: b } : { joinKey: a, joinSecret: b };
       })
       .filter((el) => el.joinKey); /* Filter out entries with no joinKey */
-    leafmerge(dcpWorkerOptions.computeGroups, cliComputeGroups);
+    leafMerge(dcpWorkerOptions.computeGroups, cliComputeGroups);
   }
   
   if (cliArgs.jobId)
   {
-    dcpWorkerOptions.jobAddresses.push(...cliArgs.jobAddresses);
+    dcpWorkerOptions.jobAddresses.push(...cliArgs.jobId);
     dcpWorkerOptions.priorityOnly = true;
   }
 
