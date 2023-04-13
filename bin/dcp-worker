@@ -205,13 +205,26 @@ function isHash(b) {
 }
 
 /**
+ * Add one or more configuration objects into a target via leaf-merging.
+ */
+function addConfig(target, ...objs)
+{
+  const { leafMerge } = require('dcp/utils');
+  var tmp = target;
+
+  for (let obj of objs)
+    tmp = leafMerge(tmp, obj);
+
+  Object.assign(target, tmp);
+}
+
+/**
  * Main program entry point. Assumes DCP client is already initialized and console logging is ready.
  */
 async function main()
 {
   const wallet = require('dcp/wallet');
   const DCPWorker = require('dcp/worker').Worker;
-  const { leafMerge } = require('dcp/utils');
   const { startWorkerLogger } = require('../lib/startWorkerLogger');
   const cliArgs = parseCliArgs();
   const sawOptions = {
@@ -267,7 +280,7 @@ async function main()
       SandboxConstructor: require('dcp-client/lib/standaloneWorker').workerFactory(sawOptions)
     },
   };
-  Object.assign(dcpWorkerOptions, leafMerge(defaultOptions, dcpConfig.worker, forceOptions));
+  addConfig(dcpWorkerOptions, defaultOptions, dcpConfig.worker, forceOptions);
 
   /* cliArgs.join is the list of compute groups to join */
   if (cliArgs.join && cliArgs.join.length)
@@ -279,9 +292,10 @@ async function main()
         return isHash(b) ? { joinKey: a, joinHash: b } : { joinKey: a, joinSecret: b };
       })
       .filter((el) => el.joinKey); /* Filter out entries with no joinKey */
-    leafMerge(dcpWorkerOptions.computeGroups, cliComputeGroups);
+
+    addConfig(dcpWorkerOptions.computeGroups, dcpWorkerOptions.computeGroups, cliComputeGroups);
   }
-  
+
   if (cliArgs.jobId)
   {
     dcpWorkerOptions.jobAddresses.push(...cliArgs.jobId);
