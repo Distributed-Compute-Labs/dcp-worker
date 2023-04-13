@@ -238,10 +238,7 @@ function main() {
   if (!options.stdio) {
     console.log('Starting DCP Evaluator -- ');
     console.log('. Evaluator program at:\t\t', evaluator);
-    if (options.stdio)
-      console.log('. Running in single-shot mode over stdio pipeline');
-    else
-      console.log('. Listening on:      \t\t', options.port);
+    console.log('. Listening on:      \t\t', options.port);
     console.log('. Worker environment type:\t', options.sandboxType);
     console.log('. Worker environment:  \t');
     files.forEach(f => {
