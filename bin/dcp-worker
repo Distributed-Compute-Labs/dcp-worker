@@ -374,21 +374,7 @@ async function main()
   introBanner += ' . ready' + '\n';
 
   console.log(introBanner);
-
   require('../lib/check-scheduler-version').check();
-
-  /**
-   *  Convert a timespan in ms to a human-readable interval in minutes and seconds
-   *
-   *  @param  {number} el Milliseconds to convert
-   *  @return {string}    Timespan formatted as `m:ss`
-   */
-  function toInterval(el)
-  {
-    const m = Math.floor((el / 1000) / 60).toString(10);
-    const s = Math.floor((el / 1000) % 60).toString(10).padStart(2, '0');
-    return `${m}:${s}`;
-  }
 
   if (parseFloat(cliArgs.reportInterval))
   {
@@ -473,6 +459,19 @@ async function handleUnhandled(error)
 function printReport()
 {
   console.log(sliceReport());
+}
+
+/**
+ *  Convert a timespan in ms to a human-readable interval in minutes and seconds
+ *
+ *  @param  {number} el Milliseconds to convert
+ *  @return {string}    Timespan formatted as `m:ss`
+ */
+function toInterval(el)
+{
+  const m = Math.floor((el / 1000) / 60).toString(10);
+  const s = Math.floor((el / 1000) % 60).toString(10).padStart(2, '0');
+  return `${m}:${s}`;
 }
 
 /** retrieve a slice report screen */
