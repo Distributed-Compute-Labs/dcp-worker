@@ -315,6 +315,7 @@ async function main()
 
   worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
   worker.on('error', console.error);
+  worker.on('warning', console.warn);
 
   /* Let incorrect event-loop references keep us alive when linked with a debug library, but
    * exit quickly/accurately for production code even when the library isn't perfect.
