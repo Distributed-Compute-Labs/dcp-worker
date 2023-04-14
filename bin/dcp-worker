@@ -11,7 +11,6 @@
 const process = require('process');
 const os      = require('os');
 const fs      = require('fs');
-const path    = require('path');
 const crypto  = require('crypto');
 const chalk   = require('chalk');
 
@@ -353,7 +352,7 @@ async function main()
       plural = singular + 's';
     if (!amount)
       return plural;
-    if (amount == 1)
+    if (Number(amount) === 1)
       return singular;
     return plural;
   }
@@ -441,7 +440,7 @@ async function handleUnhandled(error)
     _worker.stop();
   }
 
-  const cleanupTimer = setTimeout(() => {
+  setTimeout(() => {
     logClosing('error', 'handleFatalError timeout - exiting now');
     process.exit();
   }, getCleanupTimeoutMs()).unref();
@@ -558,7 +557,7 @@ function handleSigDeath(signalName, signal)
     worker.stop();
   }
 
-  const cleanupTimer = setTimeout(() => process.exit(signal - 128), getCleanupTimeoutMs()).unref();
+  setTimeout(() => process.exit(signal - 128), getCleanupTimeoutMs()).unref();
 }
 
 /**
