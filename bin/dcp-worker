@@ -272,7 +272,7 @@ async function main()
   const dcpWorkerOptions = dcpConfig.worker;
   const forceOptions = {
     paymentAddress,
-    leavePublicGroup: cliArgs.leavePublicGroup || dcpConfig.worker.leavePublicGroup || false,
+    leavePublicGroup: cliArgs.leavePublicGroup || dcpConfig.worker.leavePublicGroup || cliArgs.publicGroupFallback || false,
     maxWorkingSandboxes: cliArgs.cores,
   };
   const defaultOptions = {
@@ -280,6 +280,7 @@ async function main()
       SandboxConstructor: require('dcp-client/lib/standaloneWorker').workerFactory(sawOptions)
     },
   };
+
   addConfig(dcpWorkerOptions, defaultOptions, dcpConfig.worker, forceOptions);
 
   /* cliArgs.join is the list of compute groups to join */
