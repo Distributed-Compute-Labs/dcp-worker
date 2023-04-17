@@ -48,10 +48,10 @@ publish_docs:
     AWS_DEFAULT_REGION: 'us-east-1'
     AWS_REGION: 'us-east-1'
   stage: deploy
-  tags: [dcp, linux]
-  image: node:latest
+  needs: []
+  # Refer to https://github.com/nikolaik/docker-python-nodejs#-tags
+  image: nikolaik/python-nodejs:python3.11-nodejs18-slim
   script:
-    - apt-get update && apt-get install python3 python3-pip python-is-python3 -y
     - npm install -g @techdocs/cli
     - python3 -m pip install mkdocs mkdocs-techdocs-core==1.*
     - pip install mkdocs-same-dir

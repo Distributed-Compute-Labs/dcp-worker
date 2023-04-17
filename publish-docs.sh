@@ -32,7 +32,7 @@ echo "Kind: $ENTITY_KIND"
 ENTITY_NAME=$(cat catalog-info.yaml | yq ".metadata.name")
 echo "Name: $ENTITY_NAME"
 
-TECHDOCS_REF="$(cat catalog-info.yaml | yq ".metadata.annotations.\"backstage.io/techdocs-ref\"")"
+TECHDOCS_REF=$(cat catalog-info.yaml | yq ".metadata.annotations.\"backstage.io/techdocs-ref\"")
 echo "TechDocs Ref: $TECHDOCS_REF"
 
 # An example of the the techdocs-ref in the YAML file:
