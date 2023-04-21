@@ -18,17 +18,16 @@
  * @author      Wes Garland
  * @date        Feb 2021
  */
-
-({
+{
   worker: {
     trustComputeGroupOrigins: true,  /* Trust the scheduler to modify allowOrigins via Compute Group configuration */
 
     /* Allow lists permitting supervisor network access beyond DCP messages to services */
     allowOrigins: {
-      fetchWorkFunctions: [ dcpConfig.scheduler.location ],
-      fetchArguments:     [ dcpConfig.scheduler.location ],
-      fetchData:          [ dcpConfig.scheduler.location ],
-      sendResults:        [ dcpConfig.scheduler.location ],
+      fetchWorkFunctions: [ dcpConfig.scheduler.location.href ],
+      fetchArguments:     [ dcpConfig.scheduler.location.href ],
+      fetchData:          [ dcpConfig.scheduler.location.href ],
+      sendResults:        [ dcpConfig.scheduler.location.href ],
       any:                [],
     },
 
@@ -62,5 +61,5 @@
     listen:   new URL('dcpsaw://localhost:9000/'),
   },
 
-  cookie: dcp['dcp-env'].getenv('DCP_CONFIG_COOKIE') /* used to verify that configuration file was actually loaded */
-})
+  cookie: require('process').env.DCP_CONFIG_COOKIE, /* used to verify that configuration file was actually loaded */
+}
