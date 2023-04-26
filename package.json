@@ -30,14 +30,16 @@
   "scripts": {
     "start": "node bin/dcp-worker start",
     "start-evaluator": "node bin/dcp-evaluator-start",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "peter tests",
+    "prepack": "npm-hooks/prepack",
+    "postpublish": "npm-hooks/postpublish",
+    "prepublishOnly": "npm-hooks/prepublish"
   },
   "dependencies": {
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.11.0",
-    "bravojs": "^1.0.16",
     "chalk": "^4.1.0",
-    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#c5f1a1ae17bffd573f4721f696bacd7886306097",
+    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#develop",
     "semver": "^7.3.8"
   },
   "optionalDependencies": {
