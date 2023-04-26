@@ -148,9 +148,9 @@ function main() {
 
   if (options.dump) {
     if (options.json) {
-      console.log(JSON.stringify({evaluator, args, files, options}));
+      console.log(JSON.stringify({evaluator, files, args, options}));
     } else {
-      console.log('Evaluator command:', [evaluator].concat(args).concat(files).join(' '));
+      console.log('Evaluator command:', [evaluator].concat(files).concat(args).join(' '));
       console.log('Options:', options);
     }
     process.exit(0);
@@ -210,9 +210,9 @@ function main() {
 
   if (options.verbose) {
     console.log('. cwd:', path.join(options.prefix));
-    console.log('. run:', [evaluator].concat(args).concat(files).map(a => `"${a}"`).join(' '));
+    console.log('. run:', [evaluator].concat(files).concat(args).map(a => `"${a}"`).join(' '));
   }
-  const ran = require('child_process').spawnSync(evaluator, args.concat(files), {
+  const ran = require('child_process').spawnSync(evaluator, files.concat(args), {
     cwd: path.join(options.prefix),
     windowsHide: true,
     stdio: ['inherit', 'inherit', 'inherit']
