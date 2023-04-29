@@ -31,7 +31,7 @@ var ptsDir = '/dev/pts';
 const daemonConfig = {
   net:  new URL('tcpip://localhost:9000/'),
   proc: require.resolve('./dcp-evaluator-start'),
-  argv: ['-se', '/usr/bin/dcp-evaluator-v8', '-l', '/usr/libexec/dcp-evaluator-v8/']
+  argv: ['-s' /*'-se', '/usr/bin/dcp-evaluator-v8', '-l', '/usr/libexec/dcp-evaluator-v8/'*/]
 };
 
 const sessionConfig = {
@@ -43,13 +43,16 @@ function usage()
 {
   console.log(
 `
-DCP Evaluator Monitor - Copyright (c) 2022 Distributive Corp.
+DCP Evaluator Monitor - Copyright (c) 2022-2023 Distributive Corp.
 Released under the terms of the MIT License.
 
-Usage: ${process.argv[0]} [-h | --help] [--prefix=<dir>] [--pts=<dir>]
-       [--disable-monitor=<session|screensaver>] [-i <timeout>]
+Usage: ${process.argv[0]} [-h | --help] [--prefix=<dir>] [--pts=<dir>] [-a]
+       [--disable-monitor=<session|screensaver>] [-i <timeout>] [-p port]
+       [-- <options to dcp-evaluator-start, must be last option>]
 Where:
  - -i sets the idle timeout in seconds for tty sessions (${sessionConfig.idleTimeout}s)
+ - -a means always run the evaluator, even when the machine is busy
+ - -p specifies the port to listen on for dcpsaw: worker connections (${daemonConfig.net.port})
  - --prefix specifies the directory where the DCP evaluator was installed
  - --pts specifies the location of the system's pseudo terminal (${ptsDir})
  - --disable-monitor=session disables monitoring of ssh/telnet/etc sessions
@@ -94,6 +97,9 @@ async function listenForConnections(config)
 function activity()
 {
   var active = [];
+
+  if (sessionConfig.alwaysOn) /* alwaysOn => pretend there is never any user activity */
+    return false;
   
   for (let prop in noActivity)
   {
@@ -105,7 +111,7 @@ function activity()
 }
 
 /**
- * Handle and incoming connection. If the screensaver is not active, the conneciton
+ * Handle an incoming connection. If the screensaver is not active, the conneciton
  * is immediately rejected. Otherwise, we spin up an evaluator process and proxy its
  * stdio to the socket.
  */
@@ -211,7 +217,7 @@ async function killChildren()
  */
 async function dbusScreenSaverMonitor()
 {
-  const dbus = require('dbus-next');
+  const dbus = pdRequire('dbus-next');
   const bus = dbus.sessionBus();
   const screensaverList = [
     'org.gnome.ScreenSaver',
@@ -312,10 +318,29 @@ function sessionMonitor()
   checkSessions();
 }
 
+/* Require a peerDependency, print decent error message if not found, then exit. */
+function pdRequire(moduleId)
+{
+  try
+  {
+    return require(moduleId);
+  }
+  catch(error)
+  {
+    if (error.code !== 'MODULE_NOT_FOUND')
+      throw error;
+  }
+
+  console.error(`This operating mode requires peer dependency ${moduleId}.`);
+  console.error(`Please \`npm i --no-save ${moduleId}\` and try again.`);
+  process.exit(2);
+}
+
 /* Main program entry point */
 async function main()
 {
-  const parser = new getopt.BasicParser('h(help)p:(prefix)d:(disable-monitor)i:', process.argv);
+  await require('dcp-client').init({configName: process.env.DCP_CONFIG || '../etc/dcp-config', scheduler: { configLocation: false }});
+  const parser = new getopt.BasicParser('h(help)p:(prefix)d:(disable-monitor)i:a', process.argv);
   var option;
   
   while ((option = parser.getopt()) !== undefined)
@@ -355,8 +380,17 @@ async function main()
         sessionConfig.idleTimeout = Number(option.optarg).toFixed(1);
         break;
       }
+
+      case 'a':
+      {
+        sessionConfig.alwaysOn = true;
+        break;
+      }
     }
   }
+
+  daemonConfig.argv = daemonConfig.argv.concat(process.argv.slice(parser.optind())); /* All options after -- pass to dcp-evaluator-start */
+  console.log(daemonConfig.argv, process.argv, parser.optind());
   
   process.on('uncaughtException', function (e) {
     console.error('\n---', (new Date()).toLocaleString(), '-------------------------------------------------')
