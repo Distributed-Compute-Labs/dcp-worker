@@ -1,23 +1,33 @@
 #!/usr/bin/env node
-/** @file       dcp-evaluator-start
- *  @author     Eddie Roosenmaallen, eddie@kingsds.network
- *              Levi Stringer, levi@kingsds.network
- *  @date       September 2020
+/** 
+ * @file       dcp-evaluator-start
+ * @author     Eddie Roosenmaallen, eddie@kingsds.network
+ *             Levi Stringer, levi@kingsds.network
+ * @date       September 2020
  *
- *  This script starts a DCP Evaluator, with the
- *  appropriate list of worker startup files queued up
+ * This script starts a DCP Evaluator. It acts as a facade which takes a standardized command-line
+ * interface and spawns the selected evaluator type with the correct corresponding options. Evaluator
+ * support files (eg. those used to implement the host environment and sandboxes) are loaded from the
+ * dcp-client module or it's dependencies, and which of those files to use are specified by the 
+ * sandbox-definitions.json which is generated during a dcp-client build.
  */
 'use strict';
+
+function panic(...argv)
+{
+  console.error(...argv);
+  process.exit(1);
+}
 
 function main() {
   const { clearLine, cursorTo } = require('readline');
   const path = require('path');
   const dcpConfig = require('dcp/dcp-config');
   const dcpClientDir = path.dirname(require.resolve('dcp-client'));
+  const defaultPidFileName = require('../lib/pidfile').getDefaultPidFileName(dcpConfig.worker.pidfile);
   var evaluator;
 
   /* All evaluators must understand the following command-line options:
-   * -l - location of libs
    * -p - port to listen on; unspecified => stdio
    */
   const options = require('dcp/cli')
@@ -47,6 +57,7 @@ function main() {
         })
         .option('evaluator-lib-dir', {
           alias: ['l'],
+          deprecated: true,
           desc: 'Location of evaluator libraries',
           default: dcpConfig.evaluator.libDir || undefined
         })
@@ -83,10 +94,15 @@ function main() {
           alias: ['v'],
           desc: 'Generate verbose output',
         })
+        .option('pidFile', {
+          alias: ['f'],
+          describe: `create a .pid file; value overrides default location (${defaultPidFileName})`,
+        })
         .options('debugLogLevel', {
           alias: ['d'],
-          desc: 'Log level for evaluator output (max 8)',
+          desc: 'Log level for evaluator output (emerg, alert, crit, error, warn, notice, info, debug)',
         })
+        .epilogue("To pass arguments to the evaluator, make sure to separate your arguments with a '--'. For example: 'dcp-evaluator-start -p 9000 -- --options=--max-old-space-size=2048'")
         .wrap(process.stdout.columns || 80)
         .strict()
         .argv;
@@ -99,7 +115,7 @@ function main() {
 
   const sandboxSetupDefs = require(options.sandboxDefinitions)[options.sandboxType]
   if (!sandboxSetupDefs)
-    throw new Error(`Invalid sandbox type: ${options.sandboxType}`);
+    panic(`Invalid sandbox type: ${options.sandboxType}`);
 
   if (options.rEvaluator)
     evaluator = require.resolve(options.rEvaluator);
@@ -109,14 +125,60 @@ function main() {
   let args = [];    /* Command-line arguments to pass to evaluator */
   let files = [];   /* Startup files passed to evaluator as supplementary arguments */
 
-  if (!options.stdio)
+  if (!options.stdio && options.port)
     args = args.concat(['-p', options.port]);
+
   if (options.evaluatorLibDir) {
+    console.warn(`Note: --evaluator-lib-dir (-l) is deprecated. Please pass this argument to the evalutor 'dcp-evaluator-start ... -- -l ${options.evaluatorLibDir}'`);
     options.evaluatorLibDir = path.resolve(options.prefix, 'etc', options.evaluatorLibDir);
     args = args.concat(['-l', options.evaluatorLibDir]);
   }
-  if (options.debugLogLevel)
-    args = args.concat(['-d'], options.debugLogLevel)
+
+  /* Decode log-level parameters and translate as appropriate for the type of evaluator in use */
+  if (options.debugLogLevel || options.debugLogLevel === 0)
+  {
+    switch(options.sandboxType)
+    {
+      case 'native':
+      {
+        let level = {
+          'emerg':     0,
+          'emergency': 0,
+          'alert':     1,
+          'crit':      2,
+          'critical':  2,
+          'err':       3,
+          'error':     3,
+          'warn':      4,
+          'warning':   4,
+          '':          5,
+          'notice':    5,
+          'info':      6,
+          'debug':     7,
+        }[options.debugLogLevel];
+
+        if (typeof level === 'undefined' && (!isNaN(Number(options.debugLogLevel))))
+        {
+          console.warn('Warning: numeric log levels are deprecated');
+          level = Number(options.debugLogLevel);
+        }
+
+        if (typeof level === 'undefined')
+          panic(`unknown debug log level ${options.debugLogLevell}`);
+
+        args = args.concat('-d', level);
+        break;
+      }
+      case 'node':
+        process.env.DCP_DEBUG_EVALUATOR = options.debugLogLevel;
+        break;
+      default:
+        panic(`debug log level not supported for ${options.sandboxType} evaluators`);
+        break;
+    }
+  }
+
+  /* Pass options after -- as evaluator-specific options */
   if (options._)
     args = args.concat(options._);
 
@@ -126,7 +188,7 @@ function main() {
    */
   for (let def of sandboxSetupDefs) {
     if (def.match(/\//))
-      files.push(require.resolve(def));
+      files.push(require('dcp-client').__require.resolve(def));
     else
       files.push(require.resolve(options.sandboxLibexecDir + '/' + def));
   }
@@ -174,14 +236,9 @@ function main() {
   }
 
   if (!options.stdio) {
-    // Log what we're about to do:
     console.log('Starting DCP Evaluator -- ');
     console.log('. Evaluator program at:\t\t', evaluator);
-    console.log('. Library path at:     \t\t', options.evaluatorLibDir);
-    if (options.stdio)
-      console.log('. Running in single-shot over stdio pipeline');
-    else
-      console.log('. Listening on:      \t\t', options.port);
+    console.log('. Listening on:      \t\t', options.port);
     console.log('. Worker environment type:\t', options.sandboxType);
     console.log('. Worker environment:  \t');
     files.forEach(f => {
@@ -189,6 +246,9 @@ function main() {
     });
     console.log('');
   }
+
+  if (options.pidFile)
+    require('../lib/pidfile').write(options.pidFile);
 
   if (options.verbose) {
     console.log('. cwd:', path.join(options.prefix));
@@ -216,18 +276,12 @@ function main() {
   process.exit(1);
 }
 
-/* Half-initialize the dcp-client library so that we can use dcp/cli, but 
- * without checking the scheduler for configuration updates.
- */
-require('dcp-client');
-const dcpConfig = require('dcp/dcp-config');
-const localConfig = require(process.env.DCP_CONFIG || '../etc/dcp-config');
-if (!localConfig.bundle)
-  localConfig.bundle = {};
-if (!localConfig.scheduler)
-  localConfig.scheduler = {};
-localConfig.bundle.location = false;
-localConfig.scheduler.configLocation = false;
-Object.assign(dcpConfig, require('dcp/utils').leafMerge(dcpConfig, localConfig));
-main();
-
+/* Initialize dcp-client to use only local resources before launching the main function */
+require('dcp-client').init({
+  progName: 'dcp-worker',
+  configName: process.env.DCP_CONFIG || '../etc/dcp-worker-config',
+  dcpConfig: {
+    scheduler: { configLocation: false },
+    bundle:    { location: false },
+  }
+}).then(main);
