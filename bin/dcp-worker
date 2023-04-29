@@ -21,7 +21,7 @@ var worker, dcpConfig, debugging;
 const debug = (...args) => {
   if (!debugging)
     debugging = require('dcp/internal/debugging').scope('dcp-worker');
-  if (true || debugging())
+  if (debugging())
     console.debug('dcp-worker:', ...args);
 };
 
