@@ -8,6 +8,8 @@
  */
 'use strict';
 
+/* eslint-disable brace-style */
+
 const process = require('process');
 const fs      = require('fs');
 const crypto  = require('crypto');
