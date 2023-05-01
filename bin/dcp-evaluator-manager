@@ -28,12 +28,13 @@ var children;
 var seq = 0;
 var ptsDir = '/dev/pts';
 
+const defaultPrefix = '/usr';
+const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
 const daemonConfig = {
   net:  new URL('tcpip://localhost:9000/'),
   proc: require.resolve('./dcp-evaluator-start'),
-  argv: ['-s' /*'-se', '/usr/bin/dcp-evaluator-v8', '-l', '/usr/libexec/dcp-evaluator-v8/'*/]
+  argv: [ '-s', '--prefix', `${path.resolve(defaultPrefix)}/` ],
 };
-
 const sessionConfig = {
   idlePoll:    15, /* s between checks*/
   idleTimeout: 30, /* s to decide the session really IS idle */
@@ -81,11 +82,11 @@ async function listenForConnections(config)
     process.exit(2);
   });
 
-  require('dcp-client');
   children = new (require('dcp/utils').Inventory)();
 
   server.listen({ host: hostaddr, port: config.net.port }, function daemonReady() {
     console.log('Listening for connections on', server._connectionKey);
+    console.log('Evaluator command is', config.proc, config.argv);
   });
 }
 
@@ -203,7 +204,7 @@ function bufToDisplayStr (buf, limit)
 /**
  * Kill all evaluators, as quickly as possible.
  */
-async function killChildren()
+function killChildren()
 {
   for (let child of children)
   {
@@ -217,7 +218,7 @@ async function killChildren()
  */
 async function dbusScreenSaverMonitor()
 {
-  const dbus = pdRequire('dbus-next');
+  const dbus = odRequire('dbus-next');
   const bus = dbus.sessionBus();
   const screensaverList = [
     'org.gnome.ScreenSaver',
@@ -246,7 +247,7 @@ async function dbusScreenSaverMonitor()
 
   if (!iface)
   {
-    console.error('Could not open dbus session to any screensaver, tried', screensaverListe);
+    console.error('Could not open dbus session to any screensaver, tried', screensaverList);
     process.exit(3);
   }
 
@@ -318,8 +319,8 @@ function sessionMonitor()
   checkSessions();
 }
 
-/* Require a peerDependency, print decent error message if not found, then exit. */
-function pdRequire(moduleId)
+/* Require an optional dependency, print decent error message if not found, then exit. */
+function odRequire(moduleId)
 {
   try
   {
@@ -331,16 +332,15 @@ function pdRequire(moduleId)
       throw error;
   }
 
-  console.error(`This operating mode requires peer dependency ${moduleId}.`);
-  console.error(`Please \`npm i --no-save ${moduleId}\` and try again.`);
+  console.error(`Screensaver operating mode requires optional dependency ${moduleId}.`);
+  console.error(`Please \`npm i ${moduleId}\` and try again.`);
   process.exit(2);
 }
 
 /* Main program entry point */
 async function main()
 {
-  await require('dcp-client').init({configName: process.env.DCP_CONFIG || '../etc/dcp-config', scheduler: { configLocation: false }});
-  const parser = new getopt.BasicParser('h(help)p:(prefix)d:(disable-monitor)i:a', process.argv);
+  const parser = new getopt.BasicParser('h(help)P:(prefix)d:(disable-monitor)i:ap:', process.argv);
   var option;
   
   while ((option = parser.getopt()) !== undefined)
@@ -357,11 +357,11 @@ async function main()
       case '?':
         process.exit(1);
 
-      case 'p':
+      case 'P':
       {
+        const re = new RegExp(`^${defaultPrefix}/`);
         for (let i=0; i < daemonConfig.argv.length; i++)
-          daemonConfig.argv[i] = daemonConfig.argv[i].replace(/^\/usr/, option.optarg);
-        console.log(daemonConfig);
+          daemonConfig.argv[i] = daemonConfig.argv[i].replace(re, path.resolve(option.optarg + '/'));
         break;
       }
 
@@ -386,27 +386,44 @@ async function main()
         sessionConfig.alwaysOn = true;
         break;
       }
+
+      case 'p':
+      {
+        daemonConfig.net.port = Number(option.optarg);
+        break;
+      }
     }
   }
 
   daemonConfig.argv = daemonConfig.argv.concat(process.argv.slice(parser.optind())); /* All options after -- pass to dcp-evaluator-start */
-  console.log(daemonConfig.argv, process.argv, parser.optind());
   
-  process.on('uncaughtException', function (e) {
+  process.on('uncaughtException', function (error) {
     console.error('\n---', (new Date()).toLocaleString(), '-------------------------------------------------')
-    console.error('uncaught exception:', e.stack)
+    console.error('uncaught exception:', error.stack)
     console.error('\n')
   });
 
-  process.on('unhandledRejection', function (e) {
+  process.on('unhandledRejection', function (error) {
     console.error('\n---', (new Date()).toLocaleString(), '-------------------------------------------------')
-    console.error('unhandled rejection:', e.stack)
+    console.error('unhandled rejection:', error.stack)
     console.error('\n')
   })
 
-  await screensaverMonitor();
-  sessionMonitor();
+  if (!sessionConfig.alwaysOn)
+  {
+    await screensaverMonitor();
+    sessionMonitor();
+  }
+
   listenForConnections(daemonConfig);
 }
 
-main().catch(e => { console.error(e); process.exit(process.exitCode || 1) });
+/* Initialize dcp-client to use only local resources before launching the main function */
+require('dcp-client').init({
+  progName: 'dcp-worker',
+  configName: process.env.DCP_CONFIG || '../etc/dcp-worker-config',
+  dcpConfig: {
+    scheduler: { configLocation: false },
+    bundle:    { location: false },
+  }
+}).then(main);
