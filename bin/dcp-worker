@@ -110,7 +110,7 @@ function parseCliArgs()
 
       leavePublicGroup: {
         type: 'boolean',
-        describe: 'Do not fetch slices from public compute group',
+        describe: 'Do not fetch slices from public compute group. Ignored if --publicGroupFallback is set',
         default: false,
       },
       publicGroupFallback: {
@@ -317,10 +317,11 @@ async function main()
   worker.on('error', console.error);
   worker.on('warning', console.warn);
 
-  // Start public group fallback if that is configured
+  // Start public group fallback if that is configured; after each fetch,
+  // leave the public group iff the fetch returned slices.
   if (cliArgs.publicGroupFallback)
     worker.on('fetchend', slicesFetched =>
-      dcpConfig.worker.leavePublicGroup = !!slicesFetched);
+      dcpConfig.worker.leavePublicGroup = Boolean(slicesFetched > 0));
 
   /* Let incorrect event-loop references keep us alive when linked with a debug library, but
    * exit quickly/accurately for production code even when the library isn't perfect.
