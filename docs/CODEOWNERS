@@ -1,0 +1,36 @@
+# @file    CODEOWNERS - Defines who develops and maintains a feature, and own
+#          the resulting files or directories in the repository.
+#
+#          See https://docs.gitlab.com/ee/user/project/code_owners.html
+#
+# @author  Bryan Hoang <bryan@distributive.network>
+# @date    August 2022
+
+# Username mapping:
+# @wesgarland -> Wes Garland <wes@distributive.network>
+
+
+[]
+
+[Brandon]
+
+[Eddie]
+/package-lock.json @eroosenmaallen
+
+[Wes]
+/README.md @wesgarland
+/docs/ @wesgarland
+/.eslintrc.json @wesgarland
+/.tidelift @wesgarland
+/lib/ @wesgarland
+/LICENSE.md @wesgarland
+/.gitignore @wesgarland
+/etc/ @wesgarland
+/.gitlab-ci.yml @wesgarland
+/bin/ @wesgarland
+/etc/ @wesgarland
+/lib/ @wesgarland
+/bin/ @wesgarland
+
+[Wes or Eddie]
+/package.json @wesgarland @eroosenmaallen

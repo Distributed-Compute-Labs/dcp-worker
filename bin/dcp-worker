@@ -9,46 +9,43 @@
 'use strict';
 
 const process = require('process');
-const os = require('os');
-const fs = require('fs');
+const os      = require('os');
+const fs      = require('fs');
+const crypto  = require('crypto');
+const chalk   = require('chalk');
 
-// Set to true to try to understand unhandled rejection.
-const ANALYZE_UNHANDELD_REJECTION = false;
-
-// Set default location for pid file
-let DEFAULT_PID_LOC;
-if (fs.existsSync('/var/dcp/run'))
-  DEFAULT_PID_LOC = '/var/dcp/run/';
-else if (fs.existsSync('/var/run'))
-  DEFAULT_PID_LOC = '/var/run/';
-else
-  DEFAULT_PID_LOC = os.tmpdir();
-
+const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
 const TOTAL_CPU_VCORES = os.cpus().length;
-const DEFAULT_CORES = TOTAL_CPU_VCORES - 1;
 var worker, dcpConfig;
 
-const EXIT_CLEAN           = 0;   // normal exit, no error
-const EXIT_SIGQUIT         = 2;   // received SIGQUIT
-const EXIT_ERROR_STOPPING  = 3;   // failed to stop worker, no other error
-const EXIT_TIMED_OUT       = 4;   // failed to exit after requesting graceful exit
-const EXIT_UNHANDLED       = 5;   // unhandled rejection
+const EXIT_UNHANDLED = 5;
 
+/* Setup the telnet REPL up early to ensure early-failure log messages are captured */
+const replHelpers = {
+  help: {
+    report: 'Print a worker status & slice report',
+    kill: 'Try to kill the worker',
+    die:  'Kill the worker',
+  },
+  commands: {
+    report: printReport,
+    kill:   process.exit,
+    die:    () => worker && worker.stop()
+  },
+};
+require('../lib/remote-console').init(replHelpers);
 
-process.on('unhandledRejection', (error) => {
-  console.error('Unhandled rejection:', error);
-});
+/* Initialize dcp-client with local config defaults and run the main function. DCP_CONFIG_COOKIE becomes dcpConfig.cookie. */
+process.env.DCP_CONFIG_COOKIE = (Math.random().toString(16)).slice(2) + '-' + process.pid + '-' + Date.now();
+require('dcp-client').init({ configName }).then(main).catch(handleUnhandled);
 
-async function main () {
-  if (!ANALYZE_UNHANDELD_REJECTION)
-    process.on('unhandledRejection', unhandledRejectionHandler);
-
-  await require('dcp-client').init({
-    configName: '../etc/dcp-config',
-  });
-
+function parseCliArgs()
+{
+  var defaultPidFileName;
+  
   dcpConfig = require('dcp/dcp-config');
-
+  defaultPidFileName = require('../lib/pidfile').getDefaultPidFileName(dcpConfig.worker.pidfile);
+  
   const cliArgs = require('dcp/cli')
   .base('Standalone NodeJS DCP Worker')
     .options({
@@ -60,7 +57,7 @@ async function main () {
         alias: 'c',
         describe: 'Number of cores to work with',
         type: 'number',
-        default: DEFAULT_CORES,
+        default: TOTAL_CPU_VCORES - 1,
       },
       verbose: {
         alias: 'v',
@@ -87,7 +84,7 @@ async function main () {
         alias: 'p',
         describe: 'Evaluator port',
         type: 'number',
-        default: Number(dcpConfig.evaluator.location.port),
+        default: Number(dcpConfig.evaluator.listen.port),
       },
       priorityOnly: {
         alias: 'P',
@@ -171,11 +168,6 @@ async function main () {
         type: 'array'
       },
 
-      replPort: {
-        describe: 'If set, open a REPL on specified TCP port',
-        type: 'number',
-        default: undefined,
-      },
       watchdogInterval: {
         alias: 'W',
         describe: 'Number of milliseconds between watchdog cycles',
@@ -187,9 +179,9 @@ async function main () {
         type: 'boolean',
         hidden: true,
       },
-      pidFileLoc: {
+      pidFile: {
         alias: 'f',
-        describe: 'If set, location to generate the worker pid file',
+        describe: `create a .pid file for the worker; value overrides default location (${defaultPidFileName})`,
         normalize: true
       },
     })
@@ -200,140 +192,138 @@ async function main () {
   if (cliArgs.dumpConfig)
   {
     console.debug(JSON.stringify(require('dcp/dcp-config'), null, 2));
-    process.exit(1);
+    process.exit(0);
   }
 
-  return startWorking(cliArgs);
+  return cliArgs;
 }
-
-// Preserve console.error, the dashboard replaces it with a custom logger
-const logError = console.error;
-main()
-.then(exitcode => process.exit(exitcode || 0))
-.catch(e => {
-  logError("Script failed:");
-  logError(e);
-  process.exit(1);
-});
 
 // Imperfect, but handles CG { joinKey, joinHash }.
 function isHash(b) {
   return b && b.length === 68 && b.startsWith('eh1-');
 }
 
-async function startWorking(cliArgs) {
-  //console.log('cliArgs', cliArgs);
+/**
+ * Add one or more configuration objects into a target via leaf-merging.
+ */
+function addConfig(target, ...objs)
+{
+  const { leafMerge } = require('dcp/utils');
+  var tmp = target;
+
+  for (let obj of objs)
+    tmp = leafMerge(tmp, obj);
+
+  Object.assign(target, tmp);
+}
+
+/**
+ * Main program entry point. Assumes DCP client is already initialized and console logging is ready.
+ */
+async function main()
+{
   const wallet = require('dcp/wallet');
   const DCPWorker = require('dcp/worker').Worker;
   const { startWorkerLogger } = require('../lib/startWorkerLogger');
+  const cliArgs = parseCliArgs();
   const sawOptions = {
     hostname: cliArgs.hostname,
     port:     cliArgs.port
   };
 
-  let paymentAddress;
-  if (cliArgs.paymentAddress)
-    paymentAddress = new wallet.Address(cliArgs.paymentAddress);
-  else
-    paymentAddress = (await wallet.get()).address;
+  verifyDefaultConfigIntegrity();
 
-  if (cliArgs.pidFileLoc)
-    memoizePid(cliArgs.pidFileLoc)
+  process.on('SIGINT', handleSigDeath);
+  process.on('SIGTERM', handleSigDeath);
+  process.on('SIGQUIT', handleSigDeath);
+  process.on('unhandledRejection', handleUnhandled);
+  process.on('uncaughtException', handleUnhandled);
 
-  // Different ways to get the identity: 
+  let paymentAddress = false
+      || cliArgs.paymentAddress
+      || dcpConfig.worker.paymentAddress
+      || (await wallet.get()).address;
+  if (typeof paymentAddress === 'string')
+    paymentAddress = new wallet.Address(paymentAddress);
+    
+  if (cliArgs.pidFile)
+    require('../lib/pidfile').write(cliArgs.pidFile);
+
+  /* Figure out of the worker's identity and put that keystore in the wallet */
   let identityKeystore = false;
-
   if (cliArgs.identityKey)
     identityKeystore = await new wallet.IdKeystore(cliArgs.identityKey, '');
   else if (cliArgs.identityKeystore)
     identityKeystore = await new wallet.IdKeystore(JSON.parse(cliArgs.identityKeystore), '');
   else
     identityKeystore = await wallet.getId();
-
-  // Set the provided identity as the wallet's default
   await wallet.addId(identityKeystore);
 
-
-  if (typeof dcpConfig.worker.unhandledRejectionCleanupTimeout !== 'undefined')
-    unhandledRejectionHandler.timeout = dcpConfig.worker.unhandledRejectionCleanupTimeout;
-
-  // Leave the public compute group, if desired
-  if (cliArgs.leavePublicGroup || cliArgs.publicGroupFallback)
-    dcpConfig.worker.leavePublicGroup = true;
-
-
-  // The exitGuard will hold an "exit" method, and a Promise to await for
-  // the exit code passed to exitGuard.exit()
-  let exitcode = EXIT_CLEAN;
-  const exitGuard = {
-    promise: Promise.resolve(0),                     // will be overwritten when worker starts
-    exit(code) { process.exit(code||exitcode||0) },  // will be overwritten when worker starts
-  };
-  process.on('SIGQUIT', () => {
-    exitcode = EXIT_SIGQUIT;
-    cliArgs.verbose >= 1 && console.info(`240: Caught SIGQUIT; exiting worker with exitcode ${exitcode}`);
-    exitGuard.exit(exitcode);
-  });
-
-
-  /** @type {string[]} */
+  /* Build the worker options, which are largely given by dcpConfig.worker. We use a reference for 
+   * dcpConfig.worker rather than copying it, so that runtime modifications to the worker configuration
+   * in memory take effect immediately.
+   *
+   * forceOptions override any setting in dcpConfig; this can be used for settings calculated above
+   * which were derived from dcpConfig in the first place. defaultOptions are overrideable by the usual
+   * dcpConfig mechanisms, but since they are dynamic (or non-user-facing) they don't come from the
+   * etc/dcp-worker-config.js file that ships with the work.
+   */
   const dcpWorkerOptions = dcpConfig.worker;
-
-  Object.assign(dcpWorkerOptions, {
+  const forceOptions = {
     paymentAddress,
+    leavePublicGroup: cliArgs.leavePublicGroup || dcpConfig.worker.leavePublicGroup || cliArgs.publicGroupFallback || false,
     maxWorkingSandboxes: cliArgs.cores,
-    cores:               { cpu: TOTAL_CPU_VCORES, gpu: undefined }, /** XXXpfr @todo: Figure out how many gpus. */
-    targetLoad:          { cpu: 1.0, gpu: 1.0 }, /** Use 100%: XXXpfr @todo Allow command-line override. */
+  };
+  const defaultOptions = {
     sandboxOptions: {
       SandboxConstructor: require('dcp-client/lib/standaloneWorker').workerFactory(sawOptions)
     },
-    computeGroups: [], /* public group is implied */
-    leavePublicGroup: cliArgs.leavePublicGroup || dcpConfig.worker.leavePublicGroup,
-  });
+  };
+
+  addConfig(dcpWorkerOptions, defaultOptions, dcpConfig.worker, forceOptions);
 
   /* cliArgs.join is the list of compute groups to join */
   if (cliArgs.join && cliArgs.join.length)
   {
-    dcpWorkerOptions.computeGroups = cliArgs.join
+    const cliComputeGroups = cliArgs.join
       .map((el) => {
         /* Map cliArgs.join to give us [{ joinKey, joinSecret/joinHash }...] */
         const [a, b] = el.split(',');
         return isHash(b) ? { joinKey: a, joinHash: b } : { joinKey: a, joinSecret: b };
       })
       .filter((el) => el.joinKey); /* Filter out entries with no joinKey */
-    //console.log(dcpWorkerOptions.computeGroups);
+
+    addConfig(dcpWorkerOptions.computeGroups, dcpWorkerOptions.computeGroups, cliComputeGroups);
   }
-  
+
   if (cliArgs.jobId)
   {
-    dcpWorkerOptions.jobAddresses = cliArgs.jobId;
+    dcpWorkerOptions.jobAddresses.push(...cliArgs.jobId);
     dcpWorkerOptions.priorityOnly = true;
   }
+
   if (cliArgs.allowedOrigins)
-    dcpConfig.worker.allowOrigins.any.push(...cliArgs.allowedOrigins);
+  {
+    if (!dcpWorkerOptions.allowOrigins)
+      dcpWorkerOptions.allowOrigins = {};
+    if (!dcpWorkerOptions.allowOrigins.any)
+      dcpWorkerOptions.allowOrigins.any = [];
+    dcpWorkerOptions.allowOrigins.any.push(...cliArgs.allowedOrigins);
+  }
   if (cliArgs.watchdogInterval)
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
 
-    worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
+  worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
+  worker.on('error', console.error);
+  worker.on('warning', console.warn);
 
-  /**
-   * NOTE: In Supervisor2 this function is a NOOP.
-   * When (and if) we stop using Supevisor1, delete this reference to setDefaultIdentityKeystore
-   * and delete the corresponding fucntion from Supervisor2.
-   *
-   * startWorkerLogger needs to be called before the worker is started so that
-   * it can attach event listeners before the events fire, else UI events for
-   * things such as progress will never get attached.
-   *
-   * setDefaultIdentityKeystore needs to be called before the logger because it
-   * tries access the identity of the worker before it has started, i.e. where
-   * it sets its identity, throwing an assertion error.
-   *
-   * FIXME(bryan-hoang): This is a fragile solution that is too coupled with the
-   * implementation of the worker that should be addressed in Supervisor 2
+  /* Let incorrect event-loop references keep us alive when linked with a debug library, but
+   * exit quickly/accurately for production code even when the library isn't perfect.
    */
-  await worker.supervisor.setDefaultIdentityKeystore();
-
+  if (require('dcp/build').config.build !== 'debug')
+    worker.on('end', process.exit);
+  else
+    worker.on('end', () => setTimeout(process.exit, getCleanupTimeoutMs()).unref());
 
   if (cliArgs.eventDebug)
   {
@@ -341,44 +331,11 @@ async function startWorking(cliArgs) {
     worker.supervisor.debug = true;
   }
 
+  worker.on('stop', () => { console.log('Worker is stopping') });
+  worker.on('end',  () => { logClosing('log', 'Worker has stopped') });
+  startWorkerLogger(worker, cliArgs);
 
-  // if the worker stops internally (eg. schedmsg stop), then exit without
-  // changing the saved exitcode
-  worker.on('stop', () => {
-    exitGuard.exit();
-  });
-
-
-  startWorkerLogger(worker, {
-    exitGuard,
-    verbose: cliArgs.verbose,
-    outputMode: cliArgs.outputMode,
-
-    logfile: cliArgs.logfile,
-
-    syslogAddress: cliArgs.syslogAddress,
-    syslogTransport: cliArgs.syslogTransport,
-    syslogPort: cliArgs.syslogPort,
-  });
-
-  try
-  {
-    require('../lib/remote-console').init(cliArgs.replPort, {
-      help: {
-        report: 'Print a worker status & slice report',
-        kill: 'Kill the worker',
-      },
-      commands: {
-        report: printReport,
-        kill: exitcode => exitGuard.exit(exitcode),
-      },
-    });
-    require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) });
-  }
-  catch (error)
-  {
-    console.warn('350: Failed to initialize remote console:', error.message);
-  }
+  require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) });
 
   let introBanner = '';
   introBanner += ` * Starting DCP Worker` + '\n';
@@ -395,7 +352,7 @@ async function startWorking(cliArgs) {
       plural = singular + 's';
     if (!amount)
       return plural;
-    if (amount == 1)
+    if (Number(amount) === 1)
       return singular;
     return plural;
   }
@@ -417,229 +374,76 @@ async function startWorking(cliArgs) {
   introBanner += ' . ready' + '\n';
 
   console.log(introBanner);
-
   require('../lib/check-scheduler-version').check();
-
-
-  /** print the slice report via console.log */
-  function printReport()
-  {
-    console.log(sliceReport());
-  }
-
-  /** retrieve a slice report screen */
-  function sliceReport()
-  {
-    const sup = worker.supervisor;
-    let report = '';
-
-    report += ('='.repeat(78)) + '\n';
-
-    const sbStates = {
-      WORKING: 0,
-      ASSIGNED: 0,
-      READY: 0,
-      TERMINATED: 0,
-    };
-    const stateNames = {
-      WORKING: 'Working',
-      ASSIGNED: 'Assigned',
-      READY: 'Ready',
-      TERMINATED: 'Terminated',
-    };
-    sup.sandboxes.forEach(sb => {
-      const { state } = sb;
-      if (!sbStates[state])
-        sbStates[state] = 0;
-      sbStates[state]++;
-    });
-
-    report += (Date()) + '\n';
-    report += ('Sandboxes:') + '\n';
-    Object.keys(sbStates).forEach(state => {
-      const stateName = stateNames[state] || state;
-      report += (`  ${(stateName + ':').padEnd(12)} ${sbStates[state]}`) + '\n';
-    })
-    report += (`  * ALL:       ${sup.sandboxes.length}`) + '\n';
-
-    report += ('Progress:') + '\n';
-    sup.workingSandboxes.forEach(sb => {
-      const jobName = sb.job && sb.job.public && sb.job.public.name || `idek (${sb.jobAddress})`;
-      let el = Date.now() - sb.sliceStartTime;
-      const t = el < 1000000
-        ? toInterval(el)
-        : 'new';
-
-      el = sb.progressReports && sb.progressReports.last
-        ? Date.now() - (sb.sliceStartTime + sb.progressReports.last.timestamp)
-        : 0;
-      const pct = (typeof sb.progress) === 'number'
-        ? `${Number(sb.progress).toFixed(0).padStart(2)}%`
-        : 'ind';
-      const stale = (el < 2000) ? '' : `(stale: ${toInterval(el)})`;
-
-      report += (` ${String(sb.id).padStart(4)}: ${sb.jobAddress} ${jobName.padEnd(34)} `+ `${t} ${pct} ${stale}`.padStart(13)) + '\n';
-    });
-
-    report += ('Slices:') + '\n';
-    report += (`  working:     ${sup.allocatedSlices.length}`) + '\n';
-    report += (`  queued:      ${sup.queuedSlices.length}`) + '\n';
-
-    report += ('='.repeat(78)) + '\n';
-
-    return report;
-  }
-
-  /**
-   *  Convert a timespan in ms to a human-readable interval in minutes and seconds
-   *
-   *  @param  {number} el Milliseconds to convert
-   *  @return {string}    Timespan formatted as `m:ss`
-   */
-  function toInterval(el)
-  {
-    const m = Math.floor((el / 1000) / 60).toString(10);
-    const s = Math.floor((el / 1000) % 60).toString(10).padStart(2, '0');
-    return `${m}:${s}`;
-  }
 
   if (parseFloat(cliArgs.reportInterval))
   {
     if (cliArgs.outputMode !== 'dashboard')
-      setInterval(printReport, parseFloat(cliArgs.reportInterval) * 1000);
+      setInterval(printReport, parseFloat(cliArgs.reportInterval) * 1000).unref();
     else
       console.log('Ignoring --reportInterval in dashboard output mode');
   }
 
-
-  // Set the exit guard - this method can be called by signal and exception
-  // handlers
-  exitGuard.promise = new Promise(resolve => {
-    exitGuard.exit = resolve;
-  });
-
-
+  /* Start the worker. Normal process exit happens by virtue of the worker<end> event */
   await worker.start();
-
-  exitcode = await exitGuard.promise;
-
-  cliArgs.verbose >= 1 && console.log(`418: exit guard called with ${exitcode}`);
-
-  const exitTimeAllowed = 30;   // seconds to allow for worker to stop gracefully
-  const forceExitTimeout = setTimeout(() => {
-    console.error(`396: Worker failed to exit within ${exitTimeAllowed} seconds; terminating forcibly.`);
-    process.exit(exitcode || EXIT_TIMED_OUT)
-  }, exitTimeAllowed * 1000);
-
-  await worker.stop(true)
-  .catch(error => {
-    if (error.message.includes('Already stopped'))
-      return;
-    console.error('255: Unexpected error stopping worker:',
-      error.code
-      ? `${error.code}: ${error.message}`
-      : error.message);
-    exitcode = exitcode || EXIT_ERROR_STOPPING;
-  });
-
-  clearTimeout(forceExitTimeout);
-
-  return exitcode;
 }
 
-// Create the PID file for the worker
-function memoizePid(dir)
+/**
+ * Log a closing message (or messages). Since the dashboard clears the screen on exit, we use the
+ * memoized console property to log the message after we destroy the instance of screen.
+ */
+function logClosing(facility, ...message) 
 {
-  const path = require('path');
-  const program = path.basename(require.main.filename, '.js');
-  let location;
-  let filename;
+  var screen = require('../lib/worker-loggers/dashboard').screen;
 
-  if (dir.length && dir.length > 0)
-  {
-    location = path.dirname(dir);
-    if (fs.existsSync(dir))
-    {
-      if (fs.statSync(dir).isDirectory())
-        filename = program;
-      else
-      {
-        console.warn('Previous PID file was not cleaned up');
-        filename = path.basename(dir);
-      }
-    }
-    else if (dir.endsWith(path.sep))
-      filename = program;
-    else
-      filename = path.basename(dir);
-  }
+  if (!screen)
+    console[facility](message);
   else
   {
-    location = DEFAULT_PID_LOC;
-    filename = program;
+    /* Turn off fullscreen TUI and resume "normal" console logging.
+     * FUTURE: dashboard API should know how to unregister its hook so that we don't have to clobber
+     *         it here.
+     */
+    screen.log(...message);
+    screen.destroy();
+    screen = false;
+    console = new (require('console').Console)(process);
+    require('../lib/remote-console').reintercept();
+    console[facility](...message);
   }
-
-  const pidfile = path.join(
-    location,
-    filename + '.pid'
-  )
-  try
-  {
-    if (fs.existsSync(pidfile))
-    {
-      const oldPid = fs.readFileSync(pidfile, 'utf8')
-      console.warn(`Warning: Previous invocation${oldPid.length ? ' pid#' + parseInt(String(oldPid)) : ''} did not remove ${pidfile}`);
-    }
-    else
-      memoizePid.fd = fs.openSync(pidfile, 'wx');
-
-    fs.writeSync(memoizePid.fd, Buffer.from(process.pid + '\n'), 0);
-  }
-  catch (error)
-  {
-    console.warn(`Warning: Could not create pidfile at ${pidfile} (${error.code || error.message})`);
-    
-    if (typeof memoizePid.fd === 'number')
-    {
-      fs.closeSync(memoizePid.fd);
-      delete memoizePid.fd;
-    }
-    return;
-  }
-
-  
-
-  function exitHandler()
-  {
-    try
-    {
-      fs.unlinkSync(pidfile);
-      fs.closeSync(memoizePid.fd);
-      delete memoizePid.fd;
-    }
-    catch (error)
-    {
-      console.warn(`Warning: Could not remove pidfile at ${pidfile} (${error.code})`);
-    }
-  }
-  
-  // Cleanup PID file
-  process.on('dcpExit', exitHandler);
 }
 
 /** 
- * Unhandled rejection handler: __must not ever throw no matter what__.
- * If we hit an unhandled rejection, we are by definition no longer confident of our program state, meaning that
+ * Fatal error handler: __must not ever throw no matter what__.
+ * If we hit a fatal error, we are by definition no longer confident of our program state, meaning that
  * the worker must be restarted. This handler does its best to report the rejection and give the worker a few
  * seconds in which to attempt to return slices to the scheduler before it gives up completely.
  */
-async function unhandledRejectionHandler (error) {
-  let _worker = worker;
+async function handleUnhandled(error)
+{
+  var _worker = worker;
+  worker = false;
+
+  process.exitCode = process.exitCode || EXIT_UNHANDLED;
   
-  if (!worker)
-    return;
+  try
+  {
+    logClosing(error);
+  } catch(e) {};
+
+  if (!_worker)
+    console.error('trapped unhandled error:', error)
   else
-    worker = false;
+  {
+    console.error('trapped unhandled error -- stopping worker:', error);
+    _worker.on('end', process.exit);
+    _worker.stop();
+  }
+
+  setTimeout(() => {
+    logClosing('error', 'handleFatalError timeout - exiting now');
+    process.exit();
+  }, getCleanupTimeoutMs()).unref();
 
   try {
     let log = dcpConfig && dcpConfig.worker && dcpConfig.worker.unhandledRejectionLog;
@@ -649,37 +453,184 @@ async function unhandledRejectionHandler (error) {
                         `${Date.now()}: ${error.message}\n${error.stack}\n\n`);
     }
   } catch(e) {};
+}
 
-  try {
-    let screen = require('../lib/worker-loggers/dashboard').screen;
+/** print the slice report via console.log */
+function printReport()
+{
+  console.log(sliceReport());
+}
 
-    if (screen) {
-      screen.log(error.message + '\n' + error.stack);
-      screen.destroy();
-      logError(error.message + '\n' + error.stack);
-    } else {
-      console.error('Unhandled rejection - preparing to exit:', error.message);
-    }
-  } catch(e) {};
-  
-  function bail(exitCode) {
-    try {
-      const util = require('util');
-      process.stderr.write('\nWorker stop timeout; bailing due to earlier unhandled rejection:\n');
-      process.stderr.write(util.inspect(error) + '\n');
-    } catch(e) {
-      console.error(error);
-    }
-    process.exit(exitCode || EXIT_UNHANDLED);
+/**
+ *  Convert a timespan in ms to a human-readable interval in minutes and seconds
+ *
+ *  @param  {number} el Milliseconds to convert
+ *  @return {string}    Timespan formatted as `m:ss`
+ */
+function toInterval(el)
+{
+  const m = Math.floor((el / 1000) / 60).toString(10);
+  const s = Math.floor((el / 1000) % 60).toString(10).padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+/** retrieve a slice report screen */
+function sliceReport()
+{
+  const sup = worker.supervisor;
+  let report = '';
+
+  report += ('='.repeat(78)) + '\n';
+
+  const sbStates = {
+    WORKING: 0,
+    ASSIGNED: 0,
+    READY: 0,
+    TERMINATED: 0,
+  };
+  const stateNames = {
+    WORKING: 'Working',
+    ASSIGNED: 'Assigned',
+    READY: 'Ready',
+    TERMINATED: 'Terminated',
+  };
+  sup.sandboxes.forEach(sb => {
+    const { state } = sb;
+    if (!sbStates[state])
+      sbStates[state] = 0;
+    sbStates[state]++;
+  });
+
+  report += (Date()) + '\n';
+  report += ('Sandboxes:') + '\n';
+  Object.keys(sbStates).forEach(state => {
+    const stateName = stateNames[state] || state;
+    report += (`  ${(stateName + ':').padEnd(12)} ${sbStates[state]}`) + '\n';
+  })
+  report += (`  * ALL:       ${sup.sandboxes.length}`) + '\n';
+
+  report += ('Progress:') + '\n';
+  sup.workingSandboxes.forEach(sb => {
+    const jobName = sb.job && sb.job.public && sb.job.public.name || `idek (${sb.jobAddress})`;
+    let el = Date.now() - sb.sliceStartTime;
+    const t = el < 1000000
+          ? toInterval(el)
+          : 'new';
+
+    el = sb.progressReports && sb.progressReports.last
+      ? Date.now() - (sb.sliceStartTime + sb.progressReports.last.timestamp)
+      : 0;
+    const pct = (typeof sb.progress) === 'number'
+          ? `${Number(sb.progress).toFixed(0).padStart(2)}%`
+          : 'ind';
+    const stale = (el < 2000) ? '' : `(stale: ${toInterval(el)})`;
+
+    report += (` ${String(sb.id).padStart(4)}: ${sb.jobAddress} ${jobName.padEnd(34)} `+ `${t} ${pct} ${stale}`.padStart(13)) + '\n';
+  });
+
+  report += ('Slices:') + '\n';
+  report += (`  working:     ${sup.allocatedSlices.length}`) + '\n';
+  report += (`  queued:      ${sup.queuedSlices.length}`) + '\n';
+
+  report += ('='.repeat(78)) + '\n';
+
+  return report;
+}
+
+/**
+ * Handle a signal which requests our the death of the Worker by 
+ *  - stopping the worker
+ *  - unregistering the handler (this allows a second signal to forcibly terminate the process
+ *    if that is the default behaviour)
+ *  - set a long timeout (dcpConfig.worker.cleanupTimeout seconds), after which the process
+ *    exits forcibly with a non-zero exit code (unix standard for various signals)
+ */
+function handleSigDeath(signalName, signal)
+{
+  process.off(signalName, handleSigDeath);
+
+  if (!worker)
+    console.error(`trapped ${signalName}, signal ${signal}`);
+  else
+  {
+    console.error(`trapped ${signalName}, signal ${signal} -- stopping worker`);
+    worker.stop();
   }
-  setTimeout(bail, 1000 * unhandledRejectionHandler.timeout);
 
-  try {
-    await _worker.stop(true);
-  } catch(e) {
-    console.log('Error during worker.stop:', e);
+  setTimeout(() => process.exit(signal - 128), getCleanupTimeoutMs()).unref();
+}
+
+/**
+ * Returns the duration of the cleanup timeout in milliseconds. It is possible to specify zero.
+ */
+function getCleanupTimeoutMs()
+{
+  const defaultCT = 60;
+  var cleanupTimeout = dcpConfig.worker.cleanupTimeout;
+
+  if (typeof cleanupTimeout === 'undefined')
+    cleanupTimeout = defaultCT;
+  if (typeof cleanupTimeout !== 'number')
+    cleanupTimeout = Number(cleanupTimeout)
+  if (isNaN(cleanupTimeout))
+  {
+    cleanupTimeout = defaultCT;
+    if (!getCleanupTimeoutMs.warned)
+    {
+      console.warn(`warning: dcpConfig.worker.cleanupTimeout is not a number (${dcpConfig.worker.cleanupTimeout})`);
+      getCleanupTimeoutMs.warned = true;
+    }
+  }
+  return cleanupTimeout * 1000;
+}
+
+/**
+ * Ensure the default configuration hasn't been modified by the end-user-sysadmin. It is an 
+ * attractive nuisance, as it looks just like the file they should modify, but if they make
+ * security changes there that are overwritten in an subsequent update, it will be a problem.
+ *
+ * Every time a new package is generated, the default config file has its md5 checksum recorded
+ * via the pack npm hook; all we do is make sure it hasn't changed.
+ */
+function verifyDefaultConfigIntegrity()
+{
+  const workerConfPath = require('dcp-client').__cn;
+  const md5sumPath = workerConfPath + '.md5';
+
+  if (!fs.existsSync(md5sumPath))
+  {
+    console.log(chalk.bold.red(` ! warning: ${md5sumPath} not found; cannot verify configuration integrity`));
+    require('dcp/utils').sleep(2);
+  }
+  else
+  {
+    const originalMd5sum = fs.readFileSync(md5sumPath, 'ascii');
+    const actualMd5sum = crypto.createHash('md5')
+          .update(fs.readFileSync(workerConfPath, 'ascii'))
+          .digest('hex');
+
+    if (!originalMd5sum.startsWith(actualMd5sum))
+    {
+      console.warn(chalk.yellow(` ! Detected modified ${workerConfPath};`));
+      console.warn(' . DCP Worker configuration changes should not be made by updating the default');
+      console.warn('   config, as that file will be overwritten on the next npm update. Instead,');
+      console.warn('   make changes via one of the following locations:');
+      console.warn('    - ~/.dcp/dcp-worker/dcp-config.js');
+      console.warn('    - /etc/dcp/dcp-worker/dcp-config.js');
+      console.warn('    - /etc/override/dcp/dcp-worker/dcp-config.js');
+      console.warn('    - the Windows Registry');
+
+      if (require('dcp/build').config.build !== 'debug')
+        process.exit(1);
+
+      console.log(chalk.bold.red.inverse("If this wasn't a debug build, the worker would exit now."));
+      require('dcp/utils').sleep(2);
+    }
   }
 
-  setImmediate(() => bail(EXIT_UNHANDLED));
-};
-unhandledRejectionHandler.timeout = 5;
+  if (dcpConfig.cookie !== process.env.DCP_CONFIG_COOKIE || !dcpConfig.cookie)
+  {
+    console.error(' ! DCP Worker default configuration was not loaded; exiting.');
+    process.exit(1);
+  }
+}
