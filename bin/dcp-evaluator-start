@@ -279,6 +279,9 @@ function main() {
 
     process.exit(code);
   });
+
+  process.on('SIGINT',  () => process.kill(child.pid, 'SIGINT'));
+  process.on('SIGTERM', () => process.kill(child.pid, 'SIGTERM'));
 }
 
 /* Initialize dcp-client to use only local resources before launching the main function */
