@@ -8,8 +8,6 @@
  */
 'use strict';
 
-/* eslint-disable brace-style */
-
 const process = require('process');
 const fs      = require('fs');
 const crypto  = require('crypto');
@@ -63,12 +61,12 @@ function parseCliArgs()
       cores: {
         alias: 'c',
         describe: 'Number of CPU and GPU cores to work with: the format is 7,1 (or just 7) for 7 CPU cores and 1 GPU',
-        type: 'array',
+        type: 'string',
       },
       density: {
         alias: 'd',
         describe: 'What proportion of CPU and GPU to use: the format is 80,50 (or just 80) for 80% of CPU and 50% of GPU',
-        type: 'array',
+        type: 'string',
       },
       verbose: {
         alias: 'v',
@@ -375,9 +373,9 @@ async function main()
     return plural;
   }
 
-  if (dcpWorkerOptions.jobAddresses && dcpWorkerOptions.jobAddresses.length > 0)
+  if (dcpWorkerOptions.jobAddresses?.length > 0)
     introBanner += ` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')} ` + dcpWorkerOptions.jobAddresses.join(', ') + '\n';
-  if (dcpWorkerOptions.computeGroups && dcpWorkerOptions.computeGroups.length > 0)
+  if (dcpWorkerOptions.computeGroups?.length > 0)
     introBanner += ` * Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')} ` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', ') + '\n';
   if (dcpWorkerOptions.publicGroupFallback)
     introBanner += ' * Falling back on public group when preferred groups have no work' + '\n';
@@ -426,26 +424,10 @@ function processCoresAndDensity (dcpWorkerOptions, cliArgs)
   };
 
   const processArg = (which) => {
-    if (!cliArgs[which] || cliArgs[which].length < 1)
+    if (!cliArgs[which])
       return false;
 
-    if (cliArgs[which].length > 1)
-      throw new Error(`${which} was specified more than once on the commandline: ${JSON.stringify(cliArgs[which])}`);
-
-    console.log('cliArgs[which]', cliArgs[which], typeof cliArgs[which]);
-
-    let cpu, gpu;
-    const option = cliArgs[which];
-    if (typeof option === 'number')
-      cpu = option;
-    else
-    {
-      const array = option[0];
-      if (typeof array === 'number') // backward compatible
-        cpu = array;
-      else
-        ([cpu, gpu] = array.split(','));
-    }
+    const [cpu, gpu] = cliArgs[which].split(',');
 
     dcpWorkerOptions.density = null; // Command line overrides config.
     dcpWorkerOptions.cores = null;   // Command line overrides config.
