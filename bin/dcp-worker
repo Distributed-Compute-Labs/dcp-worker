@@ -609,7 +609,7 @@ function handleSigDeath(signalName, signal)
   else
   {
     console.error(`trapped ${signalName}, signal ${signal} -- stopping worker`);
-    worker.stop();
+    worker.stop(signalName === 'SIGQUIT');
   }
 
   setTimeout(() => process.exit(signal - 128), getCleanupTimeoutMs()).unref();
