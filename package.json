@@ -46,7 +46,7 @@
     "telnet-console": "^1.0.4"
   },
   "devDependencies": {
-    "@kingsds/eslint-config": "1.0.1",
+    "@kingsds/eslint-config": "^1.0.1",
     "eslint": "7.30.0"
   }
 }
