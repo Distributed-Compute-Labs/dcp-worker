@@ -48,7 +48,7 @@
       // keystore('~/.dcp/scott'),
     ],
 
-    jobAddresses: [],               /* If specified, restrict the worker to only these jobs */
+    jobAddresses: false,               /* If specified, restrict the worker to only these jobs */
     paymentAddress: undefined,      /* Bank account where earned funds are transfered if not specified on command-line */
   },
 
