@@ -315,8 +315,8 @@ async function main()
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
 
   worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
-  worker.on('error', console.error);
-  worker.on('warning', console.warn);
+  worker.on('error', (...payload) => console.error(...payload));
+  worker.on('warning', (...payload) => console.warn(...payload));
 
   /* Let incorrect event-loop references keep us alive when linked with a debug library, but
    * exit quickly/accurately for production code even when the library isn't perfect.
