@@ -23,7 +23,10 @@ const dns    = require('dns');
 const debug  = require('debug');
 const getopt = require('posix-getopt');
 
-var noActivity = {}; /* all props true => okay to launch evaluator */
+var userActivity = { /* no props true => okay to launch evaluator */
+  screensaver: true,
+  session:     true,
+};
 var children;
 var seq = 0;
 var ptsDir = '/dev/pts';
@@ -36,7 +39,7 @@ const daemonConfig = {
   argv: [ '-s', '--prefix', `${path.resolve(defaultPrefix)}/` ],
 };
 const sessionConfig = {
-  idlePoll:    15, /* s between checks*/
+  idlePoll:    3,  /* s between checks*/
   idleTimeout: 30, /* s to decide the session really IS idle */
 }
 
@@ -57,7 +60,7 @@ Where:
  - --prefix specifies the directory where the DCP evaluator was installed
  - --pts specifies the location of the system's pseudo terminal (${ptsDir})
  - --disable-monitor=session disables monitoring of ssh/telnet/etc sessions
- - --disable-monitor-screensaver disables monitoring of the screensaver
+ - --disable-monitor=screensaver disables monitoring of the screensaver
 `);
 
   process.exit(0);
@@ -82,8 +85,6 @@ async function listenForConnections(config)
     process.exit(2);
   });
 
-  children = new (require('dcp/utils').Inventory)();
-
   server.listen({ host: hostaddr, port: config.net.port }, function daemonReady() {
     console.log('Listening for connections on', server._connectionKey);
     console.log('Evaluator command is', config.proc, config.argv);
@@ -91,7 +92,7 @@ async function listenForConnections(config)
 }
 
 /**
- * Check the state of the noActivity object to determine if there has been user activity
+ * Check the state of the userActivity object to determine if there has been user activity
  * on the system. If there has been, it returns a string of activity types. If there
  * hasn't, it returns false and we are clear to evaluate.
  */
@@ -99,15 +100,17 @@ function activity()
 {
   var active = [];
 
-  if (sessionConfig.alwaysOn) /* alwaysOn => pretend there is never any user activity */
-    return false;
-  
-  for (let prop in noActivity)
+  for (let prop in userActivity)
   {
-    if (noActivity[prop])
+    if (userActivity[prop])
       active.push(prop);
   }
 
+  if (active.length)
+    debug('dcp-evaluator-manager')('System is not idle; activity detected via', active.join(', '));
+  else
+    debug('dcp-evaluator-manager')('System is idle; checked', Object.entries(userActivity).filter(a => a[1] !== null).map(a => a[0]).join(', '));
+  
   return active.length ? active.join() : false;
 }
 
@@ -165,7 +168,7 @@ function handleConnection (socket, config)
   });
 
   child.stdout.on('data', function (data) {
-    debug('dcp-screensaver:network')('<', child.id, bufToDisplayStr(data), 93);
+    debug('dcp-evaluator-manager:network')('<', child.id, bufToDisplayStr(data), 93);
     socket.write(data)
   });
 
@@ -174,7 +177,7 @@ function handleConnection (socket, config)
   });
 
   socket.on('data', function (data) {
-    debug('dcp-screensaver:network')('>', child.id, bufToDisplayStr(data, 93));
+    debug('dcp-evaluator-manager:network')('>', child.id, bufToDisplayStr(data, 93));
 
     try
     {
@@ -206,10 +209,23 @@ function bufToDisplayStr (buf, limit)
  */
 function killChildren()
 {
+  if (!children.length)
+    return;
+
+  debug('dcp-evaluator-manager')(`Terminating all (${children.length}) running evaluators..`);
   for (let child of children)
   {
     debug('dcp-evaluator-manager')(`killing child ${child.pid}`);
-    child.kill('SIGKILL');
+    try
+    {
+      child.kill('SIGKILL');
+    }
+    catch(error)
+    {
+      /* Don't throw if process death race */
+      if (error.code !== 'ESRCH')
+        throw error;
+    }
   }
 }
 
@@ -241,7 +257,7 @@ async function dbusScreenSaverMonitor()
     }
     catch (error)
     {
-      debug('dcp-screensaver:dbus')('Could not acquire screensaver', ss + '; trying next', error);
+      debug('dcp-evaluator-manager:dbus')('Could not acquire screensaver', ss + '; trying next', error);
     }
   }
 
@@ -253,23 +269,26 @@ async function dbusScreenSaverMonitor()
 
   const ssActive = await iface.GetActive();
   debug('dcp-evaluator-manager')('Screen saver active:', ssActive);
-  noActivity.screensaver = ssActive;
+  userActivity.screensaver = ssActive ? false : 'active dbus screensaver (initial)';
 
+  /* screensaver not active => user activity */
   iface.on('ActiveChanged', function screenSaverChangeHandler(active) {
-    noActivity.screensaver = active;
+    userActivity.screensaver = active ? false : 'active dbus screensaver (change)';
+    debug('dcp-evaluator-manager')(`screen saver ${active ? 'started' : 'finished'} at`, new Date());
     if (activity())
       killChildren();
-    debug('dcp-evaluator-manager')(`screen saver ${active ? 'started' : 'finished'} at`, new Date());
   });
 
   console.log('Monitoring dbus messages for', iface.$name);
 }
 
-/* Activate screensaver monitor */
-function screensaverMonitor()
+/* Activate screensaver monitor. Promise resolves when the initial state has been figured out. */
+async function screensaverMonitor()
 {
-  if (noActivity.screensaver !== 'disabled')
-    return dbusScreenSaverMonitor();
+  if (userActivity.screensaver === null) /* disabled */
+    return;
+
+  return dbusScreenSaverMonitor();
 }
 
 /**
@@ -281,23 +300,22 @@ function sessionMonitor()
 {
   const myTTY = fs.realpathSync('/dev/stdout');
   
+  if (userActivity.session === null) /* disabled */
+    return;
+
   function checkSessions()
   {
     const recentMs = Date.now() - (sessionConfig.idleTimeout * 1000);
+    var latestMs;
 
-    if (!noActivity.screensaver)
-    {
-      debug('dcp-evaluator-manager:session')('skipping session manager checks, screensaver reported activity');
-      return;
-    }
-
-    noActivity.session = true;
+    userActivity.session = false;
     for (let dent of fs.readdirSync(ptsDir, { withFileTypes: true }))
     {
       if (!dent.isCharacterDevice())
         continue;
 
       const fullPath = path.join(ptsDir, dent.name);
+      debug('dcp-evaluator-manager:session')(`Checking TTY ${fullPath}`);
       if (fullPath == myTTY)
         continue;
 
@@ -307,12 +325,17 @@ function sessionMonitor()
         /* Experiment suggests atime involves reads and mtime includes writes. Using mtime so that 
          * tailing logs has anticipated result.
          */
-        noActivity.session = false;
+        userActivity.session = fullPath;
+        debug('dcp-evaluator-manager:session')(`TTY ${fullPath} is active`);
         break;
       }
+
+      if (latestMs < sb.atimeMs)
+        latestMs = sb.atimeMs;
     }
 
-    debug('dcp-evaluator-manager:session')(`session manager says we are ${noActivity.session ? 'idle' : 'busy'}`);
+    if (activity())
+      killChildren();
   }
 
   setInterval(checkSessions, sessionConfig.idlePoll * 1000);
@@ -371,7 +394,8 @@ async function main()
 
         if (what[0] === '=')
           what = what.slice(1);
-        noActivity[what] = 'disabled';
+        userActivity[what] = null; /* null => do not check for this */
+        debug('dcp-evaluator-manager')('!', what, 'monitor is disabled');
         break;
       }
 
@@ -381,9 +405,13 @@ async function main()
         break;
       }
 
-      case 'a':
+      case 'a': /* always on => disable everything */
       {
-        sessionConfig.alwaysOn = true;
+        for (let prop in userActivity)
+        {
+          if (userActivity.hasOwnProperty(prop))
+            userActivity[prop] = null;
+        }
         break;
       }
 
@@ -409,11 +437,10 @@ async function main()
     console.error('\n')
   })
 
-  if (!sessionConfig.alwaysOn)
-  {
-    await screensaverMonitor();
-    sessionMonitor();
-  }
+  children = new (require('dcp/utils').Inventory)();
+
+  await screensaverMonitor();
+  sessionMonitor();
 
   listenForConnections(daemonConfig);
 }
@@ -421,6 +448,7 @@ async function main()
 /* Initialize dcp-client to use only local resources before launching the main function */
 require('dcp-client').init({
   progName: 'dcp-worker',
+  parseArgv: false,
   configName: process.env.DCP_CONFIG || '../etc/dcp-worker-config',
   dcpConfig: {
     scheduler: { configLocation: false },
