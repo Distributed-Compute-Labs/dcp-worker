@@ -24,10 +24,10 @@
 
     /* Allow lists permitting supervisor network access beyond DCP messages to services */
     allowOrigins: {
-      fetchWorkFunctions: [ dcpConfig.scheduler.location.href ],
-      fetchArguments:     [ dcpConfig.scheduler.location.href ],
-      fetchData:          [ dcpConfig.scheduler.location.href ],
-      sendResults:        [ dcpConfig.scheduler.location.href ],
+      fetchWorkFunctions: [ dcpConfig.scheduler.location.origin ],
+      fetchArguments:     [ dcpConfig.scheduler.location.origin ],
+      fetchData:          [ dcpConfig.scheduler.location.origin ],
+      sendResults:        [ dcpConfig.scheduler.location.origin ],
       any:                [],
     },
 
