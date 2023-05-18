@@ -119,13 +119,14 @@ function parseCliArgs()
 
       leavePublicGroup: {
         type: 'boolean',
-        describe: 'Do not fetch slices from public compute group',
+        describe: 'Do not fetch slices from public compute group. Ignored if --publicGroupFallback is set',
         default: false,
       },
       publicGroupFallback: {
         describe: 'If set, worker will prefer private groups but fall back on the public group if no preferred work is available',
         type: 'boolean',
-        default: false,
+        default: 'false',
+        defaultDescription: false,
       },
 
       identityKey: {
@@ -352,6 +353,30 @@ async function main()
   startWorkerLogger(worker, cliArgs);
 
   require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) });
+
+  // Activate public group fallback
+  // If requested by CLI
+  // OR if requested by dcpConfig and not forbidden by the cli
+  if (cliArgs.publicGroupFallback
+      || (dcpConfig.worker?.leavePublicGroup === 'fallback'
+          && typeof cliArgs.publicGroupFallback !== false))
+  {
+    dcpWorkerOptions.publicGroupFallback = true;
+
+    // If local config blocks the public group, then complain instead of activating fallback
+    if (dcpConfig.worker?.leavePublicGroup === true)
+    {
+      console.warn('* Public Group fallback has been requested, but the public group is blocked by local configuration');
+    }
+    else
+    {
+      worker.on('fetchend', slicesFetched => {
+        // Iff we got work in this fetch, then leave the public group for the
+        // next fetch
+        dcpConfig.worker.leavePublicGroup = Boolean(slicesFetched > 0);
+      });
+    }
+  }
 
   let introBanner = '';
   introBanner += ` * Starting DCP Worker ${worker.workerId}` + '\n';
