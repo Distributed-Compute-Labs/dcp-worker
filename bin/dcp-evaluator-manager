@@ -16,6 +16,7 @@
  */
 'use strict';
 
+const os     = require('os');
 const fs     = require('fs');
 const path   = require('path');
 const net    = require('net')
@@ -30,6 +31,7 @@ var userActivity = { /* no props true => okay to launch evaluator */
 var children;
 var seq = 0;
 var ptsDir = '/dev/pts';
+var lastConnectionMs = Date.now();
 
 const defaultPrefix = '/usr';
 const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
@@ -52,15 +54,18 @@ Released under the terms of the MIT License.
 
 Usage: ${process.argv[0]} [-h | --help] [--prefix=<dir>] [--pts=<dir>] [-a]
        [--disable-monitor=<session|screensaver>] [-i <timeout>] [-p port]
+       [-l | --max-load=<number>] [-r | --rate=<number>]
        [-- <options to dcp-evaluator-start, must be last option>]
 Where:
  - -i sets the idle timeout in seconds for tty sessions (${sessionConfig.idleTimeout}s)
- - -a means always run the evaluator, even when the machine is busy
  - -p specifies the port to listen on for dcpsaw: worker connections (${daemonConfig.net.port})
  - --prefix specifies the directory where the DCP evaluator was installed
  - --pts specifies the location of the system's pseudo terminal (${ptsDir})
  - --disable-monitor=session disables monitoring of ssh/telnet/etc sessions
  - --disable-monitor=screensaver disables monitoring of the screensaver
+ - -a means always run the evaluator, even when the monitors say the machine is busy
+ - --max-load specifies the point at which machine load prevents connections
+ - --rate specifies the minimum number of seconds between connections
 `);
 
   process.exit(0);
@@ -96,7 +101,7 @@ async function listenForConnections(config)
  * on the system. If there has been, it returns a string of activity types. If there
  * hasn't, it returns false and we are clear to evaluate.
  */
-function activity()
+function checkUserActivity()
 {
   var active = [];
 
@@ -122,17 +127,52 @@ function activity()
 function handleConnection (socket, config)
 {
   var child;
-  var userActive = activity();
-  
-  if (!userActive)
-    debug('dcp-evaluator-manager')('New connection; spawning ', config.proc, config.argv);
-  else
+
+  function cleanup()
   {
-    debug('dcp-evaluator-manager')(`New connection; closing due to activity (${userActive})`);
-    socket.end();
-    socket.destroy();
+    try
+    {
+      if (socket)
+      {
+        socket.end();
+        socket.destroy();
+        socket = null;
+      }
+    }
+    finally
+    {
+      if (child)
+      {
+        child.kill();
+        if (children.includes(child))
+          children.delete(child);
+      }
+    }
+  }
+
+  if (checkUserActivity())
+  {
+    debug('dcp-evaluator-manager')(`New connection; closing due to activity (${checkUserActivity()})`);
+    cleanup();
     return;
   }
+
+  if (sessionConfig.maxLoad < os.loadavg()[0])
+  {
+    debug('dcp-evaluator-manager')(`New connection; closing due to system load (${os.loadavg().join(', ')})`);
+    cleanup();
+    return;
+  }
+
+  if (sessionConfig.rateMs > (Date.now() - lastConnectionMs))
+  {
+    debug('dcp-evaluator-manager')(`New connection; closing due to rate-limit ${sessionConfig.rateMs} > ${Date.now() - lastConnectionMs}`);
+    cleanup();
+    return;
+  }
+
+  debug('dcp-evaluator-manager')('New connection; spawning ', config.proc, config.argv);
+  lastConnectionMs = Date.now();
   
   child = require('child_process').spawn(config.proc, config.argv);
   child.stderr.setEncoding('ascii')
@@ -143,33 +183,29 @@ function handleConnection (socket, config)
 
   socket.on('end', function socketEnd() {
     debug('dcp-evaluator-manager')('Socket end; killing child', child.id);
-    child.kill();
+    cleanup();
   });
 
   socket.on('error', function socketError(error) {
     debug('dcp-evaluator-manager')(`Socket error ${error.code}; killing child`, child.id);
     debug('dcp-evaluator-manager')(error);
-    socket.destroy();
-    child.kill();
+    cleanup();
   });
 
   child.on('error', function childError(error) {
     console.error('Error from worker ' + child.id + ':', error);
-    socket.destroy();
-    child.kill();
-    children.delete(child);
+    cleanup();
   });
 
   child.on('exit', function(code) {
     debug('dcp-evaluator-manager')(`child ${child.id} exited; closing socket`, code || '');
-    socket.end();
-    socket.destroy();
-    children.delete(child);
+    cleanup();
   });
 
   child.stdout.on('data', function (data) {
     debug('dcp-evaluator-manager:network')('<', child.id, bufToDisplayStr(data), 93);
-    socket.write(data)
+    if (socket)
+      socket.write(data)
   });
 
   child.stderr.on('data', function (data) {
@@ -188,7 +224,7 @@ function handleConnection (socket, config)
       console.warn('could not write to child process (', child.pid, ', index', child.id, ') stdin')
       throw error;
     }
-  })
+  });
 }
 
 /** 
@@ -275,7 +311,7 @@ async function dbusScreenSaverMonitor()
   iface.on('ActiveChanged', function screenSaverChangeHandler(active) {
     userActivity.screensaver = active ? false : 'active dbus screensaver (change)';
     debug('dcp-evaluator-manager')(`screen saver ${active ? 'started' : 'finished'} at`, new Date());
-    if (activity())
+    if (checkUserActivity())
       killChildren();
   });
 
@@ -334,7 +370,7 @@ function sessionMonitor()
         latestMs = sb.atimeMs;
     }
 
-    if (activity())
+    if (checkUserActivity())
       killChildren();
   }
 
@@ -363,7 +399,7 @@ function odRequire(moduleId)
 /* Main program entry point */
 async function main()
 {
-  const parser = new getopt.BasicParser('h(help)P:(prefix)d:(disable-monitor)i:ap:', process.argv);
+  const parser = new getopt.BasicParser('h(help)P:(prefix)d:(disable-monitor)l:(max-load)r:(rate)i:ap:', process.argv);
   var option;
   
   while ((option = parser.getopt()) !== undefined)
@@ -418,6 +454,18 @@ async function main()
       case 'p':
       {
         daemonConfig.net.port = Number(option.optarg);
+        break;
+      }
+
+      case 'l':
+      {
+        sessionConfig.maxLoad = Number(option.optarg);
+        break;
+      }
+
+      case 'r':
+      {
+        sessionConfig.rateMs = 1000 * Number(option.optarg);
         break;
       }
     }
