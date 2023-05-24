@@ -260,6 +260,12 @@ async function main()
     identityKeystore = await wallet.getId();
   await wallet.addId(identityKeystore);
 
+  /* Unlock the identity keystore now since the worker will attempt to unlock it later in order to sign
+   * a message. This is required in case a password is set on the identity keystore which would prompt
+   * the user for a password after the worker logger is displayed.
+   */
+  await identityKeystore.unlock(null, 1, true);
+
   /* Build the worker options, which are largely given by dcpConfig.worker. We use a reference for 
    * dcpConfig.worker rather than copying it, so that runtime modifications to the worker configuration
    * in memory take effect immediately.
