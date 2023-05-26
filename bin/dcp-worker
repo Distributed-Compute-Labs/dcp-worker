@@ -337,6 +337,7 @@ async function main()
   startWorkerLogger(worker, cliArgs);
 
   require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) });
+  require('../lib/remote-console').reintercept();
 
   // Activate public group fallback
   // If requested by CLI
