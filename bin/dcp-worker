@@ -260,6 +260,9 @@ async function main()
     identityKeystore = await wallet.getId();
   await wallet.addId(identityKeystore);
 
+  // Add the wallet to the cliArgs options argument for startWorkerLogger
+  cliArgs['wallet'] = wallet;
+
   /* Build the worker options, which are largely given by dcpConfig.worker. We use a reference for 
    * dcpConfig.worker rather than copying it, so that runtime modifications to the worker configuration
    * in memory take effect immediately.
