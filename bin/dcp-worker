@@ -270,7 +270,7 @@ async function main()
   const dcpWorkerOptions = dcpConfig.worker;
   const forceOptions = {
     paymentAddress,
-    leavePublicGroup: cliArgs.leavePublicGroup || dcpConfig.worker.leavePublicGroup || cliArgs.publicGroupFallback || false,
+    leavePublicGroup: cliArgs.leavePublicGroup || dcpConfig.worker.leavePublicGroup || false,
     maxWorkingSandboxes: cliArgs.cores,
   };
   const defaultOptions = {
