@@ -648,8 +648,7 @@ function verifyDefaultConfigIntegrity()
       console.warn('    - the Windows Registry');
 
       // md5 calculation is incorrect on Windows. Possibly git/npm mangling line-endings?
-      const os = requireNative('os');
-      if (os?.platform() === 'win32')
+      if (require('os').platform() === 'win32')
         return;
 
       if (require('dcp/build').config.build !== 'debug')
