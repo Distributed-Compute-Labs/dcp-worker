@@ -232,8 +232,6 @@ async function main()
     port:     cliArgs.port
   };
 
-  verifyDefaultConfigIntegrity();
-
   process.on('SIGINT', handleSigDeath);
   process.on('SIGTERM', handleSigDeath);
   process.on('SIGQUIT', handleSigDeath);
@@ -338,6 +336,9 @@ async function main()
 
   require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) });
   require('../lib/remote-console').reintercept();
+
+  // Only after intercepting console for remote and for event-log
+  verifyDefaultConfigIntegrity();
 
   // Activate public group fallback
   // If requested by CLI
@@ -637,6 +638,10 @@ function verifyDefaultConfigIntegrity()
 
     if (!originalMd5sum.startsWith(actualMd5sum))
     {
+      const os = requireNative('os');
+      if (os?.platform() === 'win32')
+        return;
+
       console.warn(chalk.yellow(` ! Detected modified ${workerConfPath};`));
       console.warn(' . DCP Worker configuration changes should not be made by updating the default');
       console.warn('   config, as that file will be overwritten on the next npm update. Instead,');
