@@ -31,7 +31,7 @@ var userActivity = { /* no props true => okay to launch evaluator */
 var children;
 var seq = 0;
 var ptsDir = '/dev/pts';
-var lastConnectionMs = Date.now();
+var lastConnectionMs = 0;
 
 const defaultPrefix = '/usr';
 const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
@@ -39,11 +39,12 @@ const daemonConfig = {
   net:  new URL('tcpip://localhost:9000/'),
   proc: require.resolve('./dcp-evaluator-start'),
   argv: [ '-s', '--prefix', `${path.resolve(defaultPrefix)}/` ],
+  limits: {},
+  session: {
+    idlePoll:    3,  /* s between checks*/
+    idleTimeout: 30, /* s to decide the session really IS idle */
+  }
 };
-const sessionConfig = {
-  idlePoll:    3,  /* s between checks*/
-  idleTimeout: 30, /* s to decide the session really IS idle */
-}
 
 function usage()
 {
@@ -52,12 +53,12 @@ function usage()
 DCP Evaluator Monitor - Copyright (c) 2022-2023 Distributive Corp.
 Released under the terms of the MIT License.
 
-Usage: ${process.argv[0]} [-h | --help] [--prefix=<dir>] [--pts=<dir>] [-a]
+Usage: ${process.argv[0]} [-h | --help] [--prefix=<dir>] [--pts=<dir>] [-a] 
        [--disable-monitor=<session|screensaver>] [-i <timeout>] [-p port]
-       [-l | --max-load=<number>] [-r | --rate=<number>]
+       [-l | --max-load=<number>] [-r | --rate=<number>] [-L]
        [-- <options to dcp-evaluator-start, must be last option>]
 Where:
- - -i sets the idle timeout in seconds for tty sessions (${sessionConfig.idleTimeout}s)
+ - -i sets the idle timeout in seconds for tty sessions (${daemonConfig.session.idleTimeout}s)
  - -p specifies the port to listen on for dcpsaw: worker connections (${daemonConfig.net.port})
  - --prefix specifies the directory where the DCP evaluator was installed
  - --pts specifies the location of the system's pseudo terminal (${ptsDir})
@@ -66,6 +67,7 @@ Where:
  - -a means always run the evaluator, even when the monitors say the machine is busy
  - --max-load specifies the point at which machine load prevents connections
  - --rate specifies the minimum number of seconds between connections
+ - -L only apply the limits when the monitors say the machine is busy
 `);
 
   process.exit(0);
@@ -127,7 +129,8 @@ function checkUserActivity()
 function handleConnection (socket, config)
 {
   var child;
-
+  var userActivityMemo = checkUserActivity();
+  
   function cleanup()
   {
     try
@@ -150,27 +153,30 @@ function handleConnection (socket, config)
     }
   }
 
-  if (checkUserActivity())
+  if (userActivityMemo && !daemonConfig.limits.onlyWhenBusy)
   {
-    debug('dcp-evaluator-manager')(`New connection; closing due to activity (${checkUserActivity()})`);
+    debug('dcp-evaluator-manager')(`New connection; closing due to activity (${userActivityMemo})`);
     cleanup();
     return;
   }
 
-  if (sessionConfig.maxLoad < os.loadavg()[0])
+  if (!daemonConfig.limits.onlyWhenBusy || (daemonConfig.limits.onlyWhenBusy && userActivityMemo))
   {
-    debug('dcp-evaluator-manager')(`New connection; closing due to system load (${os.loadavg().join(', ')})`);
-    cleanup();
-    return;
-  }
+    if (daemonConfig.limits.maxLoad < os.loadavg()[0])
+    {
+      debug('dcp-evaluator-manager')(`New connection; closing due to system load (${os.loadavg().join(', ')})`);
+      cleanup();
+      return;
+    }
 
-  if (sessionConfig.rateMs > (Date.now() - lastConnectionMs))
-  {
-    debug('dcp-evaluator-manager')(`New connection; closing due to rate-limit ${sessionConfig.rateMs} > ${Date.now() - lastConnectionMs}`);
-    cleanup();
-    return;
+    if (daemonConfig.limits.rateMs > (Date.now() - lastConnectionMs))
+    {
+      debug('dcp-evaluator-manager')(`New connection; closing due to rate-limit ${daemonConfig.limits.rateMs} > ${Date.now() - lastConnectionMs}`);
+      cleanup();
+      return;
+    }
   }
-
+  
   debug('dcp-evaluator-manager')('New connection; spawning ', config.proc, config.argv);
   lastConnectionMs = Date.now();
   
@@ -311,7 +317,7 @@ async function dbusScreenSaverMonitor()
   iface.on('ActiveChanged', function screenSaverChangeHandler(active) {
     userActivity.screensaver = active ? false : 'active dbus screensaver (change)';
     debug('dcp-evaluator-manager')(`screen saver ${active ? 'started' : 'finished'} at`, new Date());
-    if (checkUserActivity())
+    if (!daemonConfig.limits.onlyWhenBusy && checkUserActivity())
       killChildren();
   });
 
@@ -341,7 +347,7 @@ function sessionMonitor()
 
   function checkSessions()
   {
-    const recentMs = Date.now() - (sessionConfig.idleTimeout * 1000);
+    const recentMs = Date.now() - (daemonConfig.session.idleTimeout * 1000);
     var latestMs;
 
     userActivity.session = false;
@@ -370,11 +376,11 @@ function sessionMonitor()
         latestMs = sb.atimeMs;
     }
 
-    if (checkUserActivity())
+    if (!daemonConfig.limits.onlyWhenBusy && checkUserActivity())
       killChildren();
   }
 
-  setInterval(checkSessions, sessionConfig.idlePoll * 1000);
+  setInterval(checkSessions, daemonConfig.session.idlePoll * 1000);
   checkSessions();
 }
 
@@ -399,7 +405,7 @@ function odRequire(moduleId)
 /* Main program entry point */
 async function main()
 {
-  const parser = new getopt.BasicParser('h(help)P:(prefix)d:(disable-monitor)l:(max-load)r:(rate)i:ap:', process.argv);
+  const parser = new getopt.BasicParser('h(help)P:(prefix)d:(disable-monitor)l:(max-load)r:(rate)Li:ap:', process.argv);
   var option;
   
   while ((option = parser.getopt()) !== undefined)
@@ -437,7 +443,7 @@ async function main()
 
       case 'i':
       {
-        sessionConfig.idleTimeout = Number(option.optarg).toFixed(1);
+        daemonConfig.session.idleTimeout = Number(option.optarg).toFixed(1);
         break;
       }
 
@@ -451,6 +457,12 @@ async function main()
         break;
       }
 
+      case 'L':
+      {
+        daemonConfig.limits.onlyWhenBusy = true;
+        break;
+      }
+
       case 'p':
       {
         daemonConfig.net.port = Number(option.optarg);
@@ -459,13 +471,13 @@ async function main()
 
       case 'l':
       {
-        sessionConfig.maxLoad = Number(option.optarg);
+        daemonConfig.limits.maxLoad = Number(option.optarg);
         break;
       }
 
       case 'r':
       {
-        sessionConfig.rateMs = 1000 * Number(option.optarg);
+        daemonConfig.limits.rateMs = 1000 * Number(option.optarg);
         break;
       }
     }
