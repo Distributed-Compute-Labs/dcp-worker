@@ -44,8 +44,7 @@
   },
   "devDependencies": {
     "@kingsds/eslint-config": "1.0.1",
-    "eslint": "7.30.0",
-    "peter": "2.3.11"
+    "eslint": "7.30.0"
   },
   "engines": {
     "node": ">=16",
