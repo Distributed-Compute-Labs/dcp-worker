@@ -16,9 +16,6 @@
   },
   "license": "MIT",
   "author": "Kings Distributed Systems",
-  "engines": {
-    "node": ">=14.0.0"
-  },
   "bin": {
     "dcp-evaluator-start": "bin/dcp-evaluator-start",
     "dcp-worker": "bin/dcp-worker"
@@ -47,6 +44,11 @@
   },
   "devDependencies": {
     "@kingsds/eslint-config": "1.0.1",
-    "eslint": "7.30.0"
+    "eslint": "7.30.0",
+    "peter": "2.3.11"
+  },
+  "engines": {
+    "node": ">=16",
+    "npm": ">=7"
   }
 }
