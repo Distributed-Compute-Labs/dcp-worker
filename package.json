@@ -31,7 +31,7 @@
     "start": "node bin/dcp-worker start",
     "start-evaluator": "node bin/dcp-evaluator-start",
     "test": "peter tests",
-    "x-prepack": "npm-hooks/prepack",
+    "prepack": "npm-hooks/prepack",
     "postpublish": "npm-hooks/postpublish",
     "prepublishOnly": "npm-hooks/prepublish"
   },
