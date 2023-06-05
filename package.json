@@ -30,6 +30,7 @@
   "scripts": {
     "start": "node bin/dcp-worker start",
     "start-evaluator": "node bin/dcp-evaluator-start",
+    "hook": "PATH=npm-hooks:$PATH &&",
     "test": "peter tests",
     "prepack": "npm-hooks/prepack",
     "postpublish": "npm-hooks/postpublish",
