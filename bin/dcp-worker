@@ -65,8 +65,9 @@ function parseCliArgs()
       },
       density: {
         alias: 'd',
-        describe: 'What proportion of CPU and GPU to use: the format is 80,50 (or just 80) for 80% of CPU and 50% of GPU',
+        describe: 'default proportion of CPU,GPU to use when cores not specified',
         type: 'string',
+        default: JSON.stringify(dcpConfig.worker.defaultCoreDensity),
       },
       verbose: {
         alias: 'v',
@@ -291,15 +292,6 @@ async function main()
   };
 
   addConfig(dcpWorkerOptions, defaultOptions, dcpConfig.worker, forceOptions);
-
-  /* cliArgs.density is the proportion of hardware compute to use.
-   * cliArgs.cores is the core count of the hardware to use.
-   * When specified cliArgs.density is dominant and cores is derived from density.
-   * For backward compatibility either cliArgs.density or cliArgs.cores can be
-   * specified with only the cpu component.
-   * E.g. -d 50 specifies density = { cpu: 50, gpu: defaultTargets.density.gpu }
-   *      -c 10 specifies cores = { cpu: 10, gpu: defaultTargets.cores.gpu }
-   */
   processCoresAndDensity(dcpWorkerOptions, cliArgs);
 
   /* cliArgs.join is the list of compute groups to join */
@@ -408,8 +400,8 @@ async function main()
     introBanner += ' * Leaving the public compute group' + '\n';
   if (dcpWorkerOptions.cores)
     introBanner += ` * Target cores: ${JSON.stringify(dcpWorkerOptions.cores)}\n`;
-  if (dcpWorkerOptions.density)
-    introBanner += ` * Target density: ${JSON.stringify(dcpWorkerOptions.density)}\n`;
+  else
+    introBanner += ` * Target core density: ${JSON.stringify(dcpWorkerOptions.defaultCoreDensity)}\n`;
   if (cliArgs.verbose)
     introBanner += ` + Verbosity level: ${cliArgs.verbose}` + '\n';
   if (cliArgs.eventDebug)
@@ -433,40 +425,41 @@ async function main()
   await worker.start();
 }
 
-// cliArgs.density is the proportion of hardware compute to use.
-// cliArgs.cores is the core count of the hardware to use.
-// When specified cliArgs.density is dominant and cores is derived from density.
-// For backward compatibility either cliArgs.density or cliArgs.cores can be
-// specified with only the cpu component.
-// E.g. -d 50 specifies density = { cpu: 50, gpu: defaultTargets.density.gpu }
-//      -c 10 specifies cores = { cpu: 10, gpu: defaultTargets.cores.gpu }
+/** 
+ * Process the cores and density cli arguments.
+ *
+ * cliArgs.cores is the core count of the hardware to use.
+ * It can be specified with only the cpu or gpu component, or both.
+ *
+ * E.g. -c 2,1  => cores = { cpu: 2,         gpu: 1 }
+ *      -c 10   => cores = { cpu: 10,        gpu: <default> }
+ *      -c ,10  => cores = { cpu: <default>, gpu: 10 }
+ */
 function processCoresAndDensity (dcpWorkerOptions, cliArgs)
 {
   const DCPWorker = require('dcp/worker').Worker;
   const defaultTargets = {
-    density: DCPWorker.defaultDensity(),
-    cores:   DCPWorker.defaultCores(dcpWorkerOptions),
+    density: dcpWorkerOptions.defaultCoreDensity || { cpu: 0, gpu: 0 }, /* 0,0 => user specified corrupt conf */
+    cores: DCPWorker.defaultCores(dcpWorkerOptions),
   };
 
-  const processArg = (which) => {
+  const parseArg = (which) => {
     if (!cliArgs[which])
       return false;
 
     const [cpu, gpu] = cliArgs[which].split(',');
-
-    dcpWorkerOptions.density = null; // Command line overrides config.
-    dcpWorkerOptions.cores = null;   // Command line overrides config.
     dcpWorkerOptions[which] = { cpu: Number(cpu || defaultTargets[which].cpu),
                                 gpu: Number(gpu || defaultTargets[which].gpu) };
     return true;
   };
-  // Parse density xor cores and if neither exits, then both Sup1 and Sup2 will create the
-  // correct defaults, which can be retrived with the Worker getters 'density' and 'cores'.
-  if (!processArg('density'))
-    processArg('cores')
 
-  debug('density', dcpWorkerOptions.density);
-  debug('cores', dcpWorkerOptions.cores);
+  parseArg('density');
+  parseArg('cores');
+
+  if (dcpWorkerOptions.cores)
+    debug('cores = ', dcpWorkerOptions.cores);
+  else
+    debug('core density = ', dcpWorkerOptions.defaultCoreDensity);
 }
 
 /**
