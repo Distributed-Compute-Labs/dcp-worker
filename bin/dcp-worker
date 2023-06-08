@@ -283,7 +283,6 @@ async function main()
   const forceOptions = {
     paymentAddress,
     leavePublicGroup: cliArgs.leavePublicGroup || dcpConfig.worker.leavePublicGroup || cliArgs.publicGroupFallback || false,
-    maxWorkingSandboxes: cliArgs.cores,
   };
   const defaultOptions = {
     sandboxOptions: {
@@ -393,22 +392,23 @@ async function main()
   if (dcpWorkerOptions.jobAddresses?.length > 0)
     introBanner += ` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')} ` + dcpWorkerOptions.jobAddresses.join(', ') + '\n';
   if (dcpWorkerOptions.computeGroups?.length > 0)
-    introBanner += ` * Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')} ` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', ') + '\n';
+    introBanner += ` . Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')} ` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', ') + '\n';
   if (dcpWorkerOptions.publicGroupFallback)
-    introBanner += ' * Falling back on public group when preferred groups have no work' + '\n';
+    introBanner += ' . Falling back on public group when preferred groups have no work' + '\n';
   else if (dcpWorkerOptions.leavePublicGroup)
-    introBanner += ' * Leaving the public compute group' + '\n';
+    introBanner += ' . Leaving the public compute group' + '\n';
   if (dcpWorkerOptions.cores)
-    introBanner += ` * Target cores: ${JSON.stringify(dcpWorkerOptions.cores)}\n`;
+    introBanner += ` . Target cores: ${JSON.stringify(dcpWorkerOptions.cores)}\n`;
   else
-    introBanner += ` * Target core density: ${JSON.stringify(dcpWorkerOptions.defaultCoreDensity)}\n`;
+    introBanner += ` . Target core density: ${JSON.stringify(dcpWorkerOptions.defaultCoreDensity)}\n`;
   if (cliArgs.verbose)
     introBanner += ` + Verbosity level: ${cliArgs.verbose}` + '\n';
   if (cliArgs.eventDebug)
     introBanner += ' + Event debug on' + '\n';
 
-  introBanner += ' . output mode: ' + cliArgs.outputMode + '\n';
-  introBanner += ' . ready' + '\n';
+  introBanner += ' . Supervisor version: ' + worker.supervisorVersion;
+  introBanner += ' . Output mode: ' + cliArgs.outputMode + '\n';
+  introBanner += ' * Ready' + '\n';
 
   console.log(introBanner);
   require('../lib/check-scheduler-version').check();
