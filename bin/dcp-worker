@@ -647,10 +647,6 @@ function verifyDefaultConfigIntegrity()
       console.warn('    - /etc/override/dcp/dcp-worker/dcp-config.js');
       console.warn('    - the Windows Registry');
 
-      // md5 calculation is incorrect on Windows. Possibly git/npm mangling line-endings?
-      if (require('os').platform() === 'win32')
-        return;
-
       if (require('dcp/build').config.build !== 'debug')
         process.exit(1);
 
