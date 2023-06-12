@@ -27,6 +27,7 @@
   "scripts": {
     "start": "node bin/dcp-worker start",
     "start-evaluator": "node bin/dcp-evaluator-start",
+    "hook": "PATH=npm-hooks:$PATH &&",
     "test": "peter tests",
     "prepack": "node npm-hooks/prepack",
     "postpublish": "npm-hooks/postpublish",
@@ -43,7 +44,7 @@
     "telnet-console": "^1.0.4"
   },
   "devDependencies": {
-    "@kingsds/eslint-config": "1.0.1",
+    "@kingsds/eslint-config": "^1.0.1",
     "eslint": "7.30.0"
   },
   "engines": {
