@@ -120,14 +120,15 @@ function parseCliArgs()
 
       leavePublicGroup: {
         type: 'boolean',
-        describe: 'Do not fetch slices from public compute group. Ignored if --publicGroupFallback is set',
-        default: false,
+        describe: 'Do not fetch slices from public compute group.',
+        default: undefined,
       },
+
       publicGroupFallback: {
         describe: 'If set, worker will prefer private groups but fall back on the public group if no preferred work is available',
         type: 'boolean',
-        default: 'false',
-        defaultDescription: false,
+        default: 'undefined',
+        defaultDescription: undefined,
       },
 
       identityKey: {
@@ -242,6 +243,8 @@ async function main()
     port:     cliArgs.port
   };
 
+  verifyDefaultConfigIntegrity(); /* Bail before TUI & as early as possible if config file is bad */
+
   process.on('SIGINT', handleSigDeath);
   process.on('SIGTERM', handleSigDeath);
   process.on('SIGQUIT', handleSigDeath);
@@ -258,7 +261,7 @@ async function main()
   if (cliArgs.pidFile)
     require('../lib/pidfile').write(cliArgs.pidFile);
 
-  /* Figure out of the worker's identity and put that keystore in the wallet */
+  /* Figure out the worker's identity and put that keystore in the wallet */
   let identityKeystore = false;
   if (cliArgs.identityKey)
     identityKeystore = await new wallet.IdKeystore(cliArgs.identityKey, '');
@@ -276,11 +279,14 @@ async function main()
    * which were derived from dcpConfig in the first place. defaultOptions are overrideable by the usual
    * dcpConfig mechanisms, but since they are dynamic (or non-user-facing) they don't come from the
    * etc/dcp-worker-config.js file that ships with the work.
+   *
+   * It is important to never disable leavePublicGroup as a side effect of any other operation, or
+   * slight configuration errors could have large security impacts.
+   */
    */
   const dcpWorkerOptions = dcpConfig.worker;
   const forceOptions = {
     paymentAddress,
-    leavePublicGroup: cliArgs.leavePublicGroup || (dcpConfig.worker.leavePublicGroup === 'true') || (dcpConfig.worker.leavePublicGroup === true) || false,
   };
   const defaultOptions = {
     sandboxOptions: {
@@ -288,8 +294,20 @@ async function main()
     },
   };
 
+  if (cliArgs.leavePublicGroup !== undefined)
+    forceOptions.leavePublicGroup = mkBool(cliArgs.leavePublicGroup);
+  if (cliArgs.publicGroupFallback !== undefined)
+    forceOptions.publicGroupFallback = mkBool(cliArgs.publicGroupFallback);
+
   addConfig(dcpWorkerOptions, defaultOptions, dcpConfig.worker, forceOptions);
   processCoresAndDensity(dcpWorkerOptions, cliArgs);
+
+  /* Support magic value used by Windows screensaver configuration /wg June 2023 */
+  if (dcpWorkerOptions.leavePublicGroup === 'fallback')
+  {
+    dcpWorkerOptions.publicGroupFallback = true;
+    dcpWorkerOptions.leavePublicGroup = undefined;
+  }
 
   /* cliArgs.join is the list of compute groups to join */
   if (cliArgs.join && cliArgs.join.length)
@@ -342,32 +360,38 @@ async function main()
   startWorkerLogger(worker, cliArgs);
 
   require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) });
-  require('../lib/remote-console').reintercept();
 
-  // Only after intercepting console for remote and for event-log
-  verifyDefaultConfigIntegrity();
-
-  // Activate public group fallback
-  // If requested by CLI
-  // OR if requested by dcpConfig and not forbidden by the cli
-  if (cliArgs.publicGroupFallback
-      || (dcpConfig.worker?.leavePublicGroup === 'fallback'
-          && typeof cliArgs.publicGroupFallback !== false))
+  if (dcpWorkerOptions.publicGroupFallback)
   {
-    dcpWorkerOptions.publicGroupFallback = true;
-
-    // If local config blocks the public group, then complain instead of activating fallback
-    if (dcpConfig.worker?.leavePublicGroup === true)
-    {
-      console.warn('* Public Group fallback has been requested, but the public group is blocked by local configuration');
-    }
+    if (dcpWorkerOptions.leavePublicGroup)
+      console.warn(' ! Public Group fallback has been requested, but the public group is blocked by local configuration');
     else
     {
-      worker.on('fetchend', slicesFetched => {
-        // Iff we got work in this fetch, then leave the public group for the
-        // next fetch
-        dcpConfig.worker.leavePublicGroup = Boolean(slicesFetched > 0);
-      });
+      /* Enable public group fallback - this currently works by enabling or disabling the public group
+       * on the next fetch based on whether or not the most recent fetch was an empty task or not.
+       */
+      worker.on('fetch', fetchEventHandler);
+
+      function fetchEventHandler(ev)
+      {
+        var slicesFetched;
+
+        if (ev instanceof Error)
+        {
+          console.error('Error fetching task:', ev);
+          return;
+        }
+
+        if (typeof ev === 'number') /* <= June 2023 Worker events: remove ~ Sep 2023 /wg */
+          slicesFetched = ev;
+        else
+        {
+          const task = ev;
+          slicesFetched = task.slices.length;
+        }
+
+        dcpWorkerOptions.leavePublicGroup = Boolean(slicesFetched > 0);
+      }
     }
   }
 
@@ -397,7 +421,7 @@ async function main()
     introBanner += ` . Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')} ` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', ') + '\n';
   if (dcpWorkerOptions.publicGroupFallback)
     introBanner += ' . Falling back on public group when preferred groups have no work' + '\n';
-  else if (dcpWorkerOptions.leavePublicGroup)
+  if (dcpWorkerOptions.leavePublicGroup)
     introBanner += ' . Leaving the public compute group' + '\n';
   if (dcpWorkerOptions.cores)
     introBanner += ` . Target cores: ${JSON.stringify(dcpWorkerOptions.cores)}\n`;
@@ -708,4 +732,13 @@ function verifyDefaultConfigIntegrity()
     console.error(' ! DCP Worker default configuration was not loaded; exiting.');
     process.exit(1);
   }
+}
+
+/**
+ * Cast b to boolean such that 'false' becomes false, falsey things become false, and everything else
+ * becomes true.
+ */
+function mkBool(b)
+{
+  return Boolean(b) && (b !== 'false');
 }
