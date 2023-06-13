@@ -8,21 +8,15 @@
  */
 'use strict';
 
+var worker, dcpConfig;
+
 const process = require('process');
 const fs      = require('fs');
 const crypto  = require('crypto');
 const chalk   = require('chalk');
 
 const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
-var worker, dcpConfig, debugging;
-
-const debug = (...args) => {
-  if (!debugging)
-    debugging = require('dcp/internal/debugging').scope('dcp-worker');
-  if (debugging())
-    console.debug('dcp-worker:', ...args);
-};
-
+const debugging = require('dcp/internal/debugging').scope('dcp-worker');
 const EXIT_UNHANDLED = 5;
 
 /* Setup the telnet REPL up early to ensure early-failure log messages are captured */
@@ -210,7 +204,7 @@ function parseCliArgs()
 
   if (cliArgs.dumpConfig)
   {
-    console.debug(JSON.stringify(require('dcp/dcp-config'), null, 2));
+    console.log(JSON.stringify(require('dcp/dcp-config'), null, 2));
     process.exit(0);
   }
 
@@ -348,8 +342,8 @@ async function main()
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
 
   worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
-  worker.on('error', (...payload) => console.error(...payload));
-  worker.on('warning', (...payload) => console.warn(...payload));
+  worker.on('error',   (...payload) => console.error(...payload));
+  worker.on('warning', (...payload) => console.warn (...payload));
 
   /* Let incorrect event-loop references keep us alive when linked with a debug library, but
    * exit quickly/accurately for production code even when the library isn't perfect.
@@ -366,7 +360,7 @@ async function main()
   worker.on('end',  () => { logClosing('log', 'Worker has stopped') });
   startWorkerLogger(worker, cliArgs);
 
-  require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) });
+  require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) }); // eslint-disable-line no-eval
 
   if (dcpWorkerOptions.publicGroupFallback)
   {
@@ -490,9 +484,9 @@ function processCoresAndDensity (dcpWorkerOptions, cliArgs)
   parseArg('cores');
 
   if (dcpWorkerOptions.cores)
-    debug('cores = ', dcpWorkerOptions.cores);
+    debugging() && console.debug('dcp-worker: cores =', dcpWorkerOptions.cores);
   else
-    debug('core density = ', dcpWorkerOptions.defaultCoreDensity);
+    debugging() && console.debug('dcp-worker: core density =', dcpWorkerOptions.defaultCoreDensity);
 }
 
 /**
@@ -514,7 +508,7 @@ function logClosing(facility, ...message)
     screen.log(...message);
     screen.destroy();
     screen = false;
-    console = new (require('console').Console)(process);
+    console = new (require('console').Console)(process); // eslint-disable-line no-global-assign
     require('../lib/remote-console').reintercept();
     console[facility].call(null, ...message);
   }
@@ -526,7 +520,7 @@ function logClosing(facility, ...message)
  * the worker must be restarted. This handler does its best to report the rejection and give the worker a few
  * seconds in which to attempt to return slices to the scheduler before it gives up completely.
  */
-async function handleUnhandled(error)
+function handleUnhandled(error)
 {
   var _worker = worker;
   worker = false;
@@ -536,7 +530,7 @@ async function handleUnhandled(error)
   try
   {
     logClosing(error);
-  } catch(e) {};
+  } catch(e) {} // eslint-disable-line no-empty
 
   if (!_worker)
     console.error('trapped unhandled error:', error)
@@ -559,7 +553,7 @@ async function handleUnhandled(error)
       fs.appendFileSync(process.env.DCP_WORKER_UNHANDLED_REJECTION_LOG,
                         `${Date.now()}: ${error.message}\n${error.stack}\n\n`);
     }
-  } catch(e) {};
+  } catch(e) {} // eslint-disable-line no-empty
 }
 
 /** print the slice report via console.log */
