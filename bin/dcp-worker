@@ -283,7 +283,6 @@ async function main()
    * It is important to never disable leavePublicGroup as a side effect of any other operation, or
    * slight configuration errors could have large security impacts.
    */
-   */
   const dcpWorkerOptions = dcpConfig.worker;
   const forceOptions = {
     paymentAddress,
