@@ -98,18 +98,21 @@ function parseCliArgs()
       },
       priorityOnly: {
         alias: 'P',
+        hidden: true,
         describe: 'Set the priority mode [deprecated]',
         type: 'boolean',
         default: false
       },
       'job-id': {
         alias: 'j',
+        hidden: true,
         describe: 'Restrict worker to a specific job (use N times for N jobs)',
         type: 'array',
       },
 
       join: {
         alias: 'g',
+        hidden: true,
         describe: 'Join compute group; the format is "joinKey,joinSecret" or "joinKey,eh1-joinHash"',
         type: 'array'
       },
@@ -120,11 +123,13 @@ function parseCliArgs()
 
       leavePublicGroup: {
         type: 'boolean',
+        hidden: true,
         describe: 'Do not fetch slices from public compute group.',
         default: undefined,
       },
 
       publicGroupFallback: {
+        hidden: true,
         describe: 'If set, worker will prefer private groups but fall back on the public group if no preferred work is available',
         type: 'boolean',
         default: 'undefined',
@@ -132,11 +137,13 @@ function parseCliArgs()
       },
 
       identityKey: {
+        hidden: true,
         describe: 'Identity key, in hex format',
         type: 'string',
         group: 'Identity options',
       },
       identityKeystore: {
+        hidden: true,
         describe: 'Identity keystore, in json format',
         type: 'string',
         group: 'Identity options',
@@ -148,7 +155,7 @@ function parseCliArgs()
         group: 'Output options',
       },
       eventDebug: {
-        hide: true,
+        hidden: true,
         describe: 'If set, dump all sandbox and worker events',
       },
 
