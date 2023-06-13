@@ -286,6 +286,7 @@ async function main()
   const dcpWorkerOptions = dcpConfig.worker;
   const forceOptions = {
     paymentAddress,
+    maxWorkingSandboxes: cliArgs.cores,
   };
   const defaultOptions = {
     sandboxOptions: {
