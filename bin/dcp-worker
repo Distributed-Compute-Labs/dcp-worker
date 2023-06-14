@@ -9,14 +9,19 @@
 'use strict';
 
 const process = require('process');
-const os      = require('os');
 const fs      = require('fs');
 const crypto  = require('crypto');
 const chalk   = require('chalk');
 
 const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
-const TOTAL_CPU_VCORES = os.cpus().length;
-var worker, dcpConfig;
+var worker, dcpConfig, debugging;
+
+const debug = (...args) => {
+  if (!debugging)
+    debugging = require('dcp/internal/debugging').scope('dcp-worker');
+  if (debugging())
+    console.debug('dcp-worker:', ...args);
+};
 
 const EXIT_UNHANDLED = 5;
 
@@ -55,9 +60,14 @@ function parseCliArgs()
       },
       cores: {
         alias: 'c',
-        describe: 'Number of cores to work with',
-        type: 'number',
-        default: TOTAL_CPU_VCORES - 1,
+        describe: 'Number of CPU and GPU cores to work with: the format is 7,1 (or just 7) for 7 CPU cores and 1 GPU',
+        type: 'string',
+      },
+      density: {
+        alias: 'd',
+        describe: 'default proportion of CPU,GPU to use when cores not specified',
+        type: 'string',
+        default: JSON.stringify(dcpConfig.worker.defaultCoreDensity),
       },
       verbose: {
         alias: 'v',
@@ -273,7 +283,6 @@ async function main()
   const forceOptions = {
     paymentAddress,
     leavePublicGroup: cliArgs.leavePublicGroup || dcpConfig.worker.leavePublicGroup || cliArgs.publicGroupFallback || false,
-    maxWorkingSandboxes: cliArgs.cores,
   };
   const defaultOptions = {
     sandboxOptions: {
@@ -282,6 +291,7 @@ async function main()
   };
 
   addConfig(dcpWorkerOptions, defaultOptions, dcpConfig.worker, forceOptions);
+  processCoresAndDensity(dcpWorkerOptions, cliArgs);
 
   /* cliArgs.join is the list of compute groups to join */
   if (cliArgs.join && cliArgs.join.length)
@@ -327,10 +337,7 @@ async function main()
     worker.on('end', () => setTimeout(process.exit, getCleanupTimeoutMs()).unref());
 
   if (cliArgs.eventDebug)
-  {
-    worker.debug = true;
-    worker.supervisor.debug = true;
-  }
+    worker.enableDebugEvents = true;
 
   worker.on('stop', () => { console.log('Worker is stopping') });
   worker.on('end',  () => { logClosing('log', 'Worker has stopped') });
@@ -363,11 +370,11 @@ async function main()
   }
 
   let introBanner = '';
-  introBanner += ` * Starting DCP Worker` + '\n';
+  introBanner += ` * Starting DCP Worker ${worker.workerId}` + '\n';
   introBanner += ` . Configured for scheduler ${dcpConfig.scheduler.location}` + '\n';
   introBanner += ` . Bank is ${dcpConfig.bank.location}` + '\n';
-  introBanner += ` . Earned funds will be deposited in account ${paymentAddress}` + '\n';
-  introBanner += ` . Identity is ${identityKeystore.address}` + '\n';
+  introBanner += ` . Earned funds will be deposited in account ${worker.paymentAddress}` + '\n';
+  introBanner += ` . Identity is ${worker.identityKeystore.address}` + '\n';
 
   function qty(amount, singular, plural) /* XXX i18n */
   {
@@ -382,21 +389,26 @@ async function main()
     return plural;
   }
 
-  if (dcpWorkerOptions.jobAddresses.length)
+  if (dcpWorkerOptions.jobAddresses?.length > 0)
     introBanner += ` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')} ` + dcpWorkerOptions.jobAddresses.join(', ') + '\n';
-  if (dcpWorkerOptions.computeGroups.length)
-    introBanner += ` * Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')} ` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', ') + '\n';
+  if (dcpWorkerOptions.computeGroups?.length > 0)
+    introBanner += ` . Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')} ` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', ') + '\n';
   if (dcpWorkerOptions.publicGroupFallback)
-    introBanner += ' * Falling back on public group when preferred groups have no work' + '\n';
+    introBanner += ' . Falling back on public group when preferred groups have no work' + '\n';
   else if (dcpWorkerOptions.leavePublicGroup)
-    introBanner += ' * Leaving the public compute group' + '\n';
+    introBanner += ' . Leaving the public compute group' + '\n';
+  if (dcpWorkerOptions.cores)
+    introBanner += ` . Target cores: ${JSON.stringify(dcpWorkerOptions.cores)}\n`;
+  else
+    introBanner += ` . Target core density: ${JSON.stringify(dcpWorkerOptions.defaultCoreDensity)}\n`;
   if (cliArgs.verbose)
     introBanner += ` + Verbosity level: ${cliArgs.verbose}` + '\n';
   if (cliArgs.eventDebug)
     introBanner += ' + Event debug on' + '\n';
-  introBanner += ' . output mode: ' + cliArgs.outputMode + '\n';
-  
-  introBanner += ' . ready' + '\n';
+
+  introBanner += ' . Supervisor version: ' + worker.supervisorVersion;
+  introBanner += ' . Output mode: ' + cliArgs.outputMode + '\n';
+  introBanner += ' * Ready' + '\n';
 
   console.log(introBanner);
   require('../lib/check-scheduler-version').check();
@@ -411,6 +423,43 @@ async function main()
 
   /* Start the worker. Normal process exit happens by virtue of the worker<end> event */
   await worker.start();
+}
+
+/** 
+ * Process the cores and density cli arguments.
+ *
+ * cliArgs.cores is the core count of the hardware to use.
+ * It can be specified with only the cpu or gpu component, or both.
+ *
+ * E.g. -c 2,1  => cores = { cpu: 2,         gpu: 1 }
+ *      -c 10   => cores = { cpu: 10,        gpu: <default> }
+ *      -c ,10  => cores = { cpu: <default>, gpu: 10 }
+ */
+function processCoresAndDensity (dcpWorkerOptions, cliArgs)
+{
+  const DCPWorker = require('dcp/worker').Worker;
+  const defaultTargets = {
+    density: dcpWorkerOptions.defaultCoreDensity || { cpu: 0, gpu: 0 }, /* 0,0 => user specified corrupt conf */
+    cores: DCPWorker.defaultCores(dcpWorkerOptions),
+  };
+
+  const parseArg = (which) => {
+    if (!cliArgs[which])
+      return false;
+
+    const [cpu, gpu] = cliArgs[which].split(',');
+    dcpWorkerOptions[which] = { cpu: Number(cpu || defaultTargets[which].cpu),
+                                gpu: Number(gpu || defaultTargets[which].gpu) };
+    return true;
+  };
+
+  parseArg('density');
+  parseArg('cores');
+
+  if (dcpWorkerOptions.cores)
+    debug('cores = ', dcpWorkerOptions.cores);
+  else
+    debug('core density = ', dcpWorkerOptions.defaultCoreDensity);
 }
 
 /**
@@ -434,7 +483,7 @@ function logClosing(facility, ...message)
     screen = false;
     console = new (require('console').Console)(process);
     require('../lib/remote-console').reintercept();
-    console[facility](...message);
+    console[facility].call(null, ...message);
   }
 }
 
@@ -502,7 +551,6 @@ function toInterval(el)
 /** retrieve a slice report screen */
 function sliceReport()
 {
-  const sup = worker.supervisor;
   let report = '';
 
   report += ('='.repeat(78)) + '\n';
@@ -519,7 +567,7 @@ function sliceReport()
     READY: 'Ready',
     TERMINATED: 'Terminated',
   };
-  sup.sandboxes.forEach(sb => {
+  worker.sandboxes.forEach(sb => {
     const { state } = sb;
     if (!sbStates[state])
       sbStates[state] = 0;
@@ -532,10 +580,10 @@ function sliceReport()
     const stateName = stateNames[state] || state;
     report += (`  ${(stateName + ':').padEnd(12)} ${sbStates[state]}`) + '\n';
   })
-  report += (`  * ALL:       ${sup.sandboxes.length}`) + '\n';
+  report += (`  * ALL:       ${worker.sandboxes.length}`) + '\n';
 
   report += ('Progress:') + '\n';
-  sup.workingSandboxes.forEach(sb => {
+  worker.workingSandboxes.forEach(sb => {
     const jobName = sb.job && sb.job.public && sb.job.public.name || `idek (${sb.jobAddress})`;
     let el = Date.now() - sb.sliceStartTime;
     const t = el < 1000000
@@ -554,8 +602,8 @@ function sliceReport()
   });
 
   report += ('Slices:') + '\n';
-  report += (`  working:     ${sup.allocatedSlices.length}`) + '\n';
-  report += (`  queued:      ${sup.queuedSlices.length}`) + '\n';
+  report += (`  working:     ${worker.workingSlices.length}`) + '\n';
+  report += (`  queued:      ${worker.queuedSlices.length}`) + '\n';
 
   report += ('='.repeat(78)) + '\n';
 
@@ -579,7 +627,7 @@ function handleSigDeath(signalName, signal)
   else
   {
     console.error(`trapped ${signalName}, signal ${signal} -- stopping worker`);
-    worker.stop();
+    worker.stop(signalName === 'SIGQUIT');
   }
 
   setTimeout(() => process.exit(signal - 128), getCleanupTimeoutMs()).unref();
