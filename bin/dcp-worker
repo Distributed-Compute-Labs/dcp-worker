@@ -16,7 +16,6 @@ const crypto  = require('crypto');
 const chalk   = require('chalk');
 
 const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
-const debugging = require('dcp/internal/debugging').scope('dcp-worker');
 const EXIT_UNHANDLED = 5;
 
 /* Setup the telnet REPL up early to ensure early-failure log messages are captured */
@@ -383,7 +382,7 @@ async function main()
           return;
         }
 
-        if (typeof ev === 'number') /* <= June 2023 Worker events: remove ~ Sep 2023 /wg */
+        if (typeof ev === 'number' || typeof ev === 'string') /* <= June 2023 Worker events: remove ~ Sep 2023 /wg */
           slicesFetched = ev;
         else
         {
@@ -733,6 +732,14 @@ function verifyDefaultConfigIntegrity()
     console.error(' ! DCP Worker default configuration was not loaded; exiting.');
     process.exit(1);
   }
+}
+
+/* thunk - ensures global debugging() symbol always available even if called before dcp-client init */
+function debugging()
+{
+  require('dcp-client');
+  debugging = require('dcp/internal/debugging').scope('dcp-worker');
+  return debugging.apply(this, arguments);
 }
 
 /**
