@@ -8,7 +8,7 @@
  */
 'use strict';
 
-var worker, dcpConfig;
+var worker;
 
 const process = require('process');
 const fs      = require('fs');
@@ -41,7 +41,6 @@ function parseCliArgs()
 {
   var defaultPidFileName;
   
-  dcpConfig = require('dcp/dcp-config');
   defaultPidFileName = require('../lib/pidfile').getDefaultPidFileName(dcpConfig.worker.pidfile);
   
   const cliArgs = require('dcp/cli')
@@ -236,14 +235,15 @@ async function main()
 {
   const wallet = require('dcp/wallet');
   const DCPWorker = require('dcp/worker').Worker;
-  const { startWorkerLogger } = require('../lib/startWorkerLogger');
   const cliArgs = parseCliArgs();
   const sawOptions = {
     hostname: cliArgs.hostname,
     port:     cliArgs.port
   };
 
-  verifyDefaultConfigIntegrity(); /* Bail before TUI & as early as possible if config file is bad */
+  require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) }); // eslint-disable-line no-eval
+  require('../lib/startWorkerLogger').init(cliArgs); /* Start remote logger as early as possible */
+  verifyDefaultConfigIntegrity();                    /* Bail before TUI & as early as possible if bad conf */
 
   process.on('SIGINT', handleSigDeath);
   process.on('SIGTERM', handleSigDeath);
@@ -343,7 +343,13 @@ async function main()
   worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
   worker.on('error',   (...payload) => console.error(...payload));
   worker.on('warning', (...payload) => console.warn (...payload));
+  worker.on('stop', () => { console.log('Worker is stopping') });
+  worker.on('end',  () => { logClosing('log', 'Worker has stopped') });
+  require('../lib/default-ui-events').hook(worker, cliArgs);
 
+  if (cliArgs.outputMode === 'dashboard')
+    require('../lib/dashboard-tui').init(worker, cliArgs);
+  
   /* Let incorrect event-loop references keep us alive when linked with a debug library, but
    * exit quickly/accurately for production code even when the library isn't perfect.
    */
@@ -354,12 +360,6 @@ async function main()
 
   if (cliArgs.eventDebug)
     worker.enableDebugEvents = true;
-
-  worker.on('stop', () => { console.log('Worker is stopping') });
-  worker.on('end',  () => { logClosing('log', 'Worker has stopped') });
-  startWorkerLogger(worker, cliArgs);
-
-  require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) }); // eslint-disable-line no-eval
 
   if (dcpWorkerOptions.publicGroupFallback)
   {
