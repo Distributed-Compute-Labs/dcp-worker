@@ -20,6 +20,7 @@
  */
 {
   worker: {
+    defaultCoreDensity: { cpu: 0.9, gpu: 0.75 }, /* proportion of this machine's cores to use by default */
     trustComputeGroupOrigins: true,  /* Trust the scheduler to modify allowOrigins via Compute Group configuration */
 
     /* Allow lists permitting supervisor network access beyond DCP messages to services */
