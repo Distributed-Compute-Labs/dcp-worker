@@ -12,6 +12,7 @@ var worker;
 
 const process = require('process');
 const fs      = require('fs');
+const path    = require('path');
 const crypto  = require('crypto');
 const chalk   = require('chalk');
 
@@ -152,25 +153,35 @@ function parseCliArgs()
       },
 
       logfile: {
-        describe: 'Path to log file (if --output=file)',
+        describe: 'Path to log file',
         type: 'string',
         group: 'Log File output options',
+        default: path.resolve('../log/dcp-worker.log'),
       },
       syslogAddress: {
-        describe: 'Address of rsyslog server (if --output=syslog)',
+        describe: 'Address of syslog server',
         type: 'string',
         group: 'Syslog output options',
+        default: 'loghost',
+      },
+      syslogFacility: {
+        describe: 'Name of syslog facility',
+        type: 'string',
+        group: 'Syslog output options',
+        default: 'local7',
       },
       syslogTransport: {
-        describe: 'Transport to connect to rsyslog daemon (if --output=syslog)',
+        describe: 'Transport to connect to use for syslog',
         type: 'string',
-        choices: ['udp','tcp'],
+        choices: ['udp','tcp','unix','tls'],
         group: 'Syslog output options',
+        default: 'udp',
       },
       syslogPort: {
-        describe: 'UDP/TCP port of rsyslog server',
+        describe: 'UDP/TCP port to use for syslog',
         type: 'number',
         group: 'Syslog output options',
+        default: 514,
       },
 
       allowedOrigins: {
