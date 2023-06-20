@@ -38,7 +38,8 @@
     "blessed-contrib": "^4.11.0",
     "chalk": "^4.1.0",
     "dcp-client": "^4.2.30",
-    "semver": "^7.3.8"
+    "semver": "^7.3.8",
+    "syslog-client": "1.1.1"
   },
   "optionalDependencies": {
     "telnet-console": "^1.0.4"
