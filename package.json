@@ -37,7 +37,7 @@
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.11.0",
     "chalk": "^4.1.0",
-    "dcp-client": "^4.2.30",
+    "dcp-client": "gitlab:Distributed-Compute-Protocol/dcp-client#develop",
     "semver": "^7.3.8",
     "syslog-client": "1.1.1"
   },
