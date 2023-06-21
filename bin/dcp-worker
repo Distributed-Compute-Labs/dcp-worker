@@ -15,6 +15,7 @@ const fs      = require('fs');
 const path    = require('path');
 const crypto  = require('crypto');
 const chalk   = require('chalk');
+const telnetd = require('../lib/remote-console');
 
 const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
 const EXIT_UNHANDLED = 5;
@@ -28,11 +29,11 @@ const replHelpers = {
   },
   commands: {
     report: printReport,
-    kill:   process.exit,
+    kill:   processExit,
     die:    () => worker && worker.stop()
   },
 };
-require('../lib/remote-console').init(replHelpers);
+telnetd.init(replHelpers);
 
 /* Initialize dcp-client with local config defaults and run the main function. DCP_CONFIG_COOKIE becomes dcpConfig.cookie. */
 process.env.DCP_CONFIG_COOKIE = (Math.random().toString(16)).slice(2) + '-' + process.pid + '-' + Date.now();
@@ -214,7 +215,7 @@ function parseCliArgs()
   if (cliArgs.dumpConfig)
   {
     console.log(JSON.stringify(require('dcp/dcp-config'), null, 2));
-    process.exit(0);
+    processExit(0);
   }
 
   return cliArgs;
@@ -239,6 +240,20 @@ function addConfig(target, ...objs)
   Object.assign(target, tmp);
 }
 
+/** 
+ * Replacement for process.exit() that tries to increase the probability
+ * that remote log messages will make it out over the network.
+*/
+function processExit()
+{
+  logClosing('debug', 'Exit Code:', process.exitCode || 0);
+  if (console.close)
+    console.close();
+  setImmediate(() => {
+    process.exit.apply(null, arguments);
+  });
+}
+
 /**
  * Main program entry point. Assumes DCP client is already initialized and console logging is ready.
  */
@@ -252,7 +267,7 @@ async function main()
     port:     cliArgs.port
   };
 
-  require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) }); // eslint-disable-line no-eval
+  telnetd.setMainEval(function mainEval() { return eval(arguments[0]) }); // eslint-disable-line no-eval
   require('../lib/startWorkerLogger').init(cliArgs); /* Start remote logger as early as possible */
   verifyDefaultConfigIntegrity();                    /* Bail before TUI & as early as possible if bad conf */
 
@@ -261,7 +276,7 @@ async function main()
   process.on('SIGQUIT', handleSigDeath);
   process.on('unhandledRejection', handleUnhandled);
   process.on('uncaughtException', handleUnhandled);
-
+  
   let paymentAddress = false
       || cliArgs.paymentAddress
       || dcpConfig.worker.paymentAddress
@@ -365,9 +380,9 @@ async function main()
    * exit quickly/accurately for production code even when the library isn't perfect.
    */
   if (require('dcp/build').config.build !== 'debug')
-    worker.on('end', process.exit);
+    worker.on('end', processExit);
   else
-    worker.on('end', () => setTimeout(process.exit, getCleanupTimeoutMs()).unref());
+    worker.on('end', () => setTimeout(processExit, getCleanupTimeoutMs()).unref());
 
   if (cliArgs.eventDebug)
     worker.enableDebugEvents = true;
@@ -435,14 +450,16 @@ async function main()
   if (dcpWorkerOptions.leavePublicGroup)
     introBanner += ' . Leaving the public compute group' + '\n';
   if (dcpWorkerOptions.cores)
-    introBanner += ` . Target cores: ${JSON.stringify(dcpWorkerOptions.cores)}\n`;
+    introBanner += ` . Configured Cores: ${dcpWorkerOptions.cores.cpu},${dcpWorkerOptions.cores.gpu}\n`
   else
     introBanner += ` . Target core density: ${JSON.stringify(dcpWorkerOptions.defaultCoreDensity)}\n`;
   if (cliArgs.verbose)
     introBanner += ` + Verbosity level: ${cliArgs.verbose}` + '\n';
   if (cliArgs.eventDebug)
     introBanner += ' + Event debug on' + '\n';
-
+  if (telnetd.hasOwnProperty('port'))
+    introBanner += ` ! telnetd listening on port ${telnetd.port}\n`;
+  
   introBanner += ' . Supervisor version: ' + worker.supervisorVersion;
   introBanner += ' . Output mode: ' + cliArgs.outputMode + '\n';
   introBanner += ' * Ready' + '\n';
@@ -455,7 +472,7 @@ async function main()
     if (cliArgs.outputMode !== 'dashboard')
       setInterval(printReport, parseFloat(cliArgs.reportInterval) * 1000).unref();
     else
-      console.log('Ignoring --reportInterval in dashboard output mode');
+      console.warn('Ignoring --reportInterval in dashboard output mode');
   }
 
   /* Start the worker. Normal process exit happens by virtue of the worker<end> event */
@@ -507,9 +524,7 @@ function logClosing(facility, ...message)
 {
   var screen = require('../lib/worker-loggers/dashboard').screen;
 
-  if (!screen)
-    console[facility](message);
-  else
+  if (screen)
   {
     /* Turn off fullscreen TUI and resume "normal" console logging.
      * FUTURE: dashboard API should know how to unregister its hook so that we don't have to clobber
@@ -519,9 +534,10 @@ function logClosing(facility, ...message)
     screen.destroy();
     screen = false;
     console = new (require('console').Console)(process); // eslint-disable-line no-global-assign
-    require('../lib/remote-console').reintercept();
-    console[facility].call(null, ...message);
+    telnetd.reintercept();
   }
+
+  console[facility](...message);
 }
 
 /** 
@@ -539,7 +555,7 @@ function handleUnhandled(error)
   
   try
   {
-    logClosing(error);
+    logClosing('error', error);
   } catch(e) {} // eslint-disable-line no-empty
 
   if (!_worker)
@@ -547,13 +563,13 @@ function handleUnhandled(error)
   else
   {
     console.error('trapped unhandled error -- stopping worker:', error);
-    _worker.on('end', process.exit);
+    _worker.on('end', processExit);
     _worker.stop();
   }
 
   setTimeout(() => {
     logClosing('error', 'handleFatalError timeout - exiting now');
-    process.exit();
+    processExit();
   }, getCleanupTimeoutMs()).unref();
 
   try {
@@ -660,14 +676,14 @@ function handleSigDeath(signalName, signal)
   process.off(signalName, handleSigDeath);
 
   if (!worker)
-    console.error(`trapped ${signalName}, signal ${signal}`);
+    console.warn(`trapped ${signalName}, signal ${signal}`);
   else
   {
-    console.error(`trapped ${signalName}, signal ${signal} -- stopping worker`);
+    console.warn(`trapped ${signalName}, signal ${signal} -- stopping worker`);
     worker.stop(signalName === 'SIGQUIT');
   }
 
-  setTimeout(() => process.exit(signal - 128), getCleanupTimeoutMs()).unref();
+  setTimeout(() => processExit(signal - 128), getCleanupTimeoutMs()).unref();
 }
 
 /**
@@ -687,7 +703,7 @@ function getCleanupTimeoutMs()
     cleanupTimeout = defaultCT;
     if (!getCleanupTimeoutMs.warned)
     {
-      console.warn(`warning: dcpConfig.worker.cleanupTimeout is not a number (${dcpConfig.worker.cleanupTimeout})`);
+      console.error(`warning: dcpConfig.worker.cleanupTimeout is not a number (${dcpConfig.worker.cleanupTimeout})`);
       getCleanupTimeoutMs.warned = true;
     }
   }
@@ -709,7 +725,7 @@ function verifyDefaultConfigIntegrity()
 
   if (!fs.existsSync(md5sumPath))
   {
-    console.log(chalk.bold.red(` ! warning: ${md5sumPath} not found; cannot verify configuration integrity`));
+    console.error(chalk.bold.red(` ! warning: ${md5sumPath} not found; cannot verify configuration integrity`));
     require('dcp/utils').sleep(2);
   }
   else
@@ -731,7 +747,7 @@ function verifyDefaultConfigIntegrity()
       console.warn('    - the Windows Registry');
 
       if (require('dcp/build').config.build !== 'debug')
-        process.exit(1);
+        processExit(1);
 
       console.log(chalk.bold.red.inverse("If this wasn't a debug build, the worker would exit now."));
       require('dcp/utils').sleep(2);
@@ -741,7 +757,7 @@ function verifyDefaultConfigIntegrity()
   if (dcpConfig.cookie !== process.env.DCP_CONFIG_COOKIE || !dcpConfig.cookie)
   {
     console.error(' ! DCP Worker default configuration was not loaded; exiting.');
-    process.exit(1);
+    processExit(1);
   }
 }
 
