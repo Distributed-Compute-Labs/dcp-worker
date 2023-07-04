@@ -416,10 +416,8 @@ async function main()
           slicesFetched = 0;
           for (const slice in task.slices)
           {
-            slicesFetched+= task.slices[slice];
+            slicesFetched += task.slices[slice];
           }
-          
-
         }
 
         dcpWorkerOptions.leavePublicGroup = Boolean(slicesFetched > 0);
