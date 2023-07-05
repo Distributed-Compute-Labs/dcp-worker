@@ -414,9 +414,9 @@ async function main()
         {
           const task = ev;
           slicesFetched = 0;
-          for (const slice in task.slices)
+          for (const job in task.slices)
           {
-            slicesFetched += task.slices[slice];
+            slicesFetched += task.slices[job];
           }
         }
 
