@@ -443,7 +443,7 @@ async function main()
 
   if (dcpWorkerOptions.jobAddresses?.length > 0)
     introBanner += ` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')} ` + dcpWorkerOptions.jobAddresses.join(', ') + '\n';
-  if (dcpWorkerOptions.computeGroups?.length > 0)
+  if (dcpWorkerOptions.computeGroups && Object.keys(dcpWorkerOptions.computeGroups).length > 0)
     introBanner += ` . Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')} ` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', ') + '\n';
   if (dcpWorkerOptions.publicGroupFallback)
     introBanner += ' . Falling back on public group when preferred groups have no work' + '\n';
