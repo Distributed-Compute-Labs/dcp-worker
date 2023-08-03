@@ -16,6 +16,7 @@ const path    = require('path');
 const crypto  = require('crypto');
 const chalk   = require('chalk');
 const telnetd = require('../lib/remote-console');
+const utils   = require('../lib/utils');
 
 const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
 const EXIT_UNHANDLED = 5;
@@ -400,27 +401,10 @@ async function main()
 
       function fetchEventHandler(ev)
       {
-        var slicesFetched;
-
         if (ev instanceof Error)
-        {
           console.error('Error fetching task:', ev);
-          return;
-        }
-
-        if (typeof ev === 'number' || typeof ev === 'string') /* <= June 2023 Worker events: remove ~ Sep 2023 /wg */
-          slicesFetched = ev;
         else
-        {
-          const task = ev;
-          slicesFetched = 0;
-          for (const job in task.slices)
-          {
-            slicesFetched += task.slices[job];
-          }
-        }
-
-        dcpWorkerOptions.leavePublicGroup = Boolean(slicesFetched > 0);
+          dcpWorkerOptions.leavePublicGroup = Boolean(utils.sliceFetched(ev) > 0);
       }
     }
   }
@@ -641,14 +625,14 @@ function sliceReport()
 
   report += ('Progress:') + '\n';
   worker.workingSandboxes.forEach(sb => {
-    const jobName = sb.job && sb.job.public && sb.job.public.name || `idek (${sb.jobAddress})`;
+    const jobName = sb.job?.public?.name || `idek (${sb.jobAddress})`;
     let el = Date.now() - sb.sliceStartTime;
     const t = el < 1000000
           ? toInterval(el)
           : 'new';
 
     el = sb.progressReports && sb.progressReports.last
-      ? Date.now() - (sb.sliceStartTime + sb.progressReports.last.timestamp)
+      ? Date.now() - (sb.sliceStartTime + (sb.progressReports.last?.timestamp ?? 0))
       : 0;
     const pct = (typeof sb.progress) === 'number'
           ? `${Number(sb.progress).toFixed(0).padStart(2)}%`
