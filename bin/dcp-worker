@@ -411,7 +411,7 @@ async function main()
         if (ev instanceof Error)
           console.error('Error fetching task:', ev);
         else
-          dcpWorkerOptions.leavePublicGroup = Boolean(utils.sliceFetched(ev) > 0);
+          dcpWorkerOptions.leavePublicGroup = Boolean(utils.slicesFetched(ev) > 0);
       }
     }
   }
