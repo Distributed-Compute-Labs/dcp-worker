@@ -4,7 +4,12 @@
  *              Standalone NodeJS DCP Worker
  *
  *  @author     Ryan Rossiter, ryan@kingsds.network
+ *              Paul, paul@distributive.network
+ *              Wes Garland, wes@distributive.network
+ *
  *  @date       April 2020
+ *              April-May 2023
+ *              May-June 2023
  */
 'use strict';
 
@@ -16,6 +21,7 @@ const path    = require('path');
 const crypto  = require('crypto');
 const chalk   = require('chalk');
 const telnetd = require('../lib/remote-console');
+const utils   = require('../lib/utils');
 
 const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
 const EXIT_UNHANDLED = 5;
@@ -35,7 +41,9 @@ const replHelpers = {
 };
 telnetd.init(replHelpers);
 
-/* Initialize dcp-client with local config defaults and run the main function. DCP_CONFIG_COOKIE becomes dcpConfig.cookie. */
+/* Initialize dcp-client with local config defaults and run the main function. DCP_CONFIG_COOKIE becomes dcpConfig.cookie.
+ * And dcpConfig is defined as a side effect of initializing dcp-client.
+ */
 process.env.DCP_CONFIG_COOKIE = (Math.random().toString(16)).slice(2) + '-' + process.pid + '-' + Date.now();
 require('dcp-client').init({ configName }).then(main).catch(handleUnhandled);
 
@@ -400,23 +408,10 @@ async function main()
 
       function fetchEventHandler(ev)
       {
-        var slicesFetched;
-
         if (ev instanceof Error)
-        {
           console.error('Error fetching task:', ev);
-          return;
-        }
-
-        if (typeof ev === 'number' || typeof ev === 'string') /* <= June 2023 Worker events: remove ~ Sep 2023 /wg */
-          slicesFetched = ev;
         else
-        {
-          const task = ev;
-          slicesFetched = task.slices.length;
-        }
-
-        dcpWorkerOptions.leavePublicGroup = Boolean(slicesFetched > 0);
+          dcpWorkerOptions.leavePublicGroup = Boolean(utils.slicesFetched(ev) > 0);
       }
     }
   }
@@ -637,14 +632,14 @@ function sliceReport()
 
   report += ('Progress:') + '\n';
   worker.workingSandboxes.forEach(sb => {
-    const jobName = sb.job && sb.job.public && sb.job.public.name || `idek (${sb.jobAddress})`;
+    const jobName = sb.job?.public?.name || `idek (${sb.jobAddress})`;
     let el = Date.now() - sb.sliceStartTime;
     const t = el < 1000000
           ? toInterval(el)
           : 'new';
 
     el = sb.progressReports && sb.progressReports.last
-      ? Date.now() - (sb.sliceStartTime + sb.progressReports.last.timestamp)
+      ? Date.now() - (sb.sliceStartTime + (sb.progressReports.last?.timestamp ?? 0))
       : 0;
     const pct = (typeof sb.progress) === 'number'
           ? `${Number(sb.progress).toFixed(0).padStart(2)}%`
