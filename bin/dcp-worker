@@ -69,7 +69,6 @@ function parseCliArgs()
         alias: 'd',
         describe: 'default proportion of CPU,GPU to use when cores not specified',
         type: 'string',
-        default: JSON.stringify(dcpConfig.worker.defaultCoreDensity),
       },
       verbose: {
         alias: 'v',
@@ -494,12 +493,13 @@ function processCoresAndDensity (dcpWorkerOptions, cliArgs)
 
   const parseArg = (which) => {
     if (!cliArgs[which])
-      return false;
-
-    const [cpu, gpu] = cliArgs[which].split(',');
-    dcpWorkerOptions[which] = { cpu: Number(cpu || defaultTargets[which].cpu),
-                                gpu: Number(gpu || defaultTargets[which].gpu) };
-    return true;
+      dcpWorkerOptions[which] = defaultTargets[which];
+    else
+    {
+      const [cpu, gpu] = cliArgs[which].split(',');
+      dcpWorkerOptions[which] = { cpu: Number(cpu || defaultTargets[which].cpu),
+                                  gpu: Number(gpu || defaultTargets[which].gpu) };
+    }
   };
 
   parseArg('density');
@@ -507,8 +507,8 @@ function processCoresAndDensity (dcpWorkerOptions, cliArgs)
 
   if (dcpWorkerOptions.cores)
     debugging() && console.debug('dcp-worker: cores =', dcpWorkerOptions.cores);
-  else
-    debugging() && console.debug('dcp-worker: core density =', dcpWorkerOptions.defaultCoreDensity);
+  if (dcpWorkerOptions.density)
+    debugging() && console.debug('dcp-worker: core density =', dcpWorkerOptions.density);
 }
 
 /**
