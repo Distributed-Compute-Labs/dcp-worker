@@ -4,7 +4,12 @@
  *              Standalone NodeJS DCP Worker
  *
  *  @author     Ryan Rossiter, ryan@kingsds.network
+ *              Paul, paul@distributive.network
+ *              Wes Garland, wes@distributive.network
+ *
  *  @date       April 2020
+ *              April-May 2023
+ *              May-June 2023
  */
 'use strict';
 
@@ -36,7 +41,9 @@ const replHelpers = {
 };
 telnetd.init(replHelpers);
 
-/* Initialize dcp-client with local config defaults and run the main function. DCP_CONFIG_COOKIE becomes dcpConfig.cookie. */
+/* Initialize dcp-client with local config defaults and run the main function. DCP_CONFIG_COOKIE becomes dcpConfig.cookie.
+ * And dcpConfig is defined as a side effect of initializing dcp-client.
+ */
 process.env.DCP_CONFIG_COOKIE = (Math.random().toString(16)).slice(2) + '-' + process.pid + '-' + Date.now();
 require('dcp-client').init({ configName }).then(main).catch(handleUnhandled);
 
