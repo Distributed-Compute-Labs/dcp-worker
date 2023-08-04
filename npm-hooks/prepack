@@ -1,17 +1,21 @@
-#! /bin/bash
-#
-# @file         prepack
-#               Hook which generates the config md5 on pack (or publish)
-# @author       Wes Garland, wes@distributive.network
-# @date         April 2023
-#
-set -e
-set -u
-set -o pipefail
+#! /usr/bin/env node
+/**
+ * @file        prepack
+ *              Hook which generates the config md5 on pack (or publish)
+ * @author      Wes Garland, wes@distributive.network
+ * @date        April 2023, June 2023
+ */
 
-cd `dirname "$0"`/..
+const fs = require('fs');
+const process = require('process');
+const path = require('path');
 
-(
-  md5sum etc/dcp-worker-config.js
-  echo "### DO NOT MODIFY THIS FILE!!! ###"
-) > etc/dcp-worker-config.js.md5
+function md5(content)
+{  
+  return require('crypto').createHash('md5').update(content).digest('hex');
+}
+
+process.chdir(path.resolve(__dirname, '..'));
+fs.writeFileSync('etc/dcp-worker-config.js.md5', ''
+                 + `${md5(fs.readFileSync('etc/dcp-worker-config.js'))}\n`
+                 + '### DO NOT MODIFY THIS FILE!!! ###\n');

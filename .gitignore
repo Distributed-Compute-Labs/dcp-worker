@@ -3,3 +3,4 @@
 etc/enable-debug-console
 etc/*.history
 *.log
+dcp-worker-*.tgz

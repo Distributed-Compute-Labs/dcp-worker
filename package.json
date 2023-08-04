@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "3.2.28-0",
+  "version": "3.2.29",
   "description": "JavaScript portion of DCP Workers for Node.js",
   "main": "bin/dcp-worker",
   "keywords": [
@@ -16,9 +16,6 @@
   },
   "license": "MIT",
   "author": "Kings Distributed Systems",
-  "engines": {
-    "node": ">=14.0.0"
-  },
   "bin": {
     "dcp-evaluator-start": "bin/dcp-evaluator-start",
     "dcp-worker": "bin/dcp-worker"
@@ -30,8 +27,9 @@
   "scripts": {
     "start": "node bin/dcp-worker start",
     "start-evaluator": "node bin/dcp-evaluator-start",
+    "hook": "PATH=npm-hooks:$PATH &&",
     "test": "peter tests",
-    "x-prepack": "npm-hooks/prepack",
+    "prepack": "node npm-hooks/prepack",
     "postpublish": "npm-hooks/postpublish",
     "prepublishOnly": "npm-hooks/prepublish"
   },
@@ -39,14 +37,18 @@
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.11.0",
     "chalk": "^4.1.0",
-    "dcp-client": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-client.git#develop",
+    "dcp-client": "gitlab:Distributed-Compute-Protocol/dcp-client#develop",
     "semver": "^7.3.8"
   },
   "optionalDependencies": {
     "telnet-console": "^1.0.4"
   },
   "devDependencies": {
-    "@kingsds/eslint-config": "1.0.1",
+    "@kingsds/eslint-config": "^1.0.1",
     "eslint": "7.30.0"
+  },
+  "engines": {
+    "node": ">=16",
+    "npm": ">=7"
   }
 }
