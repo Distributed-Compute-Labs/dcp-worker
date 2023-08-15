@@ -18,9 +18,11 @@
 /package-lock.json @eroosenmaallen
 
 [Wes]
+/npm-hooks/ @wesgarland
 /README.md @wesgarland
 /docs/ @wesgarland
 /.eslintrc.json @wesgarland
+/.npmrc @wesgarland
 /.tidelift @wesgarland
 /lib/ @wesgarland
 /LICENSE.md @wesgarland

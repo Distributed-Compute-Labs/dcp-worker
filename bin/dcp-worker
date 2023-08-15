@@ -4,25 +4,26 @@
  *              Standalone NodeJS DCP Worker
  *
  *  @author     Ryan Rossiter, ryan@kingsds.network
+ *              Paul, paul@distributive.network
+ *              Wes Garland, wes@distributive.network
+ *
  *  @date       April 2020
+ *              April-May 2023
+ *              May-June 2023
  */
 'use strict';
 
+var worker;
+
 const process = require('process');
 const fs      = require('fs');
+const path    = require('path');
 const crypto  = require('crypto');
 const chalk   = require('chalk');
+const telnetd = require('../lib/remote-console');
+const utils   = require('../lib/utils');
 
 const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
-var worker, dcpConfig, debugging;
-
-const debug = (...args) => {
-  if (!debugging)
-    debugging = require('dcp/internal/debugging').scope('dcp-worker');
-  if (debugging())
-    console.debug('dcp-worker:', ...args);
-};
-
 const EXIT_UNHANDLED = 5;
 
 /* Setup the telnet REPL up early to ensure early-failure log messages are captured */
@@ -34,13 +35,15 @@ const replHelpers = {
   },
   commands: {
     report: printReport,
-    kill:   process.exit,
+    kill:   processExit,
     die:    () => worker && worker.stop()
   },
 };
-require('../lib/remote-console').init(replHelpers);
+telnetd.init(replHelpers);
 
-/* Initialize dcp-client with local config defaults and run the main function. DCP_CONFIG_COOKIE becomes dcpConfig.cookie. */
+/* Initialize dcp-client with local config defaults and run the main function. DCP_CONFIG_COOKIE becomes dcpConfig.cookie.
+ * And dcpConfig is defined as a side effect of initializing dcp-client.
+ */
 process.env.DCP_CONFIG_COOKIE = (Math.random().toString(16)).slice(2) + '-' + process.pid + '-' + Date.now();
 require('dcp-client').init({ configName }).then(main).catch(handleUnhandled);
 
@@ -48,7 +51,6 @@ function parseCliArgs()
 {
   var defaultPidFileName;
   
-  dcpConfig = require('dcp/dcp-config');
   defaultPidFileName = require('../lib/pidfile').getDefaultPidFileName(dcpConfig.worker.pidfile);
   
   const cliArgs = require('dcp/cli')
@@ -65,7 +67,7 @@ function parseCliArgs()
       },
       density: {
         alias: 'd',
-        describe: 'What proportion of CPU and GPU to use: the format is 80,50 (or just 80) for 80% of CPU and 50% of GPU',
+        describe: 'default proportion of CPU,GPU to use when cores not specified',
         type: 'string',
       },
       verbose: {
@@ -97,18 +99,21 @@ function parseCliArgs()
       },
       priorityOnly: {
         alias: 'P',
+        hidden: true,
         describe: 'Set the priority mode [deprecated]',
         type: 'boolean',
         default: false
       },
       'job-id': {
         alias: 'j',
+        hidden: true,
         describe: 'Restrict worker to a specific job (use N times for N jobs)',
         type: 'array',
       },
 
       join: {
         alias: 'g',
+        hidden: true,
         describe: 'Join compute group; the format is "joinKey,joinSecret" or "joinKey,eh1-joinHash"',
         type: 'array'
       },
@@ -119,22 +124,27 @@ function parseCliArgs()
 
       leavePublicGroup: {
         type: 'boolean',
-        describe: 'Do not fetch slices from public compute group. Ignored if --publicGroupFallback is set',
-        default: false,
+        hidden: true,
+        describe: 'Do not fetch slices from public compute group.',
+        default: undefined,
       },
+
       publicGroupFallback: {
+        hidden: true,
         describe: 'If set, worker will prefer private groups but fall back on the public group if no preferred work is available',
         type: 'boolean',
-        default: 'false',
-        defaultDescription: false,
+        default: 'undefined',
+        defaultDescription: undefined,
       },
 
       identityKey: {
+        hidden: true,
         describe: 'Identity key, in hex format',
         type: 'string',
         group: 'Identity options',
       },
       identityKeystore: {
+        hidden: true,
         describe: 'Identity keystore, in json format',
         type: 'string',
         group: 'Identity options',
@@ -146,7 +156,7 @@ function parseCliArgs()
         group: 'Output options',
       },
       eventDebug: {
-        hide: true,
+        hidden: true,
         describe: 'If set, dump all sandbox and worker events',
       },
 
@@ -156,25 +166,35 @@ function parseCliArgs()
       },
 
       logfile: {
-        describe: 'Path to log file (if --output=file)',
+        describe: 'Path to log file',
         type: 'string',
         group: 'Log File output options',
+        default: path.resolve('../log/dcp-worker.log'),
       },
       syslogAddress: {
-        describe: 'Address of rsyslog server (if --output=syslog)',
+        describe: 'Address of syslog server',
         type: 'string',
         group: 'Syslog output options',
+        default: 'loghost',
+      },
+      syslogFacility: {
+        describe: 'Name of syslog facility',
+        type: 'string',
+        group: 'Syslog output options',
+        default: 'local7',
       },
       syslogTransport: {
-        describe: 'Transport to connect to rsyslog daemon (if --output=syslog)',
+        describe: 'Transport to connect to use for syslog',
         type: 'string',
-        choices: ['udp','tcp'],
+        choices: ['udp','tcp','unix','tls'],
         group: 'Syslog output options',
+        default: 'udp',
       },
       syslogPort: {
-        describe: 'UDP/TCP port of rsyslog server',
+        describe: 'UDP/TCP port to use for syslog',
         type: 'number',
         group: 'Syslog output options',
+        default: 514,
       },
 
       allowedOrigins: {
@@ -212,8 +232,8 @@ function parseCliArgs()
 
   if (cliArgs.dumpConfig)
   {
-    console.debug(JSON.stringify(require('dcp/dcp-config'), null, 2));
-    process.exit(0);
+    console.log(JSON.stringify(require('dcp/dcp-config'), null, 2));
+    processExit(0);
   }
 
   return cliArgs;
@@ -238,6 +258,20 @@ function addConfig(target, ...objs)
   Object.assign(target, tmp);
 }
 
+/** 
+ * Replacement for process.exit() that tries to increase the probability
+ * that remote log messages will make it out over the network.
+*/
+function processExit()
+{
+  logClosing('debug', 'Exit Code:', process.exitCode || 0);
+  if (console.close)
+    console.close();
+  setImmediate(() => {
+    process.exit.apply(null, arguments);
+  });
+}
+
 /**
  * Main program entry point. Assumes DCP client is already initialized and console logging is ready.
  */
@@ -245,21 +279,22 @@ async function main()
 {
   const wallet = require('dcp/wallet');
   const DCPWorker = require('dcp/worker').Worker;
-  const { startWorkerLogger } = require('../lib/startWorkerLogger');
   const cliArgs = parseCliArgs();
   const sawOptions = {
     hostname: cliArgs.hostname,
     port:     cliArgs.port
   };
 
-  verifyDefaultConfigIntegrity();
+  telnetd.setMainEval(function mainEval() { return eval(arguments[0]) }); // eslint-disable-line no-eval
+  require('../lib/startWorkerLogger').init(cliArgs); /* Start remote logger as early as possible */
+  verifyDefaultConfigIntegrity();                    /* Bail before TUI & as early as possible if bad conf */
 
   process.on('SIGINT', handleSigDeath);
   process.on('SIGTERM', handleSigDeath);
   process.on('SIGQUIT', handleSigDeath);
   process.on('unhandledRejection', handleUnhandled);
   process.on('uncaughtException', handleUnhandled);
-
+  
   let paymentAddress = false
       || cliArgs.paymentAddress
       || dcpConfig.worker.paymentAddress
@@ -270,7 +305,7 @@ async function main()
   if (cliArgs.pidFile)
     require('../lib/pidfile').write(cliArgs.pidFile);
 
-  /* Figure out of the worker's identity and put that keystore in the wallet */
+  /* Figure out the worker's identity and put that keystore in the wallet */
   let identityKeystore = false;
   if (cliArgs.identityKey)
     identityKeystore = await new wallet.IdKeystore(cliArgs.identityKey, '');
@@ -288,11 +323,13 @@ async function main()
    * which were derived from dcpConfig in the first place. defaultOptions are overrideable by the usual
    * dcpConfig mechanisms, but since they are dynamic (or non-user-facing) they don't come from the
    * etc/dcp-worker-config.js file that ships with the work.
+   *
+   * It is important to never disable leavePublicGroup as a side effect of any other operation, or
+   * slight configuration errors could have large security impacts.
    */
   const dcpWorkerOptions = dcpConfig.worker;
   const forceOptions = {
     paymentAddress,
-    leavePublicGroup: cliArgs.leavePublicGroup || dcpConfig.worker.leavePublicGroup || cliArgs.publicGroupFallback || false,
     maxWorkingSandboxes: cliArgs.cores,
   };
   const defaultOptions = {
@@ -301,17 +338,20 @@ async function main()
     },
   };
 
-  addConfig(dcpWorkerOptions, defaultOptions, dcpConfig.worker, forceOptions);
+  if (cliArgs.leavePublicGroup !== undefined)
+    forceOptions.leavePublicGroup = mkBool(cliArgs.leavePublicGroup);
+  if (cliArgs.publicGroupFallback !== undefined)
+    forceOptions.publicGroupFallback = mkBool(cliArgs.publicGroupFallback);
 
-  /* cliArgs.density is the proportion of hardware compute to use.
-   * cliArgs.cores is the core count of the hardware to use.
-   * When specified cliArgs.density is dominant and cores is derived from density.
-   * For backward compatibility either cliArgs.density or cliArgs.cores can be
-   * specified with only the cpu component.
-   * E.g. -d 50 specifies density = { cpu: 50, gpu: defaultTargets.density.gpu }
-   *      -c 10 specifies cores = { cpu: 10, gpu: defaultTargets.cores.gpu }
-   */
+  addConfig(dcpWorkerOptions, defaultOptions, dcpConfig.worker, forceOptions);
   processCoresAndDensity(dcpWorkerOptions, cliArgs);
+
+  /* Support magic value used by Windows screensaver configuration /wg June 2023 */
+  if (dcpWorkerOptions.leavePublicGroup === 'fallback')
+  {
+    dcpWorkerOptions.publicGroupFallback = true;
+    dcpWorkerOptions.leavePublicGroup = undefined;
+  }
 
   /* cliArgs.join is the list of compute groups to join */
   if (cliArgs.join && cliArgs.join.length)
@@ -345,47 +385,44 @@ async function main()
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
 
   worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
-  worker.on('error', (...payload) => console.error(...payload));
-  worker.on('warning', (...payload) => console.warn(...payload));
+  worker.on('error',   (...payload) => console.error(...payload));
+  worker.on('warning', (...payload) => console.warn (...payload));
+  worker.on('stop', () => { console.log('Worker is stopping') });
+  worker.on('end',  () => { logClosing('log', 'Worker has stopped') });
+  require('../lib/default-ui-events').hook(worker, cliArgs);
 
+  if (cliArgs.outputMode === 'dashboard')
+    require('../lib/dashboard-tui').init(worker, cliArgs);
+  
   /* Let incorrect event-loop references keep us alive when linked with a debug library, but
    * exit quickly/accurately for production code even when the library isn't perfect.
    */
   if (require('dcp/build').config.build !== 'debug')
-    worker.on('end', process.exit);
+    worker.on('end', processExit);
   else
-    worker.on('end', () => setTimeout(process.exit, getCleanupTimeoutMs()).unref());
+    worker.on('end', () => setTimeout(processExit, getCleanupTimeoutMs()).unref());
 
   if (cliArgs.eventDebug)
     worker.enableDebugEvents = true;
 
-  worker.on('stop', () => { console.log('Worker is stopping') });
-  worker.on('end',  () => { logClosing('log', 'Worker has stopped') });
-  startWorkerLogger(worker, cliArgs);
-
-  require('../lib/remote-console').setMainEval(function mainEval() { return eval(arguments[0]) });
-
-  // Activate public group fallback
-  // If requested by CLI
-  // OR if requested by dcpConfig and not forbidden by the cli
-  if (cliArgs.publicGroupFallback
-      || (dcpConfig.worker?.leavePublicGroup === 'fallback'
-          && typeof cliArgs.publicGroupFallback !== false))
+  if (dcpWorkerOptions.publicGroupFallback)
   {
-    dcpWorkerOptions.publicGroupFallback = true;
-
-    // If local config blocks the public group, then complain instead of activating fallback
-    if (dcpConfig.worker?.leavePublicGroup === true)
-    {
-      console.warn('* Public Group fallback has been requested, but the public group is blocked by local configuration');
-    }
+    if (dcpWorkerOptions.leavePublicGroup)
+      console.warn(' ! Public Group fallback has been requested, but the public group is blocked by local configuration');
     else
     {
-      worker.on('fetchend', slicesFetched => {
-        // Iff we got work in this fetch, then leave the public group for the
-        // next fetch
-        dcpConfig.worker.leavePublicGroup = Boolean(slicesFetched > 0);
-      });
+      /* Enable public group fallback - this currently works by enabling or disabling the public group
+       * on the next fetch based on whether or not the most recent fetch was an empty task or not.
+       */
+      worker.on('fetch', fetchEventHandler);
+
+      function fetchEventHandler(ev)
+      {
+        if (ev instanceof Error)
+          console.error('Error fetching task:', ev);
+        else
+          dcpWorkerOptions.leavePublicGroup = Boolean(utils.slicesFetched(ev) > 0);
+      }
     }
   }
 
@@ -411,23 +448,26 @@ async function main()
 
   if (dcpWorkerOptions.jobAddresses?.length > 0)
     introBanner += ` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')} ` + dcpWorkerOptions.jobAddresses.join(', ') + '\n';
-  if (dcpWorkerOptions.computeGroups?.length > 0)
-    introBanner += ` * Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')} ` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', ') + '\n';
+  if (dcpWorkerOptions.computeGroups && Object.keys(dcpWorkerOptions.computeGroups).length > 0)
+    introBanner += ` . Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')} ` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', ') + '\n';
   if (dcpWorkerOptions.publicGroupFallback)
-    introBanner += ' * Falling back on public group when preferred groups have no work' + '\n';
-  else if (dcpWorkerOptions.leavePublicGroup)
-    introBanner += ' * Leaving the public compute group' + '\n';
+    introBanner += ' . Falling back on public group when preferred groups have no work' + '\n';
+  if (dcpWorkerOptions.leavePublicGroup)
+    introBanner += ' . Leaving the public compute group' + '\n';
   if (dcpWorkerOptions.cores)
-    introBanner += ` * Target cores: ${JSON.stringify(dcpWorkerOptions.cores)}\n`;
-  if (dcpWorkerOptions.density)
-    introBanner += ` * Target density: ${JSON.stringify(dcpWorkerOptions.density)}\n`;
+    introBanner += ` . Configured Cores: ${dcpWorkerOptions.cores.cpu},${dcpWorkerOptions.cores.gpu}\n`
+  else
+    introBanner += ` . Target core density: ${JSON.stringify(dcpWorkerOptions.defaultCoreDensity)}\n`;
   if (cliArgs.verbose)
     introBanner += ` + Verbosity level: ${cliArgs.verbose}` + '\n';
   if (cliArgs.eventDebug)
     introBanner += ' + Event debug on' + '\n';
-
-  introBanner += ' . output mode: ' + cliArgs.outputMode + '\n';
-  introBanner += ' . ready' + '\n';
+  if (telnetd.hasOwnProperty('port'))
+    introBanner += ` ! telnetd listening on port ${telnetd.port}\n`;
+  
+  introBanner += ' . Supervisor version: ' + worker.supervisorVersion;
+  introBanner += ' . Output mode: ' + cliArgs.outputMode + '\n';
+  introBanner += ' * Ready' + '\n';
 
   console.log(introBanner);
   require('../lib/check-scheduler-version').check();
@@ -437,47 +477,49 @@ async function main()
     if (cliArgs.outputMode !== 'dashboard')
       setInterval(printReport, parseFloat(cliArgs.reportInterval) * 1000).unref();
     else
-      console.log('Ignoring --reportInterval in dashboard output mode');
+      console.warn('Ignoring --reportInterval in dashboard output mode');
   }
 
   /* Start the worker. Normal process exit happens by virtue of the worker<end> event */
   await worker.start();
 }
 
-// cliArgs.density is the proportion of hardware compute to use.
-// cliArgs.cores is the core count of the hardware to use.
-// When specified cliArgs.density is dominant and cores is derived from density.
-// For backward compatibility either cliArgs.density or cliArgs.cores can be
-// specified with only the cpu component.
-// E.g. -d 50 specifies density = { cpu: 50, gpu: defaultTargets.density.gpu }
-//      -c 10 specifies cores = { cpu: 10, gpu: defaultTargets.cores.gpu }
+/** 
+ * Process the cores and density cli arguments.
+ *
+ * cliArgs.cores is the core count of the hardware to use.
+ * It can be specified with only the cpu or gpu component, or both.
+ *
+ * E.g. -c 2,1  => cores = { cpu: 2,         gpu: 1 }
+ *      -c 10   => cores = { cpu: 10,        gpu: <default> }
+ *      -c ,10  => cores = { cpu: <default>, gpu: 10 }
+ */
 function processCoresAndDensity (dcpWorkerOptions, cliArgs)
 {
   const DCPWorker = require('dcp/worker').Worker;
   const defaultTargets = {
-    density: DCPWorker.defaultDensity(),
-    cores:   DCPWorker.defaultCores(dcpWorkerOptions),
+    density: dcpWorkerOptions.defaultCoreDensity || { cpu: 0, gpu: 0 }, /* 0,0 => user specified corrupt conf */
+    cores: DCPWorker.defaultCores(dcpWorkerOptions),
   };
 
-  const processArg = (which) => {
+  const parseArg = (which) => {
     if (!cliArgs[which])
-      return false;
-
-    const [cpu, gpu] = cliArgs[which].split(',');
-
-    dcpWorkerOptions.density = null; // Command line overrides config.
-    dcpWorkerOptions.cores = null;   // Command line overrides config.
-    dcpWorkerOptions[which] = { cpu: Number(cpu || defaultTargets[which].cpu),
-                                gpu: Number(gpu || defaultTargets[which].gpu) };
-    return true;
+      dcpWorkerOptions[which] = defaultTargets[which];
+    else
+    {
+      const [cpu, gpu] = cliArgs[which].split(',');
+      dcpWorkerOptions[which] = { cpu: Number(cpu || defaultTargets[which].cpu),
+                                  gpu: Number(gpu || defaultTargets[which].gpu) };
+    }
   };
-  // Parse density xor cores and if neither exits, then both Sup1 and Sup2 will create the
-  // correct defaults, which can be retrived with the Worker getters 'density' and 'cores'.
-  if (!processArg('density'))
-    processArg('cores')
 
-  debug('density', dcpWorkerOptions.density);
-  debug('cores', dcpWorkerOptions.cores);
+  parseArg('density');
+  parseArg('cores');
+
+  if (dcpWorkerOptions.cores)
+    debugging() && console.debug('dcp-worker: cores =', dcpWorkerOptions.cores);
+  if (dcpWorkerOptions.density)
+    debugging() && console.debug('dcp-worker: core density =', dcpWorkerOptions.density);
 }
 
 /**
@@ -488,9 +530,7 @@ function logClosing(facility, ...message)
 {
   var screen = require('../lib/worker-loggers/dashboard').screen;
 
-  if (!screen)
-    console[facility](message);
-  else
+  if (screen)
   {
     /* Turn off fullscreen TUI and resume "normal" console logging.
      * FUTURE: dashboard API should know how to unregister its hook so that we don't have to clobber
@@ -499,10 +539,11 @@ function logClosing(facility, ...message)
     screen.log(...message);
     screen.destroy();
     screen = false;
-    console = new (require('console').Console)(process);
-    require('../lib/remote-console').reintercept();
-    console[facility].call(null, ...message);
+    console = new (require('console').Console)(process); // eslint-disable-line no-global-assign
+    telnetd.reintercept();
   }
+
+  console[facility](...message);
 }
 
 /** 
@@ -511,7 +552,7 @@ function logClosing(facility, ...message)
  * the worker must be restarted. This handler does its best to report the rejection and give the worker a few
  * seconds in which to attempt to return slices to the scheduler before it gives up completely.
  */
-async function handleUnhandled(error)
+function handleUnhandled(error)
 {
   var _worker = worker;
   worker = false;
@@ -520,21 +561,21 @@ async function handleUnhandled(error)
   
   try
   {
-    logClosing(error);
-  } catch(e) {};
+    logClosing('error', error);
+  } catch(e) {} // eslint-disable-line no-empty
 
   if (!_worker)
     console.error('trapped unhandled error:', error)
   else
   {
     console.error('trapped unhandled error -- stopping worker:', error);
-    _worker.on('end', process.exit);
+    _worker.on('end', processExit);
     _worker.stop();
   }
 
   setTimeout(() => {
     logClosing('error', 'handleFatalError timeout - exiting now');
-    process.exit();
+    processExit();
   }, getCleanupTimeoutMs()).unref();
 
   try {
@@ -544,7 +585,7 @@ async function handleUnhandled(error)
       fs.appendFileSync(process.env.DCP_WORKER_UNHANDLED_REJECTION_LOG,
                         `${Date.now()}: ${error.message}\n${error.stack}\n\n`);
     }
-  } catch(e) {};
+  } catch(e) {} // eslint-disable-line no-empty
 }
 
 /** print the slice report via console.log */
@@ -602,14 +643,14 @@ function sliceReport()
 
   report += ('Progress:') + '\n';
   worker.workingSandboxes.forEach(sb => {
-    const jobName = sb.job && sb.job.public && sb.job.public.name || `idek (${sb.jobAddress})`;
+    const jobName = sb.job?.public?.name || `idek (${sb.jobAddress})`;
     let el = Date.now() - sb.sliceStartTime;
     const t = el < 1000000
           ? toInterval(el)
           : 'new';
 
     el = sb.progressReports && sb.progressReports.last
-      ? Date.now() - (sb.sliceStartTime + sb.progressReports.last.timestamp)
+      ? Date.now() - (sb.sliceStartTime + (sb.progressReports.last?.timestamp ?? 0))
       : 0;
     const pct = (typeof sb.progress) === 'number'
           ? `${Number(sb.progress).toFixed(0).padStart(2)}%`
@@ -641,14 +682,14 @@ function handleSigDeath(signalName, signal)
   process.off(signalName, handleSigDeath);
 
   if (!worker)
-    console.error(`trapped ${signalName}, signal ${signal}`);
+    console.warn(`trapped ${signalName}, signal ${signal}`);
   else
   {
-    console.error(`trapped ${signalName}, signal ${signal} -- stopping worker`);
+    console.warn(`trapped ${signalName}, signal ${signal} -- stopping worker`);
     worker.stop(signalName === 'SIGQUIT');
   }
 
-  setTimeout(() => process.exit(signal - 128), getCleanupTimeoutMs()).unref();
+  setTimeout(() => processExit(signal - 128), getCleanupTimeoutMs()).unref();
 }
 
 /**
@@ -668,7 +709,7 @@ function getCleanupTimeoutMs()
     cleanupTimeout = defaultCT;
     if (!getCleanupTimeoutMs.warned)
     {
-      console.warn(`warning: dcpConfig.worker.cleanupTimeout is not a number (${dcpConfig.worker.cleanupTimeout})`);
+      console.error(`warning: dcpConfig.worker.cleanupTimeout is not a number (${dcpConfig.worker.cleanupTimeout})`);
       getCleanupTimeoutMs.warned = true;
     }
   }
@@ -690,14 +731,14 @@ function verifyDefaultConfigIntegrity()
 
   if (!fs.existsSync(md5sumPath))
   {
-    console.log(chalk.bold.red(` ! warning: ${md5sumPath} not found; cannot verify configuration integrity`));
+    console.error(chalk.bold.red(` ! warning: ${md5sumPath} not found; cannot verify configuration integrity`));
     require('dcp/utils').sleep(2);
   }
   else
   {
     const originalMd5sum = fs.readFileSync(md5sumPath, 'ascii');
     const actualMd5sum = crypto.createHash('md5')
-          .update(fs.readFileSync(workerConfPath, 'ascii'))
+          .update(fs.readFileSync(workerConfPath))
           .digest('hex');
 
     if (!originalMd5sum.startsWith(actualMd5sum))
@@ -712,7 +753,7 @@ function verifyDefaultConfigIntegrity()
       console.warn('    - the Windows Registry');
 
       if (require('dcp/build').config.build !== 'debug')
-        process.exit(1);
+        processExit(1);
 
       console.log(chalk.bold.red.inverse("If this wasn't a debug build, the worker would exit now."));
       require('dcp/utils').sleep(2);
@@ -722,6 +763,23 @@ function verifyDefaultConfigIntegrity()
   if (dcpConfig.cookie !== process.env.DCP_CONFIG_COOKIE || !dcpConfig.cookie)
   {
     console.error(' ! DCP Worker default configuration was not loaded; exiting.');
-    process.exit(1);
+    processExit(1);
   }
+}
+
+/* thunk - ensures global debugging() symbol always available even if called before dcp-client init */
+function debugging()
+{
+  require('dcp-client');
+  debugging = require('dcp/internal/debugging').scope('dcp-worker');
+  return debugging.apply(this, arguments);
+}
+
+/**
+ * Cast b to boolean such that 'false' becomes false, falsey things become false, and everything else
+ * becomes true.
+ */
+function mkBool(b)
+{
+  return Boolean(b) && (b !== 'false');
 }
