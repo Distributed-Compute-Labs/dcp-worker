@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "3.2.30-3",
+  "version": "3.2.30-4",
   "description": "JavaScript portion of DCP Workers for Node.js",
   "main": "bin/dcp-worker",
   "keywords": [
@@ -52,7 +52,9 @@
     "node-eventlog": "https://gitpkg.now.sh/Distributive-Network/node-eventlog/package?dcp/0.0.1"
   },
   "peerDependenciesMeta": {
-    "node-eventlog": { "optional": true }
+    "node-eventlog": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=16",
