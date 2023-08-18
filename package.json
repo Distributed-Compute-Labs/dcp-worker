@@ -48,6 +48,12 @@
     "@kingsds/eslint-config": "^1.0.1",
     "eslint": "7.30.0"
   },
+  "peerDependencies": {
+    "node-eventlog": "https://gitpkg.now.sh/Distributive-Network/node-eventlog/package?dcp/0.0.1"
+  },
+  "peerDependenciesMeta": {
+    "node-eventlog": { "optional": true }
+  },
   "engines": {
     "node": ">=16",
     "npm": ">=7"
