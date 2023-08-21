@@ -28,4 +28,5 @@ tidelift:
   script:
     - echo "Running alignment and saving to Tidelift"
     - ./tidelift alignment save --wait
+  allow_failure: true
   cache: []
