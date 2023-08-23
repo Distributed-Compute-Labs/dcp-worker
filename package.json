@@ -46,6 +46,7 @@
   },
   "devDependencies": {
     "@kingsds/eslint-config": "^1.0.1",
+    "@techdocs/cli": "1.4.6",
     "eslint": "7.30.0"
   },
   "engines": {

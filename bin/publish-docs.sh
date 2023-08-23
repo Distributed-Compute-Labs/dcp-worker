@@ -30,8 +30,8 @@ echo "TechDocs Ref: $TECHDOCS_REF"
 #
 # The Regex below will isolate the directory path giving the
 # result 'docs/dcp' for the given example.
-if [[ "$TECHDOCS_REF" =~ dir:./([a-zA-Z0-9/._-]+) ]]; then
-  RELATIVE_DOCS_DIR="${BASH_REMATCH[1]}"
+if [[ "$TECHDOCS_REF" =~ dir:\.(.*) ]]; then
+  RELATIVE_DOCS_DIR="${BASH_REMATCH[1]%%[[:space:]]*}"
   DOCS_DIR="$ROOT_DIR/$RELATIVE_DOCS_DIR"
 fi
 
@@ -42,23 +42,33 @@ cd "$DOCS_DIR"
 # MkDocs requires an index.md or README.md file, if one does not exist it will
 # be generated automatically.
 if ! [ -f index.md ] && ! [ -f README.md ]; then
-  echo "README.md or index.md was not found and will be automatically generated."
+  if [ -z "$CI" ]; then  
+    AUTHOR="$(git config user.name) <$(git config user.email)>"
+  else  
+    AUTHOR="$CI_COMMIT_AUTHOR"
+  fi  
+
+  echo "README.md or index.md was not found and will be automatically generated."  
   cat >> index.md <<EOF
+<!--
+@author  $AUTHOR
+@date    $(date)
+@machine $HOSTNAME
+@rev     $(git rev-parse HEAD)
+-->
 > **Warning**: MkDocs requires a top level index.md or README.md (case sensitive)
 This index.md file has been generated automatically to ensure MkDocs works correctly
 EOF
 fi
 
-techdocs-cli generate --no-docker --verbose
+npx techdocs-cli generate --no-docker --verbose
 
-techdocs-cli publish \
+npx techdocs-cli publish \
   --publisher-type awsS3 \
   --storage-name "$TECHDOCS_S3_BUCKET_NAME" \
   --entity "$ENTITY_NAMESPACE"/"$ENTITY_KIND"/"$ENTITY_NAME" \
-  --directory ./site/
+  --directory "$ROOT_DIR"/site
 
-if [ -z "${CI:-}" ]; then
-  rm -r "$ROOT_DIR/site/"
-fi
+rm -r "$ROOT_DIR"/site
 
 echo "View generated component: https://backstage.overwatch.distributive.network/docs/default/component/$ENTITY_NAME"
