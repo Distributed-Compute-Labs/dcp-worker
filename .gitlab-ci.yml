@@ -51,12 +51,8 @@ publish_docs:
     ENTITY_NAMESPACE: 'default'
   stage: deploy
   needs: []
-  image: node:latest
+  image: registry.gitlab.com/distributed-compute-protocol/docker/dcp-ci:2023-09-13
   script:
-    - apt-get update && apt-get install python3 python3-pip python-is-python3 -y
     - npm clean-install
     - python3 -m pip install mkdocs mkdocs-techdocs-core==1.* mkdocs-same-dir
-    - wget -qO /usr/local/bin/yq
-      https://people.distributive.network/yq &&
-      chmod a+x /usr/local/bin/yq
     - bin/publish-docs.sh
