@@ -5,7 +5,7 @@
 default:
   # Use in-house GitLab runners.
   tags:
-    - dcp
+    - dcp-core
     - linux
 
 stages:
