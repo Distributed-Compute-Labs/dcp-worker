@@ -13,6 +13,7 @@ stages:
 
 tidelift:
   stage: build
+  when: never
   variables:
     # This should be kept in a GitLab Variable. Read more:
     # https://docs.gitlab.com/ee/ci/variables/#create-a-custom-variable-in-the-ui
