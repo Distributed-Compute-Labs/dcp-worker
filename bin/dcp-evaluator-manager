@@ -34,7 +34,6 @@ var ptsDir = '/dev/pts';
 var lastConnectionMs = 0;
 
 const defaultPrefix = '/usr';
-const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
 const daemonConfig = {
   net:  new URL('tcpip://localhost:9000/'),
   proc: require.resolve('./dcp-evaluator-start'),
@@ -325,7 +324,7 @@ async function dbusScreenSaverMonitor()
 }
 
 /* Activate screensaver monitor. Promise resolves when the initial state has been figured out. */
-async function screensaverMonitor()
+function screensaverMonitor()
 {
   if (userActivity.screensaver === null) /* disabled */
     return;
@@ -358,7 +357,7 @@ function sessionMonitor()
 
       const fullPath = path.join(ptsDir, dent.name);
       debug('dcp-evaluator-manager:session')(`Checking TTY ${fullPath}`);
-      if (fullPath == myTTY)
+      if (fullPath === myTTY)
         continue;
 
       const sb = fs.statSync(fullPath);
