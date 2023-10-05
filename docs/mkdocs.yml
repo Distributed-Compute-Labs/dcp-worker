@@ -1,0 +1,16 @@
+# @file         mkdocs.yml
+# @author       Brandon Christie <brandon@distributive.network>
+# @date         Aug 2023
+#
+# @description  Determines how the component of name: 'dcp-worker'
+#               is formatted on backstage.
+
+site_name: dcp-worker
+repo_url: https://gitlab.com/Distributed-Compute-Protocol/dcp-worker
+edit_uri: edit/develop/docs
+docs_dir: .
+nav:
+  - README.md
+plugins:
+  - techdocs-core
+  - same-dir
