@@ -1,0 +1,21 @@
+# @file         catalog-info.yml
+# @author       Brandon Christie <brandon@distributive.network>
+# @date         Mar 2023
+#
+# @description  Lists all of the components and the paths to all
+#               the documentation that will be published to backstage.
+
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: dcp-worker
+  description: Documentation for the dcp-worker.
+  tags:
+    - documentation
+  annotations:
+    gitlab.com/project-id: '18110002'
+    backstage.io/techdocs-ref: dir:./docs
+spec:
+  type: website
+  lifecycle: production
+  owner: core

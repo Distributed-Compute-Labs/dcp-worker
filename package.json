@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "3.2.29",
+  "version": "3.2.31",
   "description": "JavaScript portion of DCP Workers for Node.js",
   "main": "bin/dcp-worker",
   "keywords": [
@@ -37,18 +37,28 @@
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.11.0",
     "chalk": "^4.1.0",
-    "dcp-client": "4.2.32",
-    "semver": "^7.3.8"
+    "dcp-client": "4.3.1",
+    "semver": "^7.3.8",
+    "syslog-client": "1.1.1"
   },
   "optionalDependencies": {
     "telnet-console": "^1.0.4"
   },
   "devDependencies": {
     "@kingsds/eslint-config": "^1.0.1",
-    "eslint": "7.30.0"
+    "@techdocs/cli": "1.4.6",
+    "eslint": ">=8"
+  },
+  "peerDependencies": {
+    "node-eventlog": "https://gitpkg.now.sh/Distributive-Network/node-eventlog/package?dcp/0.0.1"
+  },
+  "peerDependenciesMeta": {
+    "node-eventlog": {
+      "optional": true
+    }
   },
   "engines": {
-    "node": ">=16",
-    "npm": ">=6"
+    "node": ">=18",
+    "npm": ">=7"
   }
 }

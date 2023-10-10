@@ -10,6 +10,7 @@ default:
 
 stages:
   - build
+  - deploy
 
 tidelift:
   stage: build
@@ -28,4 +29,30 @@ tidelift:
   script:
     - echo "Running alignment and saving to Tidelift"
     - ./tidelift alignment save --wait
+  allow_failure: true
   cache: []
+
+publish_docs:
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
+      changes:
+        paths:
+          - catalog-info.yaml
+          - docs/
+          # Symlinked into `docs/`, but changes are only detected for by the
+          # source file.`
+          - README.md
+  variables:
+    AWS_ACCESS_KEY_ID: $BACKSTAGE_ACCESS_KEY
+    AWS_SECRET_ACCESS_KEY: $BACKSTAGE_ACCESS_SECRET
+    AWS_DEFAULT_REGION: 'us-east-1'
+    AWS_REGION: 'us-east-1'
+    TECHDOCS_S3_BUCKET_NAME: 'backstage.distributive.network'
+    ENTITY_NAMESPACE: 'default'
+  stage: deploy
+  needs: []
+  image: registry.gitlab.com/distributed-compute-protocol/docker/dcp-ci:2023-09-13
+  script:
+    - npm clean-install
+    - python3 -m pip install mkdocs mkdocs-techdocs-core==1.* mkdocs-same-dir
+    - bin/publish-docs.sh
