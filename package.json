@@ -60,5 +60,8 @@
   "engines": {
     "node": ">=18",
     "npm": ">=7"
+  },
+  "overrides": {
+    "@azure/msal-node": "2.2.0"
   }
 }
