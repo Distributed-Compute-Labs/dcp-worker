@@ -347,7 +347,6 @@ function sessionMonitor()
   function checkSessions()
   {
     const recentMs = Date.now() - (daemonConfig.session.idleTimeout * 1000);
-    var latestMs;
 
     userActivity.session = false;
     for (let dent of fs.readdirSync(ptsDir, { withFileTypes: true }))
@@ -370,9 +369,6 @@ function sessionMonitor()
         debug('dcp-evaluator-manager:session')(`TTY ${fullPath} is active`);
         break;
       }
-
-      if (latestMs < sb.atimeMs)
-        latestMs = sb.atimeMs;
     }
 
     if (!daemonConfig.limits.onlyWhenBusy && checkUserActivity())
