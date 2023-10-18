@@ -17,6 +17,7 @@
   "license": "MIT",
   "author": "Kings Distributed Systems",
   "bin": {
+    "dcp-evaluator-manager": "bin/dcp-evaluator-manager",
     "dcp-evaluator-start": "bin/dcp-evaluator-start",
     "dcp-worker": "bin/dcp-worker"
   },
@@ -37,11 +38,15 @@
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.11.0",
     "chalk": "^4.1.0",
+    "posix-getopt": "^1.2.1",
+    "kvin": "^1.2.7",
+    "semver": "^7.3.8",
     "dcp-client": "gitlab:Distributed-Compute-Protocol/dcp-client#develop",
     "semver": "^7.3.8",
     "syslog-client": "1.1.1"
   },
   "optionalDependencies": {
+    "dbus-next": "^0.10.2",
     "telnet-console": "^1.0.4"
   },
   "devDependencies": {
@@ -56,6 +61,9 @@
     "node-eventlog": {
       "optional": true
     }
+  },
+  "peerDependencies": {
+    "node-eventlog": "^1.0.2"
   },
   "engines": {
     "node": ">=18",
