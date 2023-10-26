@@ -30,6 +30,7 @@ workflow:
 
 stages:
   - build
+  - test
   - deploy
 
 # Installs npm dependencies to be cached for subsequent jobs. Also checks that
@@ -76,6 +77,34 @@ tidelift:
     - echo "Running alignment and saving to Tidelift"
     - ./tidelift alignment save --wait
   allow_failure: true
+
+# Run `trunk check` on the project to hightlight newly introduced lint issues
+# when compared to the target branch.
+check:
+  variables:
+    # Can't cache `~/.cache/trunk/`.
+    TRUNK_CACHE: ${CI_PROJECT_DIR}/.cache/trunk/
+  stage: test
+  script:
+    - UPSTREAM_BRANCH=${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-$CI_DEFAULT_BRANCH}
+    # Fetch the branch so that `trunk` has the proper information needed to
+    # determine the upstream changes to compare lint results against.
+    - git fetch origin $UPSTREAM_BRANCH
+    - npm run check -- --ci --upstream origin/$UPSTREAM_BRANCH
+  cache:
+    - key:
+        prefix: $CI_JOB_NAME_SLUG
+        files:
+          - .trunk/trunk.yaml
+      paths:
+        - $TRUNK_CACHE
+    - key:
+        prefix: node-modules
+        files:
+          - package-lock.json
+      paths:
+        - node_modules/
+      policy: pull
 
 publish_docs:
   stage: deploy
