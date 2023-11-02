@@ -53,8 +53,6 @@ publish_docs:
     ENTITY_NAMESPACE: 'default'
   stage: deploy
   needs: []
-  image: registry.gitlab.com/distributed-compute-protocol/docker/dcp-ci:2023-09-13
+  image: registry.gitlab.com/distributed-compute-protocol/backstage-ci-image:latest
   script:
-    - npm clean-install
-    - python3 -m pip install mkdocs mkdocs-techdocs-core==1.* mkdocs-same-dir
     - bin/publish-docs.sh
