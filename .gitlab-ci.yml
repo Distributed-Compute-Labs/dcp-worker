@@ -5,7 +5,7 @@
 default:
   # Use in-house GitLab runners.
   tags:
-    - dcp
+    - dcp-core
     - linux
 
 stages:
@@ -14,6 +14,8 @@ stages:
 
 tidelift:
   stage: build
+  rules:
+    - when: never
   variables:
     # This should be kept in a GitLab Variable. Read more:
     # https://docs.gitlab.com/ee/ci/variables/#create-a-custom-variable-in-the-ui

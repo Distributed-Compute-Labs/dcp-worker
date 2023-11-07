@@ -160,6 +160,11 @@ function parseCliArgs()
         describe: 'If set, dump all sandbox and worker events',
       },
 
+      showConfig: {
+        hide: false,
+        describe: 'Show merged configuration node (eg worker)',
+      },
+
       logfile: {
         describe: 'Path to log file',
         type: 'string',
@@ -218,6 +223,12 @@ function parseCliArgs()
   .strict()
   .wrap(process.stdout.columns || 80)
   .argv;
+
+  if (cliArgs.showConfig)
+  {
+    console.log(eval('dcpConfig.' + cliArgs.showConfig));
+    process.exit();
+  }
 
   if (cliArgs.dumpConfig)
   {

@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "3.2.32",
+  "version": "3.2.33",
   "description": "JavaScript portion of DCP Workers for Node.js",
   "main": "bin/dcp-worker",
   "keywords": [
@@ -17,6 +17,7 @@
   "license": "MIT",
   "author": "Kings Distributed Systems",
   "bin": {
+    "dcp-evaluator-manager": "bin/dcp-evaluator-manager",
     "dcp-evaluator-start": "bin/dcp-evaluator-start",
     "dcp-worker": "bin/dcp-worker"
   },
@@ -37,11 +38,14 @@
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.11.0",
     "chalk": "^4.1.0",
-    "dcp-client": "4.3.2",
+    "dcp-client": "4.3.3",
+    "kvin": "^1.2.7",
+    "posix-getopt": "^1.2.1",
     "semver": "^7.3.8",
     "syslog-client": "1.1.1"
   },
   "optionalDependencies": {
+    "dbus-next": "^0.10.2",
     "telnet-console": "^1.0.4"
   },
   "devDependencies": {
@@ -60,5 +64,8 @@
   "engines": {
     "node": ">=18",
     "npm": ">=7"
+  },
+  "overrides": {
+    "@azure/msal-node": "2.2.0"
   }
 }

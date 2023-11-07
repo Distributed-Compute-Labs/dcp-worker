@@ -1,0 +1,512 @@
+#! /usr/bin/env node
+/**
+ * @file        dcp-evaluator-manager
+ *              Daemon to monitor the state of the system and enable/disable 
+ *              the evaluator as appropriate.
+ *
+ *              The actual mechanics of communicating with the evaluator is
+ *              similar in principle to how inetd works, and the code is, in
+ *              fact, based on the dcp inet-daemon.
+ *
+ *              The methods the system can be monitored include:
+ *              - screensaver enabled/disabled
+ *
+ * @author      Wes Garland, wes@distributive.network
+ * @date        June 2018, Sep 2022
+ */
+'use strict';
+
+const os     = require('os');
+const fs     = require('fs');
+const path   = require('path');
+const net    = require('net')
+const dns    = require('dns');
+const debug  = require('debug');
+const getopt = require('posix-getopt');
+
+var userActivity = { /* no props true => okay to launch evaluator */
+  screensaver: true,
+  session:     true,
+};
+var children;
+var seq = 0;
+var ptsDir = '/dev/pts';
+var lastConnectionMs = 0;
+
+const defaultPrefix = '/usr';
+const daemonConfig = {
+  net:  new URL('tcpip://localhost:9000/'),
+  proc: require.resolve('./dcp-evaluator-start'),
+  argv: [ '-s', '--prefix', `${path.resolve(defaultPrefix)}/` ],
+  limits: {},
+  session: {
+    idlePoll:    3,  /* s between checks*/
+    idleTimeout: 30, /* s to decide the session really IS idle */
+  }
+};
+
+function usage()
+{
+  console.log(
+`
+DCP Evaluator Monitor - Copyright (c) 2022-2023 Distributive Corp.
+Released under the terms of the MIT License.
+
+Usage: ${process.argv[0]} [-h | --help] [--prefix=<dir>] [--pts=<dir>] [-a] 
+       [--disable-monitor=<session|screensaver>] [-i <timeout>] [-p port]
+       [-l | --max-load=<number>] [-r | --rate=<number>] [-L]
+       [-- <options to dcp-evaluator-start, must be last option>]
+Where:
+ - -i sets the idle timeout in seconds for tty sessions (${daemonConfig.session.idleTimeout}s)
+ - -p specifies the port to listen on for dcpsaw: worker connections (${daemonConfig.net.port})
+ - --prefix specifies the directory where the DCP evaluator was installed
+ - --pts specifies the location of the system's pseudo terminal (${ptsDir})
+ - --disable-monitor=session disables monitoring of ssh/telnet/etc sessions
+ - --disable-monitor=screensaver disables monitoring of the screensaver
+ - -a means always run the evaluator, even when the monitors say the machine is busy
+ - --max-load specifies the point at which machine load prevents connections
+ - --rate specifies the minimum number of seconds between connections
+ - -L only apply the limits when the monitors say the machine is busy
+`);
+
+  process.exit(0);
+}
+
+/**
+ * Establish listening socket evaluator proxy 
+ */
+async function listenForConnections(config)
+{
+  var server = net.createServer((socket) => handleConnection(socket, config));
+  var hostaddr;
+  
+  if (config.net.hostname === 'localhost')
+    hostaddr = '::';
+  else
+    hostaddr = await dns.promises.lookup(config.net.hostname, { family: 4 });
+
+  server.on('error', (error) => {
+    delete error.stack;
+    console.error(error);
+    process.exit(2);
+  });
+
+  server.listen({ host: hostaddr, port: config.net.port }, function daemonReady() {
+    console.log('Listening for connections on', server._connectionKey);
+    console.log('Evaluator command is', config.proc, config.argv);
+  });
+}
+
+/**
+ * Check the state of the userActivity object to determine if there has been user activity
+ * on the system. If there has been, it returns a string of activity types. If there
+ * hasn't, it returns false and we are clear to evaluate.
+ */
+function checkUserActivity()
+{
+  var active = [];
+
+  for (let prop in userActivity)
+  {
+    if (userActivity[prop])
+      active.push(prop);
+  }
+
+  if (active.length)
+    debug('dcp-evaluator-manager')('System is not idle; activity detected via', active.join(', '));
+  else
+    debug('dcp-evaluator-manager')('System is idle; checked', Object.entries(userActivity).filter(a => a[1] !== null).map(a => a[0]).join(', '));
+  
+  return active.length ? active.join() : false;
+}
+
+/**
+ * Handle an incoming connection. If the screensaver is not active, the conneciton
+ * is immediately rejected. Otherwise, we spin up an evaluator process and proxy its
+ * stdio to the socket.
+ */
+function handleConnection (socket, config)
+{
+  var child;
+  var userActivityMemo = checkUserActivity();
+  
+  function cleanup()
+  {
+    try
+    {
+      if (socket)
+      {
+        socket.end();
+        socket.destroy();
+        socket = null;
+      }
+    }
+    finally
+    {
+      if (child)
+      {
+        child.kill();
+        if (children.includes(child))
+          children.delete(child);
+      }
+    }
+  }
+
+  if (userActivityMemo && !daemonConfig.limits.onlyWhenBusy)
+  {
+    debug('dcp-evaluator-manager')(`New connection; closing due to activity (${userActivityMemo})`);
+    cleanup();
+    return;
+  }
+
+  if (!daemonConfig.limits.onlyWhenBusy || (daemonConfig.limits.onlyWhenBusy && userActivityMemo))
+  {
+    if (daemonConfig.limits.maxLoad < os.loadavg()[0])
+    {
+      debug('dcp-evaluator-manager')(`New connection; closing due to system load (${os.loadavg().join(', ')})`);
+      cleanup();
+      return;
+    }
+
+    if (daemonConfig.limits.rateMs > (Date.now() - lastConnectionMs))
+    {
+      debug('dcp-evaluator-manager')(`New connection; closing due to rate-limit ${daemonConfig.limits.rateMs} > ${Date.now() - lastConnectionMs}`);
+      cleanup();
+      return;
+    }
+  }
+  
+  debug('dcp-evaluator-manager')('New connection; spawning ', config.proc, config.argv);
+  lastConnectionMs = Date.now();
+  
+  child = require('child_process').spawn(config.proc, config.argv);
+  child.stderr.setEncoding('ascii')
+  child.socket = socket;
+  children.add(child);
+  child.id = ++seq;
+  debug('dcp-evaluator-manager')(`Spawned worker process ${child.pid} for child ${child.id}`);
+
+  socket.on('end', function socketEnd() {
+    debug('dcp-evaluator-manager')('Socket end; killing child', child.id);
+    cleanup();
+  });
+
+  socket.on('error', function socketError(error) {
+    debug('dcp-evaluator-manager')(`Socket error ${error.code}; killing child`, child.id);
+    debug('dcp-evaluator-manager')(error);
+    cleanup();
+  });
+
+  child.on('error', function childError(error) {
+    console.error('Error from worker ' + child.id + ':', error);
+    cleanup();
+  });
+
+  child.on('exit', function(code) {
+    debug('dcp-evaluator-manager')(`child ${child.id} exited; closing socket`, code || '');
+    cleanup();
+  });
+
+  child.stdout.on('data', function (data) {
+    debug('dcp-evaluator-manager:network')('<', child.id, bufToDisplayStr(data), 93);
+    if (socket)
+      socket.write(data)
+  });
+
+  child.stderr.on('data', function (data) {
+    console.log('child ' + child.id + ' stderr: ', data);
+  });
+
+  socket.on('data', function (data) {
+    debug('dcp-evaluator-manager:network')('>', child.id, bufToDisplayStr(data, 93));
+
+    try
+    {
+      child.stdin.write(data)
+    }
+    catch (error)
+    {
+      console.warn('could not write to child process (', child.pid, ', index', child.id, ') stdin')
+      throw error;
+    }
+  });
+}
+
+/** 
+ * Format detailed debug output of raw socket traffic
+ */
+function bufToDisplayStr (buf, limit)
+{
+  const str = buf.toString('utf-8').replace(/\n/, '\u2424').toString('utf-8');
+
+  if (typeof limit === 'number' && str.length > limit)
+    return str.substr(0, limit) + '\u2026';
+  else
+    return str;
+}
+
+/**
+ * Kill all evaluators, as quickly as possible.
+ */
+function killChildren()
+{
+  if (!children.length)
+    return;
+
+  debug('dcp-evaluator-manager')(`Terminating all (${children.length}) running evaluators..`);
+  for (let child of children)
+  {
+    debug('dcp-evaluator-manager')(`killing child ${child.pid}`);
+    try
+    {
+      child.kill('SIGKILL');
+    }
+    catch(error)
+    {
+      /* Don't throw if process death race */
+      if (error.code !== 'ESRCH')
+        throw error;
+    }
+  }
+}
+
+/** 
+ * Monitor dbus messages for screensaver start / stop events.
+ */
+async function dbusScreenSaverMonitor()
+{
+  const dbus = odRequire('dbus-next');
+  const bus = dbus.sessionBus();
+  const screensaverList = [
+    'org.gnome.ScreenSaver',
+    'org.cinnamon.ScreenSaver',
+    'org.kde.screensaver',
+    'org.freedesktop.ScreenSaver'
+  ];
+  var iface;
+
+  for (let ss of screensaverList)
+  {
+    try
+    {
+      let obj = await bus.getProxyObject(ss, '/' + ss.replace(/\./g, '/'));
+      if (obj)
+      {
+        iface = obj.interfaces[ss];
+        break;
+      }
+    }
+    catch (error)
+    {
+      debug('dcp-evaluator-manager:dbus')('Could not acquire screensaver', ss + '; trying next', error);
+    }
+  }
+
+  if (!iface)
+  {
+    console.error('Could not open dbus session to any screensaver, tried', screensaverList);
+    process.exit(3);
+  }
+
+  const ssActive = await iface.GetActive();
+  debug('dcp-evaluator-manager')('Screen saver active:', ssActive);
+  userActivity.screensaver = ssActive ? false : 'active dbus screensaver (initial)';
+
+  /* screensaver not active => user activity */
+  iface.on('ActiveChanged', function screenSaverChangeHandler(active) {
+    userActivity.screensaver = active ? false : 'active dbus screensaver (change)';
+    debug('dcp-evaluator-manager')(`screen saver ${active ? 'started' : 'finished'} at`, new Date());
+    if (!daemonConfig.limits.onlyWhenBusy && checkUserActivity())
+      killChildren();
+  });
+
+  console.log('Monitoring dbus messages for', iface.$name);
+}
+
+/* Activate screensaver monitor. Promise resolves when the initial state has been figured out. */
+function screensaverMonitor()
+{
+  if (userActivity.screensaver === null) /* disabled */
+    return;
+
+  return dbusScreenSaverMonitor();
+}
+
+/**
+ * Activate session monitor - mechanism is similar to last/fingerd, where we check the last
+ * update time on all ttys to see if there is a remote user using the system or not. We poll
+ * this every idleTimeout (15?) seconds, when the screen saver is active.
+ */
+function sessionMonitor()
+{
+  const myTTY = fs.realpathSync('/dev/stdout');
+  
+  if (userActivity.session === null) /* disabled */
+    return;
+
+  function checkSessions()
+  {
+    const recentMs = Date.now() - (daemonConfig.session.idleTimeout * 1000);
+
+    userActivity.session = false;
+    for (let dent of fs.readdirSync(ptsDir, { withFileTypes: true }))
+    {
+      if (!dent.isCharacterDevice())
+        continue;
+
+      const fullPath = path.join(ptsDir, dent.name);
+      debug('dcp-evaluator-manager:session')(`Checking TTY ${fullPath}`);
+      if (fullPath === myTTY)
+        continue;
+
+      const sb = fs.statSync(fullPath);
+      if (sb.atimeMs > recentMs)
+      {
+        /* Experiment suggests atime involves reads and mtime includes writes. Using mtime so that 
+         * tailing logs has anticipated result.
+         */
+        userActivity.session = fullPath;
+        debug('dcp-evaluator-manager:session')(`TTY ${fullPath} is active`);
+        break;
+      }
+    }
+
+    if (!daemonConfig.limits.onlyWhenBusy && checkUserActivity())
+      killChildren();
+  }
+
+  setInterval(checkSessions, daemonConfig.session.idlePoll * 1000);
+  checkSessions();
+}
+
+/* Require an optional dependency, print decent error message if not found, then exit. */
+function odRequire(moduleId)
+{
+  try
+  {
+    return require(moduleId);
+  }
+  catch(error)
+  {
+    if (error.code !== 'MODULE_NOT_FOUND')
+      throw error;
+  }
+
+  console.error(`Screensaver operating mode requires optional dependency ${moduleId}.`);
+  console.error(`Please \`npm i ${moduleId}\` and try again.`);
+  process.exit(2);
+}
+
+/* Main program entry point */
+async function main()
+{
+  const parser = new getopt.BasicParser('h(help)P:(prefix)d:(disable-monitor)l:(max-load)r:(rate)Li:ap:', process.argv);
+  var option;
+  
+  while ((option = parser.getopt()) !== undefined)
+  {
+    switch (option.option)
+    {
+      case 'h':
+        usage();
+        break;
+      
+      default:
+        throw new Error('defined but unspecified option', option);
+
+      case '?':
+        process.exit(1);
+
+      case 'P':
+      {
+        const re = new RegExp(`^${defaultPrefix}/`);
+        for (let i=0; i < daemonConfig.argv.length; i++)
+          daemonConfig.argv[i] = daemonConfig.argv[i].replace(re, path.resolve(option.optarg + '/'));
+        break;
+      }
+
+      case 'd':
+      {
+        let what = option.optarg;
+
+        if (what[0] === '=')
+          what = what.slice(1);
+        userActivity[what] = null; /* null => do not check for this */
+        debug('dcp-evaluator-manager')('!', what, 'monitor is disabled');
+        break;
+      }
+
+      case 'i':
+      {
+        daemonConfig.session.idleTimeout = Number(option.optarg).toFixed(1);
+        break;
+      }
+
+      case 'a': /* always on => disable everything */
+      {
+        for (let prop in userActivity)
+        {
+          if (userActivity.hasOwnProperty(prop))
+            userActivity[prop] = null;
+        }
+        break;
+      }
+
+      case 'L':
+      {
+        daemonConfig.limits.onlyWhenBusy = true;
+        break;
+      }
+
+      case 'p':
+      {
+        daemonConfig.net.port = Number(option.optarg);
+        break;
+      }
+
+      case 'l':
+      {
+        daemonConfig.limits.maxLoad = Number(option.optarg);
+        break;
+      }
+
+      case 'r':
+      {
+        daemonConfig.limits.rateMs = 1000 * Number(option.optarg);
+        break;
+      }
+    }
+  }
+
+  daemonConfig.argv = daemonConfig.argv.concat(process.argv.slice(parser.optind())); /* All options after -- pass to dcp-evaluator-start */
+  
+  process.on('uncaughtException', function (error) {
+    console.error('\n---', (new Date()).toLocaleString(), '-------------------------------------------------')
+    console.error('uncaught exception:', error.stack)
+    console.error('\n')
+  });
+
+  process.on('unhandledRejection', function (error) {
+    console.error('\n---', (new Date()).toLocaleString(), '-------------------------------------------------')
+    console.error('unhandled rejection:', error.stack)
+    console.error('\n')
+  })
+
+  children = new (require('dcp/utils').Inventory)();
+
+  await screensaverMonitor();
+  sessionMonitor();
+
+  listenForConnections(daemonConfig);
+}
+
+/* Initialize dcp-client to use only local resources before launching the main function */
+require('dcp-client').init({
+  progName: 'dcp-worker',
+  parseArgv: false,
+  configName: process.env.DCP_CONFIG || '../etc/dcp-worker-config',
+  dcpConfig: {
+    scheduler: { configLocation: false },
+    bundle:    { location: false },
+  }
+}).then(main);
