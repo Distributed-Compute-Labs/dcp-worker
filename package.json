@@ -26,6 +26,7 @@
     "etc": "etc"
   },
   "scripts": {
+    "check": "trunk check",
     "start": "node bin/dcp-worker start",
     "start-evaluator": "node bin/dcp-evaluator-start",
     "hook": "PATH=npm-hooks:$PATH &&",
@@ -39,9 +40,9 @@
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.11.0",
     "chalk": "^4.1.0",
-    "posix-getopt": "^1.2.1",
-    "kvin": "^1.2.7",
     "dcp-client": "gitlab:Distributed-Compute-Protocol/dcp-client#develop",
+    "kvin": "^1.2.7",
+    "posix-getopt": "^1.2.1",
     "semver": "^7.3.8",
     "syslog-client": "1.1.1"
   },
@@ -53,6 +54,7 @@
     "@distributive/eslint-config": "1.1.0",
     "@distributive/eslint-plugin": "1.0.2",
     "@techdocs/cli": "1.4.6",
+    "@trunkio/launcher": "1.2.7",
     "eslint": "8.52.0",
     "eslint-plugin-jsdoc": "46.8.2"
   },
