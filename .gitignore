@@ -7,3 +7,6 @@ dcp-worker-*.tgz
 
 # techdocs
 docs/site
+
+# Cached files. e.g., for ESLint.
+.cache/

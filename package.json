@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "3.2.32",
+  "version": "3.2.33",
   "description": "JavaScript portion of DCP Workers for Node.js",
   "main": "bin/dcp-worker",
   "keywords": [
@@ -26,9 +26,11 @@
     "etc": "etc"
   },
   "scripts": {
+    "check": "trunk check",
     "start": "node bin/dcp-worker start",
     "start-evaluator": "node bin/dcp-evaluator-start",
     "hook": "PATH=npm-hooks:$PATH &&",
+    "lint": "eslint --cache --cache-strategy=content --cache-location=.cache/eslint/ --ignore-path=.gitignore --ext=js .",
     "test": "peter tests",
     "prepack": "node npm-hooks/prepack",
     "postpublish": "npm-hooks/postpublish",
@@ -50,7 +52,10 @@
   },
   "devDependencies": {
     "@kingsds/eslint-config": "^1.0.1",
-    "eslint": ">=8"
+    "@distributive/eslint-plugin": "1.0.2",
+    "@trunkio/launcher": "1.2.7",
+    "eslint": ">=8",
+    "eslint-plugin-jsdoc": "46.8.2"
   },
   "peerDependencies": {
     "node-eventlog": "https://gitpkg.now.sh/Distributive-Network/node-eventlog/package?dcp/0.0.1"

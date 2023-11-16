@@ -155,10 +155,6 @@ function parseCliArgs()
         type: 'number',
         group: 'Output options',
       },
-      eventDebug: {
-        hidden: true,
-        describe: 'If set, dump all sandbox and worker events',
-      },
 
       showConfig: {
         hide: false,
@@ -402,9 +398,6 @@ async function main()
   else
     worker.on('end', () => setTimeout(processExit, getCleanupTimeoutMs()).unref());
 
-  if (cliArgs.eventDebug)
-    worker.enableDebugEvents = true;
-
   if (dcpWorkerOptions.publicGroupFallback)
   {
     if (dcpWorkerOptions.leavePublicGroup)
@@ -460,8 +453,6 @@ async function main()
     introBanner += ` . Target core density: ${JSON.stringify(dcpWorkerOptions.defaultCoreDensity)}\n`;
   if (cliArgs.verbose)
     introBanner += ` + Verbosity level: ${cliArgs.verbose}` + '\n';
-  if (cliArgs.eventDebug)
-    introBanner += ' + Event debug on' + '\n';
   if (telnetd.hasOwnProperty('port'))
     introBanner += ` ! telnetd listening on port ${telnetd.port}\n`;
   
