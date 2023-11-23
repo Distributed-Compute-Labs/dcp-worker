@@ -126,9 +126,10 @@ publish_docs:
     AWS_REGION: 'us-east-1'
     TECHDOCS_S3_BUCKET_NAME: 'backstage.distributive.network'
     ENTITY_NAMESPACE: 'default'
-  image: registry.gitlab.com/distributed-compute-protocol/docker/dcp-ci:latest
+  stage: deploy
+  needs: []
+  image: registry.gitlab.com/distributed-compute-protocol/backstage-ci-image:latest
   script:
-    - python3 -m pip install mkdocs mkdocs-techdocs-core==1.* mkdocs-same-dir
     - bin/publish-docs.sh
   cache:
     - key:

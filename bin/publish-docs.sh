@@ -67,8 +67,8 @@ npx techdocs-cli publish \
   --publisher-type awsS3 \
   --storage-name "$TECHDOCS_S3_BUCKET_NAME" \
   --entity "$ENTITY_NAMESPACE"/"$ENTITY_KIND"/"$ENTITY_NAME" \
-  --directory "$ROOT_DIR"/site
+  --directory "$DOCS_DIR"/site
 
-rm -r "$ROOT_DIR"/site
+rm -r "$DOCS_DIR"/site
 
 echo "View generated component: https://backstage.overwatch.distributive.network/docs/default/component/$ENTITY_NAME"
