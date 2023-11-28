@@ -1,16 +1,58 @@
 # @file    .gitlab-ci.yml - GitLab CI configuration file.
 # @author  Eddie Roosenmallen <eddie@distributive.network>
+# @author  Bryan Hoang <bryan@distributive.network>
 # @date    September 2022
+
+variables:
+  # Can't cache `~/.npm/`.
+  npm_config_cache: '.cache/npm/'
+  npm_config_prefer_offline: 'true'
+  npm_config_fund: 'false'
 
 default:
   # Use in-house GitLab runners.
   tags:
     - dcp-core
     - linux
+  image: node:lts
+  before_script:
+    - npm add --global npm@latest
+    # Access private deps. e.g., `dcp-client` from GitLab.
+    - git config --global
+      url."${CI_SERVER_PROTOCOL}://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}:${CI_SERVER_PORT}".insteadOf
+      "${CI_SERVER_URL}"
+
+workflow:
+  rules:
+    # Only run branch pipelines for `develop`, or merge request pipelines.
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 stages:
   - build
+  - test
   - deploy
+
+# Installs npm dependencies to be cached for subsequent jobs. Also checks that
+# the lock file is synced with the manifest file.
+build:
+  stage: build
+  script:
+    - npm clean-install
+  cache:
+    - key:
+        prefix: $CI_JOB_NAME_SLUG
+        files:
+          - package-lock.json
+      paths:
+        - $npm_config_cache
+    - key:
+        prefix: node-modules
+        files:
+          - package-lock.json
+      paths:
+        - node_modules/
+      policy: push
 
 tidelift:
   stage: build
@@ -20,6 +62,9 @@ tidelift:
     # This should be kept in a GitLab Variable. Read more:
     # https://docs.gitlab.com/ee/ci/variables/#create-a-custom-variable-in-the-ui
     TIDELIFT_API_KEY: $TIDELIFT_API_KEY
+  inherit:
+    default:
+      - tags
   # The CLI only requires `glibc`.
   image: frolvlad/alpine-glibc
   before_script:
@@ -32,9 +77,39 @@ tidelift:
     - echo "Running alignment and saving to Tidelift"
     - ./tidelift alignment save --wait
   allow_failure: true
-  cache: []
+
+# Run `trunk check` on the project to hightlight newly introduced lint issues
+# when compared to the target branch.
+check:
+  variables:
+    # Can't cache `~/.cache/trunk/`.
+    TRUNK_CACHE: ${CI_PROJECT_DIR}/.cache/trunk/
+  stage: test
+  script:
+    - UPSTREAM_BRANCH=${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-$CI_DEFAULT_BRANCH}
+    # Fetch the branch so that `trunk` has the proper information needed to
+    # determine the upstream changes to compare lint results against.
+    - git fetch origin $UPSTREAM_BRANCH
+    - npm run check -- --ci --upstream origin/$UPSTREAM_BRANCH
+  cache:
+    - key:
+        prefix: $CI_JOB_NAME_SLUG
+        files:
+          - .trunk/trunk.yaml
+      paths:
+        - $TRUNK_CACHE
+    - key:
+        prefix: node-modules
+        files:
+          - package-lock.json
+      paths:
+        - node_modules/
+      policy: pull
 
 publish_docs:
+  stage: deploy
+  needs:
+    - build
   rules:
     - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
       changes:
@@ -53,8 +128,14 @@ publish_docs:
     ENTITY_NAMESPACE: 'default'
   stage: deploy
   needs: []
-  image: registry.gitlab.com/distributed-compute-protocol/docker/dcp-ci:2023-09-13
+  image: registry.gitlab.com/distributed-compute-protocol/backstage-ci-image:latest
   script:
-    - npm clean-install
-    - python3 -m pip install mkdocs mkdocs-techdocs-core==1.* mkdocs-same-dir
     - bin/publish-docs.sh
+  cache:
+    - key:
+        prefix: node-modules
+        files:
+          - package-lock.json
+      paths:
+        - node_modules/
+      policy: pull
