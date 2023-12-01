@@ -55,12 +55,6 @@ function main() {
           alias: ['r'],
           desc: 'Path to evaluator as a module identitifer',
         })
-        .option('evaluator-lib-dir', {
-          alias: ['l'],
-          deprecated: true,
-          desc: 'Location of evaluator libraries',
-          default: dcpConfig.evaluator.libDir || undefined
-        })
         .option('sandbox-libexec-dir', {
           desc: 'Location of sandbox setup files',
           default: path.resolve(dcpClientDir, 'libexec', 'sandbox'),
@@ -127,12 +121,6 @@ function main() {
 
   if (!options.stdio && options.port)
     args = args.concat(['-p', options.port]);
-
-  if (options.evaluatorLibDir) {
-    console.warn(`Note: --evaluator-lib-dir (-l) is deprecated. Please pass this argument to the evalutor 'dcp-evaluator-start ... -- -l ${options.evaluatorLibDir}'`);
-    options.evaluatorLibDir = path.resolve(options.prefix, 'etc', options.evaluatorLibDir);
-    args = args.concat(['-l', options.evaluatorLibDir]);
-  }
 
   /* Decode log-level parameters and translate as appropriate for the type of evaluator in use */
   if (options.debugLogLevel || options.debugLogLevel === 0)
