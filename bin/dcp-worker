@@ -295,7 +295,7 @@ async function main()
       || cliArgs.paymentAddress
       || dcpConfig.worker.paymentAddress
       || (await wallet.get().catch(error => {
-          if (error.code = 'ENOENT')
+          if (error.code === 'ENOENT')
             return {address:'0x079DAC0612C710ab4e975dAb7171C7e4beF78c5a'};
           throw error;
           })).address;
