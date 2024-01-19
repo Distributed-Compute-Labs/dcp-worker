@@ -51,8 +51,8 @@
     "telnet-console": "^1.0.4"
   },
   "devDependencies": {
-    "@kingsds/eslint-config": "^1.0.1",
     "@distributive/eslint-plugin": "1.0.2",
+    "@kingsds/eslint-config": "^1.0.1",
     "@trunkio/launcher": "1.2.7",
     "eslint": ">=8",
     "eslint-plugin-jsdoc": "46.8.2"
@@ -70,6 +70,11 @@
     "npm": ">=7"
   },
   "overrides": {
-    "@azure/msal-node": "2.2.0"
+    "@azure/msal-node": "2.2.0",
+    "dbus-next": {
+      "usocket": {
+        "node-gyp": "10.0.1"
+      }
+    }
   }
 }
