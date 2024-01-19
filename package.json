@@ -51,11 +51,10 @@
     "telnet-console": "^1.0.4"
   },
   "devDependencies": {
+    "@distributive/eslint-config": "2.1.1",
     "@distributive/eslint-plugin": "1.0.2",
-    "@kingsds/eslint-config": "^1.0.1",
     "@trunkio/launcher": "1.2.7",
-    "eslint": ">=8",
-    "eslint-plugin-jsdoc": "46.8.2"
+    "eslint": "8.56.0"
   },
   "peerDependencies": {
     "node-eventlog": "https://gitpkg.now.sh/Distributive-Network/node-eventlog/package?dcp/0.0.1"
