@@ -70,7 +70,6 @@
     "npm": ">=7"
   },
   "overrides": {
-    "@azure/msal-node": "2.2.0",
     "dbus-next": {
       "usocket": {
         "node-gyp": "10.0.1"
