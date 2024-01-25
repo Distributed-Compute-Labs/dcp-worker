@@ -455,6 +455,14 @@ async function main()
     introBanner += ` + Verbosity level: ${cliArgs.verbose}` + '\n';
   if (telnetd.hasOwnProperty('port'))
     introBanner += ` ! telnetd listening on port ${telnetd.port}\n`;
+
+  const { worktimes } = require('dcp-client/libexec/sandbox/worktimes');
+  if (Object.keys(worktimes).length > 0)
+  {
+    introBanner += ' . Worktimes Available:\n';
+    for (const wt of worktimes)
+      introBanner += `    -\t${wt.name}@${wt.versions.join(';')}\n`;
+  }
   
   introBanner += ' . Supervisor version: ' + worker.supervisorVersion;
   introBanner += ' . Output mode: ' + cliArgs.outputMode + '\n';
