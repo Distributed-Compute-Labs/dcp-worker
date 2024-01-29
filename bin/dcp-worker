@@ -171,7 +171,7 @@ function parseCliArgs()
         describe: 'Address of syslog server',
         type: 'string',
         group: 'Syslog output options',
-        default: 'loghost',
+        default: '127.0.0.1',
       },
       syslogFacility: {
         describe: 'Name of syslog facility',
