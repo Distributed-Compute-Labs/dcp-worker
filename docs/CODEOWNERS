@@ -12,8 +12,6 @@
 
 []
 
-[Brandon]
-
 [Eddie]
 /package-lock.json @eroosenmaallen
 
@@ -21,15 +19,17 @@
 /npm-hooks/ @wesgarland
 /README.md @wesgarland
 /docs/ @wesgarland
-/.eslintrc.json @wesgarland
+/.eslintrc.js @wesgarland
 /.npmrc @wesgarland
 /.tidelift @wesgarland
 /lib/ @wesgarland
 /LICENSE.md @wesgarland
+/.trunk/ @wesgarland
 /.gitignore @wesgarland
 /etc/ @wesgarland
 /.gitlab-ci.yml @wesgarland
 /bin/ @wesgarland
+/catalog-info.yaml @wesgarland
 /etc/ @wesgarland
 /lib/ @wesgarland
 /bin/ @wesgarland
