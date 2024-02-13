@@ -61,7 +61,7 @@ function parseCliArgs()
         type: 'string',
       },
       defaultPaymentAddressToDCP: {
-        describe: 'If this option is set and no other payment address is provided, send payment for work completed to the DCP Community account'
+        describe: 'If this option is set and no other payment address is provided, send payment for work completed to the DCP Community account',
         type: 'boolean',
       },
       cores: {
@@ -295,10 +295,14 @@ async function main()
   process.on('unhandledRejection', handleUnhandled);
   process.on('uncaughtException', handleUnhandled);
   
+  const getOpts = {};
+  if (cliArgs.defaultPaymentAddressToDCP)
+    getOpts.oAuth = false;
+
   let paymentAddress = false
       || cliArgs.paymentAddress
       || dcpConfig.worker.paymentAddress
-      || (await wallet.get().catch(error => {
+      || (await wallet.get(getOpts).catch(error => {
           // if flag is set and no other address is provided, use the DCP Community Account,
           // which is 0x079DAC0612C710ab4e975dAb7171C7e4beF78c5a at time of writing
           if ((error.code === 'ENOENT') && cliArgs.defaultPaymentAddressToDCP)
