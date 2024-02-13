@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "3.2.34",
+  "version": "3.2.35",
   "description": "JavaScript portion of DCP Workers for Node.js",
   "main": "bin/dcp-worker",
   "keywords": [
@@ -51,11 +51,10 @@
     "telnet-console": "^1.0.4"
   },
   "devDependencies": {
-    "@kingsds/eslint-config": "^1.0.1",
+    "@distributive/eslint-config": "2.1.1",
     "@distributive/eslint-plugin": "1.0.2",
     "@trunkio/launcher": "1.2.7",
-    "eslint": ">=8",
-    "eslint-plugin-jsdoc": "46.8.2"
+    "eslint": "8.56.0"
   },
   "peerDependencies": {
     "node-eventlog": "https://gitpkg.now.sh/Distributive-Network/node-eventlog/package?dcp/0.0.1"
@@ -70,6 +69,10 @@
     "npm": ">=7"
   },
   "overrides": {
-    "@azure/msal-node": "2.2.0"
+    "dbus-next": {
+      "usocket": {
+        "node-gyp": "10.0.1"
+      }
+    }
   }
 }
