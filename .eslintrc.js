@@ -15,7 +15,7 @@
 module.exports = {
   root: true,
   reportUnusedDisableDirectives: true,
-  extends: ['eslint:recommended', '@distributive'],
+  extends: ['eslint:recommended', '@distributive/eslint-config'],
   env: {
     node: true,
     es2022: true,
