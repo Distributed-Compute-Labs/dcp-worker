@@ -60,6 +60,10 @@ function parseCliArgs()
         describe: 'The address to deposit funds into, will use the default bank keystore if not provided.',
         type: 'string',
       },
+      defaultPaymentAddressToDCP: {
+        describe: 'If this option is set and no other payment address is provided, send payment for work completed to the DCP Community account',
+        type: 'boolean',
+      },
       cores: {
         alias: 'c',
         describe: 'Number of CPU and GPU cores to work with: the format is 7,1 (or just 7) for 7 CPU cores and 1 GPU',
@@ -290,11 +294,24 @@ async function main()
   process.on('SIGQUIT', handleSigDeath);
   process.on('unhandledRejection', handleUnhandled);
   process.on('uncaughtException', handleUnhandled);
+  
+  const getOpts = {};
+  if (cliArgs.defaultPaymentAddressToDCP)
+    getOpts.oAuth = false;
 
   let paymentAddress = false
       || cliArgs.paymentAddress
       || dcpConfig.worker.paymentAddress
-      || (await wallet.get()).address;
+      || (await wallet.get(getOpts).catch(error => {
+          // if flag is set and no other address is provided, use the DCP Community Account,
+          // which is 0x079DAC0612C710ab4e975dAb7171C7e4beF78c5a at time of writing
+          if ((error.code === 'ENOENT') && cliArgs.defaultPaymentAddressToDCP)
+          {
+            console.warn('Warning: Defaulting payment to DCP Community Account');
+            return {address:'0x079DAC0612C710ab4e975dAb7171C7e4beF78c5a'};
+          }
+          throw error;
+          })).address;
   if (typeof paymentAddress === 'string')
     paymentAddress = new wallet.Address(paymentAddress);
 
