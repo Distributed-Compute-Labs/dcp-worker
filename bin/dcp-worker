@@ -50,15 +50,19 @@ require('dcp-client').init({ configName }).then(main).catch(handleUnhandled);
 function parseCliArgs()
 {
   var defaultPidFileName;
-  
+
   defaultPidFileName = require('../lib/pidfile').getDefaultPidFileName(dcpConfig.worker.pidfile);
-  
+
   const cliArgs = require('dcp/cli')
   .base('Standalone NodeJS DCP Worker')
     .options({
       paymentAddress: {
         describe: 'The address to deposit funds into, will use the default bank keystore if not provided.',
         type: 'string',
+      },
+      defaultPaymentAddressToDCP: {
+        describe: 'If this option is set and no other payment address is provided, send payment for work completed to the DCP Community account',
+        type: 'boolean',
       },
       cores: {
         alias: 'c',
@@ -171,7 +175,7 @@ function parseCliArgs()
         describe: 'Address of syslog server',
         type: 'string',
         group: 'Syslog output options',
-        default: 'loghost',
+        default: 'loghost', // Unix standard for syslog
       },
       syslogFacility: {
         describe: 'Name of syslog facility',
@@ -254,7 +258,7 @@ function addConfig(target, ...objs)
   Object.assign(target, tmp);
 }
 
-/** 
+/**
  * Replacement for process.exit() that tries to increase the probability
  * that remote log messages will make it out over the network.
 */
@@ -291,13 +295,26 @@ async function main()
   process.on('unhandledRejection', handleUnhandled);
   process.on('uncaughtException', handleUnhandled);
   
+  const getOpts = {};
+  if (cliArgs.defaultPaymentAddressToDCP)
+    getOpts.oAuth = false;
+
   let paymentAddress = false
       || cliArgs.paymentAddress
       || dcpConfig.worker.paymentAddress
-      || (await wallet.get()).address;
+      || (await wallet.get(getOpts).catch(error => {
+          // if flag is set and no other address is provided, use the DCP Community Account,
+          // which is 0x079DAC0612C710ab4e975dAb7171C7e4beF78c5a at time of writing
+          if ((error.code === 'ENOENT') && cliArgs.defaultPaymentAddressToDCP)
+          {
+            console.warn('Warning: Defaulting payment to DCP Community Account');
+            return {address:'0x079DAC0612C710ab4e975dAb7171C7e4beF78c5a'};
+          }
+          throw error;
+          })).address;
   if (typeof paymentAddress === 'string')
     paymentAddress = new wallet.Address(paymentAddress);
-    
+
   if (cliArgs.pidFile)
     require('../lib/pidfile').write(cliArgs.pidFile);
 
@@ -311,7 +328,7 @@ async function main()
     identityKeystore = await wallet.getId();
   await wallet.addId(identityKeystore);
 
-  /* Build the worker options, which are largely given by dcpConfig.worker. We use a reference for 
+  /* Build the worker options, which are largely given by dcpConfig.worker. We use a reference for
    * dcpConfig.worker rather than copying it, so that runtime modifications to the worker configuration
    * in memory take effect immediately.
    *
@@ -389,7 +406,7 @@ async function main()
 
   if (cliArgs.outputMode === 'dashboard')
     require('../lib/dashboard-tui').init(worker, cliArgs);
-  
+
   /* Let incorrect event-loop references keep us alive when linked with a debug library, but
    * exit quickly/accurately for production code even when the library isn't perfect.
    */
@@ -455,6 +472,14 @@ async function main()
     introBanner += ` + Verbosity level: ${cliArgs.verbose}` + '\n';
   if (telnetd.hasOwnProperty('port'))
     introBanner += ` ! telnetd listening on port ${telnetd.port}\n`;
+
+  const { worktimes } = require('dcp-client/libexec/sandbox/worktimes');
+  if (Object.keys(worktimes).length > 0)
+  {
+    introBanner += ' . Worktimes Available:\n';
+    for (const wt of worktimes)
+      introBanner += `    -\t${wt.name}@${wt.versions.join(';')}\n`;
+  }
   
   introBanner += ' . Supervisor version: ' + worker.supervisorVersion;
   introBanner += ' . Output mode: ' + cliArgs.outputMode + '\n';
@@ -475,7 +500,7 @@ async function main()
   await worker.start();
 }
 
-/** 
+/**
  * Process the cores and density cli arguments.
  *
  * cliArgs.cores is the core count of the hardware to use.
@@ -517,7 +542,7 @@ function processCoresAndDensity (dcpWorkerOptions, cliArgs)
  * Log a closing message (or messages). Since the dashboard clears the screen on exit, we use the
  * memoized console property to log the message after we destroy the instance of screen.
  */
-function logClosing(facility, ...message) 
+function logClosing(facility, ...message)
 {
   var screen = require('../lib/worker-loggers/dashboard').screen;
 
@@ -537,7 +562,7 @@ function logClosing(facility, ...message)
   console[facility](...message);
 }
 
-/** 
+/**
  * Fatal error handler: __must not ever throw no matter what__.
  * If we hit a fatal error, we are by definition no longer confident of our program state, meaning that
  * the worker must be restarted. This handler does its best to report the rejection and give the worker a few
@@ -549,7 +574,7 @@ function handleUnhandled(error)
   worker = false;
 
   process.exitCode = process.exitCode || EXIT_UNHANDLED;
-  
+
   try
   {
     logClosing('error', error);
@@ -661,7 +686,7 @@ function sliceReport()
 }
 
 /**
- * Handle a signal which requests our the death of the Worker by 
+ * Handle a signal which requests our the death of the Worker by
  *  - stopping the worker
  *  - unregistering the handler (this allows a second signal to forcibly terminate the process
  *    if that is the default behaviour)
@@ -708,7 +733,7 @@ function getCleanupTimeoutMs()
 }
 
 /**
- * Ensure the default configuration hasn't been modified by the end-user-sysadmin. It is an 
+ * Ensure the default configuration hasn't been modified by the end-user-sysadmin. It is an
  * attractive nuisance, as it looks just like the file they should modify, but if they make
  * security changes there that are overwritten in an subsequent update, it will be a problem.
  *
