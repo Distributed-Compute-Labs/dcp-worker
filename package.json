@@ -40,7 +40,7 @@
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.11.0",
     "chalk": "^4.1.0",
-    "dcp-client": "4.3.6",
+    "dcp-client": "4.3.8",
     "kvin": "^1.2.7",
     "posix-getopt": "^1.2.1",
     "semver": "^7.3.8",
