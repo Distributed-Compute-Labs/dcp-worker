@@ -28,4 +28,5 @@ module.exports = {
     sourceType: 'script',
   },
   rules: {},
+  ignorePatterns: ['etc/*']
 };
