@@ -18,8 +18,7 @@
  * @author      Wes Garland
  * @date        Feb 2021
  */
-'use strict';
-({
+{
   worker: {
     defaultCoreDensity: { cpu: 0.9, gpu: 0.75 }, /* proportion of this machine's cores to use by default */
     trustComputeGroupOrigins: true,  /* Trust the scheduler to modify allowOrigins via Compute Group configuration */
@@ -64,4 +63,4 @@
   },
 
   cookie: require('process').env.DCP_CONFIG_COOKIE, /* used to verify that configuration file was actually loaded */
-})
+}
