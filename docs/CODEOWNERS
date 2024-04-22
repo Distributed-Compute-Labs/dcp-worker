@@ -1,16 +1,11 @@
-# @file    CODEOWNERS - Defines who develops and maintains a feature, and own
-#          the resulting files or directories in the repository.
-#
-#          See https://docs.gitlab.com/ee/user/project/code_owners.html
-#
-# @author  Bryan Hoang <bryan@distributive.network>
-# @date    August 2022
-
-# Username mapping:
-# @wesgarland -> Wes Garland <wes@distributive.network>
+@file CODEOWNERS - machine-generated via dcp-docs-wes git@gitlab.com:Distributed-Compute-Protocol/dcp-docs-wes.git
+fa9533845332913bee457fda869c90bd10cde59f
 
 
 []
+
+[Brandon]
+/catalog-info.yaml @BChristieDistributive
 
 [Eddie]
 /package-lock.json @eroosenmaallen
@@ -29,7 +24,6 @@
 /etc/ @wesgarland
 /.gitlab-ci.yml @wesgarland
 /bin/ @wesgarland
-/catalog-info.yaml @wesgarland
 /etc/ @wesgarland
 /lib/ @wesgarland
 /bin/ @wesgarland
