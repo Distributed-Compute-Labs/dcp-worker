@@ -137,7 +137,7 @@ function parseCliArgs()
         hidden: true,
         describe: 'If set, worker will prefer private groups but fall back on the public group if no preferred work is available',
         type: 'boolean',
-        default: 'undefined',
+        default: undefined,
         defaultDescription: undefined,
       },
 
