@@ -42,7 +42,10 @@ const daemonConfig = {
   net:  new URL('tcpip://localhost:9000/'),
   proc: require.resolve('./dcp-evaluator-start'),
   argv: [ '-s', '--prefix', `${path.resolve(defaultPrefix)}/` ],
-  limits: {},
+  limits: {
+    loadavgType: 'short',
+    randomLoadSamples: new Array(5).fill(0.5),
+  },
   session: {
     idlePoll:    3,  /* s between checks*/
     idleTimeout: 30, /* s to decide the session really IS idle */
@@ -64,6 +67,7 @@ Usage: ${process.argv[0]} [-h | --help] [--prefix=<dir>] [--pts=<dir>] [-a]
        [--disable-monitor=<session|screensaver|signal>] [-i <timeout>]
        [-p port] [-l | --max-load=<number>] [-r | --rate=<number>] [-L]
        [-s | --signal=[name or number][,<toggle|quick>]]
+       [-T | --loadavg-type=<short,medium,long,random>]
        [-- <options to dcp-evaluator-start, must be last option>]
 Where:
  -i sets the idle timeout in seconds for tty sessions (${daemonConfig.session.idleTimeout}s)
@@ -77,8 +81,10 @@ Where:
    mode turns the monitor on/off, quick mode kills active evaluators but
    more can spawn right away. Currently ${daemonConfig.signal.which},${daemonConfig.signal.mode}.
  -a means always run the evaluator, even when the monitors say the machine is busy
- --max-load specifies the point at which machine load prevents connections
  --rate specifies the minimum number of seconds between connections
+ --max-load specifies the point at which machine load prevents connections
+ --loadavg-type determines how load is measured; random generates a pseudo-random
+   load between 0 and 1; currently ${daemonConfig.limits.loadavgType}.
  -L only apply the limits when the monitors say the machine is busy
 
 Environment:
@@ -178,9 +184,33 @@ function handleConnection (socket, config)
 
   if (!daemonConfig.limits.onlyWhenBusy || (daemonConfig.limits.onlyWhenBusy && userActivityMemo))
   {
-    if (daemonConfig.limits.maxLoad < os.loadavg()[0])
+    let loadavg;
+
+    switch(daemonConfig.limits.loadavgType)
     {
-      debug('dcp-evaluator-manager')(`New connection; closing due to system load (${os.loadavg().join(', ')})`);
+      case 'short':
+        loadavg = os.loadavg[0];
+        break;
+      case 'medium':
+      case 'med':
+        loadavg = os.loadavg[1];
+        break;
+      case 'long':
+        loadavg = os.loadavg[2];
+        break;
+      case 'random': /* random number in range [0,1) that usually changes slowly and averages 0.5 */
+      {
+        const samples = daemonConfig.limits.randomLoadSamples;
+        samples[Math.floor(samples.length * Math.random())] = Math.random();
+        loadavg = Math.random() * (samples.reduce((total, sample) => total + sample, 0) / samples.length);
+        loadavg = Number(loadavg.toFixed(2));
+        break;
+      }
+    }
+
+    if (daemonConfig.limits.maxLoad < loadavg)
+    {
+      debug('dcp-evaluator-manager')(`New connection; closing due to ${daemonConfig.limits.loadavgType} system load ${loadavg} (${os.loadavg().join(', ')})`);
       cleanup();
       return;
     }
@@ -473,7 +503,7 @@ function odRequire(moduleId)
 /* Main program entry point */
 async function main()
 {
-  const parser = new getopt.BasicParser('h(help)P:(prefix)d:(disable-monitor)l:(max-load)r:(rate)Li:ap:s:(signal)', process.argv);
+  const parser = new getopt.BasicParser('h(help)P:(prefix)d:(disable-monitor)l:(max-load)r:(rate)Li:ap:s:(signal)T:(loadavg-type)', process.argv);
   var option;
 
   while ((option = parser.getopt()) !== undefined)
@@ -485,12 +515,12 @@ async function main()
         break;
 
       default:
-        throw new Error('defined but unspecified option', option);
+        throw new Error(`defined but unspecified option: -${option.option}` + (option.optarg ? `=${option.optarg}` : ''));
 
       case '?':
         process.exit(1);
         break;
-      
+
       case 'P':
       {
         const re = new RegExp(`^${defaultPrefix}/`);
@@ -526,6 +556,12 @@ async function main()
         break;
       }
 
+      case 'R':
+      {
+        daemonConfig.limits.randomLoad = true;
+        break;
+      }
+
       case 'L':
       {
         daemonConfig.limits.onlyWhenBusy = true;
@@ -555,6 +591,12 @@ async function main()
         const opts = option.optarg.split(',');
         daemonConfig.signal.which = opts[0] || daemonConfig.signal.which;
         daemonConfig.signal.mode  = opts[1] || daemonConfig.signal.mode;
+        break;
+      }
+
+      case 'T':
+      {
+        daemonConfig.limits.loadavgType = option.optarg;
         break;
       }
     }
