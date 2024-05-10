@@ -688,20 +688,24 @@ function sliceReport()
 /**
  * Handle a signal which requests our the death of the Worker by
  *  - stopping the worker
- *  - unregistering the handler (this allows a second signal to forcibly terminate the process
- *    if that is the default behaviour)
+ *  - unregistering the signal handler and replacing it with a call to process.exit()
+ *    -> this allows a second signal to forcibly terminate the process
  *  - set a long timeout (dcpConfig.worker.cleanupTimeout seconds), after which the process
  *    exits forcibly with a non-zero exit code (unix standard for various signals)
  */
 function handleSigDeath(signalName, signal)
 {
   process.off(signalName, handleSigDeath);
+  process.on(signalName, () => {
+    console.error(signalName);
+    process.exit(signal - 128)
+  });
 
   if (!worker)
     console.warn(`trapped ${signalName}, signal ${signal}`);
   else
   {
-    console.warn(`trapped ${signalName}, signal ${signal} -- stopping worker`);
+    console.warn(`trapped ${signalName}, signal ${signal} -- stopping worker` + (signalName === 'SIGQUIT'));
     worker.stop(signalName === 'SIGQUIT');
   }
 
