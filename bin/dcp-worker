@@ -21,7 +21,8 @@ const path    = require('path');
 const crypto  = require('crypto');
 const chalk   = require('chalk');
 const telnetd = require('../lib/remote-console');
-const utils   = require('../lib/utils');
+
+const { slicesFetched, debugging, displayMaxDiagInfo } = require('../lib/utils');
 
 const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
 const EXIT_UNHANDLED = 5;
@@ -398,10 +399,23 @@ async function main()
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
 
   worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
-  worker.on('error',   (...payload) => console.error(...payload));
   worker.on('warning', (...payload) => console.warn (...payload));
   worker.on('stop', () => { console.log('Worker is stopping') });
   worker.on('end',  () => { logClosing('log', 'Worker has stopped') });
+  // Display clean diagnostic when not debugging and env var
+  //   DCP_SUPERVISOR_DEBUG_DISPLAY_MAX_INFO isn't set.
+  worker.on('error',   (error) => {
+    if (displayMaxDiagInfo())
+      console.error(error);
+    else
+    {
+      const errorCode = error.code ? error.code : error.errorCode;
+      if (errorCode)
+        console.error(`${error.message}: errorCode ${errorCode}`);
+      else
+        console.error(error.message);
+    }
+  });
   require('../lib/default-ui-events').hook(worker, cliArgs);
 
   if (cliArgs.outputMode === 'dashboard')
@@ -431,7 +445,7 @@ async function main()
         if (ev instanceof Error)
           console.error('Error fetching task:', ev);
         else
-          dcpWorkerOptions.leavePublicGroup = Boolean(utils.slicesFetched(ev) > 0);
+          dcpWorkerOptions.leavePublicGroup = Boolean(slicesFetched(ev) > 0);
       }
     }
   }
@@ -781,14 +795,6 @@ function verifyDefaultConfigIntegrity()
     console.error(' ! DCP Worker default configuration was not loaded; exiting.');
     processExit(1);
   }
-}
-
-/* thunk - ensures global debugging() symbol always available even if called before dcp-client init */
-function debugging()
-{
-  require('dcp-client');
-  debugging = require('dcp/internal/debugging').scope('dcp-worker');
-  return debugging.apply(this, arguments);
 }
 
 /**
