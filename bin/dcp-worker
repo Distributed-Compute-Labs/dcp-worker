@@ -414,9 +414,9 @@ async function main()
       console.error(error);
     else
     {
-      const errorCode = error.code ? error.code : error.errorCode;
+      const errorCode = error.code ?? error.errorCode;
       if (errorCode)
-        console.error(`${error.message}: errorCode ${errorCode}`);
+        console.error(`${error.message}: error.code ${errorCode}`);
       else
         console.error(error.message);
     }
