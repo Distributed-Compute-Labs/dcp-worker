@@ -75,6 +75,12 @@ function parseCliArgs()
         describe: 'default proportion of CPU,GPU to use when cores not specified',
         type: 'string',
       },
+      maxSandboxes: {
+        alias: 'm',
+        describe: 'Maximum number of sandboxes',
+        type: 'number',
+        default: undefined,
+      },
       verbose: {
         alias: 'v',
         describe: 'Enable verbose output',
@@ -344,7 +350,6 @@ async function main()
   const dcpWorkerOptions = dcpConfig.worker;
   const forceOptions = {
     paymentAddress,
-    maxWorkingSandboxes: cliArgs.cores,
   };
   const defaultOptions = {
     sandboxOptions: {
@@ -546,10 +551,10 @@ function processCoresAndDensity (dcpWorkerOptions, cliArgs)
   parseArg('density');
   parseArg('cores');
 
-  if (dcpWorkerOptions.cores)
-    debugging() && console.debug('dcp-worker: cores =', dcpWorkerOptions.cores);
-  if (dcpWorkerOptions.density)
-    debugging() && console.debug('dcp-worker: core density =', dcpWorkerOptions.density);
+  if (cliArgs['maxSandboxes'])
+    dcpWorkerOptions.maxSandboxes = Number(cliArgs['maxSandboxes']);
+  debugging() && dcpWorkerOptions.cores && console.debug('dcp-worker: cores =', dcpWorkerOptions.cores);
+  debugging() && dcpWorkerOptions.density && console.debug('dcp-worker: core density =', dcpWorkerOptions.density);
 }
 
 /**
