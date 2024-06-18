@@ -416,9 +416,9 @@ async function main()
     {
       const errorCode = error.code ?? error.errorCode;
       if (errorCode)
-        console.error(`${error.message}: error.code ${errorCode}`);
+        console.error(`Error: ${error.message}: error.code ${errorCode}`);
       else
-        console.error(error.message);
+        console.error(`Error: ${error.message}`);
     }
   });
   require('../lib/default-ui-events').hook(worker, cliArgs);
