@@ -331,10 +331,12 @@ async function dbusScreenSaverMonitor()
     'org.gnome.ScreenSaver',
     'org.cinnamon.ScreenSaver',
     'org.kde.screensaver',
-    'org.freedesktop.ScreenSaver'
+    'org.freedesktop.ScreenSaver' // if this ever worked, it doesn't work now as of Ubuntu 24.04 LTS
+                                  // on GNOME, org.freesktop.ScreenSaver will complaint about
+                                  // GetActive isn't a part of offical Freesktop screen saver spec
   ];
   var iface;
-
+  var chosen;
   for (let ss of screensaverList)
   {
     try
@@ -343,6 +345,7 @@ async function dbusScreenSaverMonitor()
       if (obj)
       {
         iface = obj.interfaces[ss];
+        chosen = ss;
         break;
       }
     }
@@ -358,19 +361,30 @@ async function dbusScreenSaverMonitor()
     process.exit(3);
   }
 
-  const ssActive = await iface.GetActive(); // eslint-disable-line new-cap
-  debug('dcp-evaluator-manager')('Screen saver active:', ssActive);
-  userActivity.screensaver = ssActive ? false : 'active dbus screensaver (initial)';
+  try
+  {
+    // Note this is almost guranteed to fail if (GNOME is installed + you're accessing it not on GNOME,
+    // such as over SSH or on another DE)
+    const ssActive = await iface.GetActive(); // eslint-disable-line new-cap
+    debug('dcp-evaluator-manager')('Screen saver active:', ssActive);
+    userActivity.screensaver = ssActive ? false : 'active dbus screensaver (initial)';
 
-  /* screensaver not active => user activity */
-  iface.on('ActiveChanged', function screenSaverChangeHandler(active) {
-    userActivity.screensaver = active ? false : 'active dbus screensaver (change)';
-    debug('dcp-evaluator-manager')(`screen saver ${active ? 'started' : 'finished'} at`, new Date());
-    if (!daemonConfig.limits.onlyWhenBusy && checkUserActivity())
+    /* screensaver not active => user activity */
+    iface.on('ActiveChanged', function screenSaverChangeHandler(active) {
+      userActivity.screensaver = active ? false : 'active dbus screensaver (change)';
+      debug('dcp-evaluator-manager')(`screen saver ${active ? 'started' : 'finished'} at`, new Date());
+      if (!daemonConfig.limits.onlyWhenBusy && checkUserActivity())
       killChildren();
-  });
+    });
 
-  console.log('Monitoring dbus messages for', iface.$name);
+    console.log('Monitoring dbus messages for', iface.$name);
+  }
+  catch (error)
+  {
+    const prettyName = chosen.split('.')[1];
+    console.error(`It seems we don't currently support ${prettyName} screen savers properly, sorry!\n${error}`);
+    process.exit(3);
+  }
 }
 
 /* Activate screensaver monitor. Promise resolves when the initial state has been figured out. */
