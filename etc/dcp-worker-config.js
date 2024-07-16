@@ -2,7 +2,9 @@
  * @file        dcp-worker-config.js
  *              Default configuration for the standalone DCP Worker package.
  *              Copy this file before modifying, so that changes are preserved
- *              during the upgrade cycle. Suggested locations:
+ *              during the upgrade cycle. If this file is in the "/opt/dcp/.dcp"
+ *              directory, copy into the same directory as "dcp-config.js".
+ *              Otherwise, suggested locations include:
  *              - /etc/dcp/dcp-worker/dcp-config.js, or
  *              - ~/.dcp/dcp-worker/dcp-config.js.
  *
