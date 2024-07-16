@@ -3,7 +3,7 @@
  *              Default configuration for the standalone DCP Worker package.
  *              Copy this file before modifying, so that changes are preserved
  *              during the upgrade cycle. Suggested locations:
- *              - /etc/dcp/dcp-worker/dcp-config.js, or 
+ *              - /etc/dcp/dcp-worker/dcp-config.js, or
  *              - ~/.dcp/dcp-worker/dcp-config.js.
  *
  *              Those files have a higher precedence than the configuration
@@ -19,16 +19,47 @@
  * @date        Feb 2021
  */
 {
+  /* The DCP Worker Supervisor spawns evaluator sandboxes that execute job
+   * slices.
+   */
   worker: {
-    defaultCoreDensity: { cpu: 0.9, gpu: 0.75 }, /* proportion of this machine's cores to use by default */
-    trustComputeGroupOrigins: true,  /* Trust the scheduler to modify allowOrigins via Compute Group configuration */
+    /* The number of CPU/GPU cores that the worker can use. */
+    /*
+    cores: {
+      cpu: 7,
+      gpu: 1,
+    }
+    */
 
-    /* Allow lists permitting supervisor network access beyond DCP messages to services */
+    /* The percentage of this machine's cores to use by default. */
+    defaultCoreDensity: {
+      cpu: 0.9,
+      gpu: 0.75,
+    },
+
+    /* Maximum number of sandboxes (sandboxes > cores when density < 1). */
+    /*
+    maxSandboxes: 10,
+    */
+
+    /* Trust the scheduler to modify allowOrigins via Compute Group
+     * configuration.
+     */
+    trustComputeGroupOrigins: true,
+
+    /* Allow lists permitting supervisor network access beyond DCP messages to
+     * services.
+     */
     allowOrigins: {
+      // Allowed to fetch work functions only from these sources
       fetchWorkFunctions: [ dcpConfig.scheduler.location.origin ],
+      // Allowed to fetch job arguments only from these sources
       fetchArguments:     [ dcpConfig.scheduler.location.origin ],
+      // Allowed to fetch input set data only from these sources
       fetchData:          [ dcpConfig.scheduler.location.origin ],
+      // Allowed to submit results only to these sources
       sendResults:        [ dcpConfig.scheduler.location.origin ],
+      // Allowed to fetch anything from these sources
       any:                [],
     },
 
@@ -40,27 +71,34 @@
       'out':  0, /* DCC per byte of outbound network traffic */
     },
 
-    /* Extra Compute Groups this worker can participate in. Join credentials are supplied by
-     * Distributive and/or local IT staff at site-licensed locations.
+    /* Extra Compute Groups this worker can participate in. Join credentials are
+     * supplied by Distributive and/or local IT staff at site-licensed
+     * locations.
      */
     computeGroups: [
-      // { joinKey: 'scott', joinSecret: 'tiger' },
-      // { joinKey: 'scott', joinHash: 'eh1-672937c2b944982e071185b888770f8b8ea67c11f56d545e403e0d513c609b87' },
-      // keystore('~/.dcp/scott'),
+      // { joinKey: 'demo', joinSecret: 'dcp' },
+      // { joinKey: 'demo', joinHash: 'eh1-...' },
     ],
 
-    jobAddresses: false,               /* If specified, restrict the worker to only these jobs */
-    paymentAddress: undefined,      /* Bank account where earned funds are transfered if not specified on command-line */
+    /* Can be false to work on any job, or an array of job ID strings (eg.
+     * ['0xF9D2...F537']) to restrict work to only these jobs.
+     */
+    jobAddresses: false,
+
+    /* The DCP Bank account where earned funds are deposited by default. */
+    paymentAddress: undefined,
   },
 
-  /* The evaluator is a secure environment for creating DCP Worker sandboxes, used when the Worker
-   * is running in Node.js. This configuration specifies where this worker's evaluator daemon is
-   * listening. Killing the evaluator stops all work from happening on this worker; the worker
-   * will run in the background waiting for it to re-launch when this happens. 
+  /* The DCP Worker Evaluator is a secure environment used by DCP Worker
+   * sandboxes. This configuration specifies where this worker's evaluator is
+   * listening. Killing the evaluator stops all work from happening on this
+   * worker; the worker will run in the background waiting for it to re-launch
+   * when this happens.
    */
   evaluator: {
-    listen:   new URL('dcpsaw://localhost:9000/'),
+    listen: new URL('dcpsaw://localhost:9000/'),
   },
 
-  cookie: require('process').env.DCP_CONFIG_COOKIE, /* used to verify that configuration file was actually loaded */
+  /* Used to verify that the configuration file was loaded. */
+  cookie: require('process').env.DCP_CONFIG_COOKIE,
 }
