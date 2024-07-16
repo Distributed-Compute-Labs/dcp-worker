@@ -23,6 +23,9 @@
    * slices.
    */
   worker: {
+    /* The DCP Bank account where earned funds are deposited by default. */
+    paymentAddress: undefined,
+
     /* The number of CPU/GPU cores that the worker can use. */
     /*
     cores: {
@@ -84,9 +87,6 @@
      * ['0xF9D2...F537']) to restrict work to only these jobs.
      */
     jobAddresses: false,
-
-    /* The DCP Bank account where earned funds are deposited by default. */
-    paymentAddress: undefined,
   },
 
   /* The DCP Worker Evaluator is a secure environment used by DCP Worker
