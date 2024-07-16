@@ -3,7 +3,8 @@
  *              Default configuration for the standalone DCP Worker package.
  *              Copy this file before modifying, so that changes are preserved
  *              during the upgrade cycle. If this file is in the "/opt/dcp/.dcp"
- *              directory, copy as "dcp-config.js" into the same directory.
+ *              directory as the result of an application install, do:
+ *              - sudo --user dcp cp /opt/dcp/.dcp/dcp-worker-config.js /opt/dcp/.dcp/dcp-config.js
  *              Otherwise, suggested locations include:
  *              - /etc/dcp/dcp-worker/dcp-config.js, or
  *              - ~/.dcp/dcp-worker/dcp-config.js.
