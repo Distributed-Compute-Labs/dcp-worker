@@ -26,7 +26,10 @@
    * slices.
    */
   worker: {
-    /* The DCP Bank account where earned funds are deposited by default. */
+    /* The DCP Bank account where earned funds are deposited by default, of the
+     * form: '0x718cABAabA0d3E85292FD8bCFb78B9f0368d612c' (case is
+     * insignificant)
+     */
     paymentAddress: undefined,
 
     /* The number of CPU/GPU cores that the worker can use. */
