@@ -87,6 +87,7 @@
     computeGroups: [
       // { joinKey: 'demo', joinSecret: 'dcp' },
       // { joinKey: 'demo', joinHash: 'eh1-...' },
+      // keystore('~/.dcp/demo'),
     ],
 
     /* Can be false to work on any job, or an array of job ID strings (eg.
