@@ -22,13 +22,10 @@
  * @date        Feb 2021
  */
 {
-  /* The DCP Worker Supervisor spawns evaluator sandboxes that execute job
-   * slices.
-   */
+  /* The DCP Worker Supervisor spawns evaluator sandboxes that execute job slices. */
   worker: {
     /* The DCP Bank account where earned funds are deposited by default, of the
-     * form: '0x718cABAabA0d3E85292FD8bCFb78B9f0368d612c' (case following 0x is
-     * insignificant)
+     * form: '0x718cABAabA0d3E85292FD8bCFb78B9f0368d612c'.
      */
     paymentAddress: undefined,
 
@@ -46,19 +43,15 @@
       gpu: 0.75,
     },
 
-    /* Maximum number of sandboxes (sandboxes > cores when density < 1). */
+    /* Maximum number of sandboxes that can run at the same time. */
     /*
     maxSandboxes: 10,
     */
 
-    /* Trust the scheduler to modify allowOrigins via Compute Group
-     * configuration.
-     */
+    /* Trust the scheduler to modify allowOrigins via Compute Group configuration. */
     trustComputeGroupOrigins: true,
 
-    /* Allow lists permitting supervisor network access beyond DCP messages to
-     * services.
-     */
+    /* Allow lists permitting supervisor network access beyond DCP messages to services. */
     allowOrigins: {
       // Allowed to fetch work functions only from these sources
       fetchWorkFunctions: [ dcpConfig.scheduler.location.origin ],
@@ -81,11 +74,10 @@
     },
 
     /* Extra Compute Groups this worker can participate in. Join credentials are
-     * supplied by Distributive and/or local IT staff at site-licensed
-     * locations.
-     */
+    * supplied by Distributive and/or local IT staff at site-licensed locations.
+    */
     computeGroups: [
-      // { joinKey: 'demo', joinSecret: 'dcp' },
+      // { joinKey: 'demo', joinSecret: 'secret' },
       // { joinKey: 'demo', joinHash: 'eh1-...' },
       // keystore('~/.dcp/demo'),
     ],
