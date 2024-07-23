@@ -2,13 +2,27 @@
 # @author wes@people
 
 [Brandon]
-@BChristieDistributive 
+/publish-docs.sh @BChristieDistributive
+/catalog-info.yaml @BChristieDistributive
 
 [Eddie]
-@eroosenmaallen 
+/package-lock.json @eroosenmaallen
 
 [Wes]
-@wesgarland 
+/etc/ @wesgarland
+/lib/ @wesgarland
+/bin/ @wesgarland
+/.eslintrc.js @wesgarland
+/.git @wesgarland
+/.gitignore @wesgarland
+/.gitlab-ci.yml @wesgarland
+/.npmrc @wesgarland
+/.tidelift @wesgarland
+/.trunk/ @wesgarland
+/LICENSE.md @wesgarland
+/README.md @wesgarland
+/docs/ @wesgarland
+/npm-hooks/ @wesgarland
 
 [Wes or Eddie]
-@wesgarland @eroosenmaallen
+/package.json @wesgarland @eroosenmaallen
