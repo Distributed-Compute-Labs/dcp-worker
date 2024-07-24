@@ -1,14 +1,28 @@
-# @file   CODEOWNERS - machine-generated via dcp-docs-wes git@gitlab.com:Distributed-Compute-Protocol/dcp-docs-wes.git ddf12a48dbd85f3b045c9f750ac7bc5e880ce965
+# @file   CODEOWNERS - machine-generated via dcp-docs-wes git@gitlab.com:Distributed-Compute-Protocol/dcp-docs-wes.git e8296162e9a7f3b6234fe951a19bdc502a3df43b
 # @author wes@people
 
 [Brandon]
-@BChristieDistributive 
+/publish-docs.sh @BChristieDistributive
+/catalog-info.yaml @BChristieDistributive
 
 [Eddie]
-@eroosenmaallen 
+/package-lock.json @eroosenmaallen
 
 [Wes]
-@wesgarland 
+/etc/ @wesgarland
+/lib/ @wesgarland
+/bin/ @wesgarland
+/.eslintrc.js @wesgarland
+/.git @wesgarland
+/.gitignore @wesgarland
+/.gitlab-ci.yml @wesgarland
+/.npmrc @wesgarland
+/.tidelift @wesgarland
+/.trunk/ @wesgarland
+/LICENSE.md @wesgarland
+/README.md @wesgarland
+/docs/ @wesgarland
+/npm-hooks/ @wesgarland
 
 [Wes or Eddie]
-@wesgarland @eroosenmaallen
+/package.json @wesgarland @eroosenmaallen
