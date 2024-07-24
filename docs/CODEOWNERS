@@ -6,23 +6,10 @@
 /catalog-info.yaml @BChristieDistributive
 
 [Eddie]
-/package-lock.json @eroosenmaallen
+@eroosenmaallen 
 
 [Wes]
-/etc/ @wesgarland
-/lib/ @wesgarland
-/bin/ @wesgarland
-/.eslintrc.js @wesgarland
-/.git @wesgarland
-/.gitignore @wesgarland
-/.gitlab-ci.yml @wesgarland
-/.npmrc @wesgarland
-/.tidelift @wesgarland
-/.trunk/ @wesgarland
-/LICENSE.md @wesgarland
-/README.md @wesgarland
-/docs/ @wesgarland
-/npm-hooks/ @wesgarland
+@wesgarland 
 
 [Wes or Eddie]
-/package.json @wesgarland @eroosenmaallen
+@wesgarland @eroosenmaallen
