@@ -485,8 +485,8 @@ async function main()
     introBanner += ' . Leaving the public compute group' + '\n';
   if (dcpWorkerOptions.cores)
     introBanner += ` . Configured Cores: ${dcpWorkerOptions.cores.cpu},${dcpWorkerOptions.cores.gpu}\n`
-  else
-    introBanner += ` . Target core density: ${JSON.stringify(dcpWorkerOptions.defaultCoreDensity)}\n`;
+  if (dcpWorkerOptions.cores)
+    introBanner += ` . Maximum Sandboxes: ${dcpWorkerOptions.maxSandboxes}\n`
   if (cliArgs.verbose)
     introBanner += ` + Verbosity level: ${cliArgs.verbose}` + '\n';
   if (telnetd.hasOwnProperty('port'))
@@ -554,7 +554,9 @@ function processCoresAndMaxSandboxes (dcpWorkerOptions, cliArgs)
   parseArg('density');
   parseArg('cores');
 
-  if (cliArgs['maxSandboxes'])
+  console.log('FCK:', cliArgs['maxSandboxes']);
+
+  if (typeof cliArgs['maxSandboxes'] !== 'undefined')
     dcpWorkerOptions.maxSandboxes = Number(cliArgs['maxSandboxes']);
   else
     DCPWorker.defaultMaxSandboxes(dcpWorkerOptions);
