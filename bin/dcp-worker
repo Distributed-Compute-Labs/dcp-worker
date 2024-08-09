@@ -485,7 +485,7 @@ async function main()
     introBanner += ' . Leaving the public compute group' + '\n';
   if (dcpWorkerOptions.cores)
     introBanner += ` . Configured Cores: ${dcpWorkerOptions.cores.cpu},${dcpWorkerOptions.cores.gpu}\n`
-  if (dcpWorkerOptions.cores)
+  if (typeof dcpWorkerOptions.maxSandboxes !== 'undefined')
     introBanner += ` . Maximum Sandboxes: ${dcpWorkerOptions.maxSandboxes}\n`
   if (cliArgs.verbose)
     introBanner += ` + Verbosity level: ${cliArgs.verbose}` + '\n';
