@@ -554,8 +554,6 @@ function processCoresAndMaxSandboxes (dcpWorkerOptions, cliArgs)
   parseArg('density');
   parseArg('cores');
 
-  console.log('FCK:', cliArgs['maxSandboxes']);
-
   if (typeof cliArgs['maxSandboxes'] !== 'undefined')
     dcpWorkerOptions.maxSandboxes = Number(cliArgs['maxSandboxes']);
   else
