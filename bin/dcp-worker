@@ -294,7 +294,7 @@ async function main()
   process.on('SIGQUIT', handleSigDeath);
   process.on('unhandledRejection', handleUnhandled);
   process.on('uncaughtException', handleUnhandled);
-  
+
   const getOpts = {};
   if (cliArgs.defaultPaymentAddressToDCP)
     getOpts.oAuth = false;
@@ -480,7 +480,7 @@ async function main()
     for (const wt of worktimes)
       introBanner += `    -\t${wt.name}@${wt.versions.join(';')}\n`;
   }
-  
+
   introBanner += ' . Supervisor version: ' + worker.supervisorVersion;
   introBanner += ' . Output mode: ' + cliArgs.outputMode + '\n';
   introBanner += ' * Ready' + '\n';
@@ -688,24 +688,44 @@ function sliceReport()
 /**
  * Handle a signal which requests our the death of the Worker by
  *  - stopping the worker
- *  - unregistering the handler (this allows a second signal to forcibly terminate the process
- *    if that is the default behaviour)
+ *  - unregistering the signal handler and replacing it with a call to process.exit() after
+ *    two tries.
+ *    -> this allows a third signal to forcibly terminate the process
  *  - set a long timeout (dcpConfig.worker.cleanupTimeout seconds), after which the process
  *    exits forcibly with a non-zero exit code (unix standard for various signals)
+ *  - the worker is soft-stopped after the first signal if it is not SIGQUIT but hard stopped
+ *    all other times.
  */
 function handleSigDeath(signalName, signal)
 {
-  process.off(signalName, handleSigDeath);
+  handleSigDeath.count = Number(handleSigDeath.count || 0) + 1;
+
+  if (handleSigDeath.count > 2)
+  {
+    process.on(signalName, () => {
+      console.error(signalName);
+      process.exit(signal - 128)
+    });
+  }
 
   if (!worker)
     console.warn(`trapped ${signalName}, signal ${signal}`);
   else
   {
-    console.warn(`trapped ${signalName}, signal ${signal} -- stopping worker`);
-    worker.stop(signalName === 'SIGQUIT');
+    const immediate = signalName === 'SIGQUIT' || handleSigDeath.count > 1;
+    console.warn(`trapped ${signalName}, signal ${signal} -- stopping worker`,
+                 immediate ? 'immediately' : `after ${handleSigDeath.count} slices have finished`);
+    worker.stop(immediate);
   }
 
-  setTimeout(() => processExit(signal - 128), getCleanupTimeoutMs()).unref();
+  function die()
+  {
+    processExit(signal - 128);
+  }
+
+  setTimeout(die, getCleanupTimeoutMs()).unref();
+  if (handleSigDeath.count === 3)
+    die();
 }
 
 /**
