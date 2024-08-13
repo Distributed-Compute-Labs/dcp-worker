@@ -758,7 +758,7 @@ function handleSigDeath(signalName, signal)
 function getCleanupTimeoutMs()
 {
   const defaultCT = 60;
-  var cleanupTimeout = dcpConfig.worker.cleanupTimeout;
+  var cleanupTimeout = dcpConfig.worker?.cleanupTimeout;
 
   if (typeof cleanupTimeout === 'undefined')
     cleanupTimeout = defaultCT;
