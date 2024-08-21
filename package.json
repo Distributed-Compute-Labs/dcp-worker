@@ -40,7 +40,7 @@
     "blessed": "^0.1.81",
     "blessed-contrib": "4.11.0",
     "chalk": "^4.1.0",
-    "dcp-client": "gitlab:Distributed-Compute-Protocol/dcp-client#develop",
+    "dcp-client": "file:../dcp-client",
     "kvin": "^1.2.7",
     "posix-getopt": "^1.2.1",
     "semver": "^7.3.8",
@@ -48,7 +48,7 @@
   },
   "optionalDependencies": {
     "dbus-next": "^0.10.2",
-    "telnet-console": "^1.0.4"
+    "telnet-console": "^1.0.5"
   },
   "devDependencies": {
     "@distributive/eslint-config": "2.1.4",
