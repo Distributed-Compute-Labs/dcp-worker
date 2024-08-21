@@ -33,7 +33,7 @@ const replHelpers = {
     report: 'Print a worker status & slice report',
     kill:   'Try to kill the worker',
     die:    'Kill the worker',
-    debug: 'Set DCP_DEBUG value and re-initialize debugging scopes',
+    debug:  'Set DCP_DEBUG value and re-initialize debugging scopes',
   },
   commands: {
     report: printReport,
