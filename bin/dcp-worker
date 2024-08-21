@@ -502,7 +502,7 @@ async function main()
       introBanner += `    -\t${wt.name}@${wt.versions.join(';')}\n`;
   }
 
-  introBanner += ' . Supervisor version: ' + worker.supervisorVersion;
+  introBanner += ' . Supervisor version: ' + worker.supervisorVersion + '\n';
   introBanner += ' . Output mode: ' + cliArgs.outputMode + '\n';
   introBanner += ' * Ready' + '\n';
 
