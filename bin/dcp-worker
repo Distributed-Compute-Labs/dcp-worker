@@ -39,7 +39,7 @@ const replHelpers = {
     report: printReport,
     kill:   processExit,
     die:    () => worker && worker.stop(),
-    debug:  (value) => { console.log('value is', value); require('dcp/internal/debugging').reinit(value) },
+    debug:  (value) => require('dcp/internal/debugging').reinit(value),
   },
 };
 telnetd.init(replHelpers);
