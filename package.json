@@ -48,7 +48,7 @@
   },
   "optionalDependencies": {
     "dbus-next": "^0.10.2",
-    "telnet-console": "^1.0.4"
+    "telnet-console": "^1.0.5"
   },
   "devDependencies": {
     "@distributive/eslint-config": "2.1.4",

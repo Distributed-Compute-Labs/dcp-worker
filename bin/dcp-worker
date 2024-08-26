@@ -31,13 +31,15 @@ const EXIT_UNHANDLED = 5;
 const replHelpers = {
   help: {
     report: 'Print a worker status & slice report',
-    kill: 'Try to kill the worker',
-    die:  'Kill the worker',
+    kill:   'Try to kill the worker',
+    die:    'Kill the worker',
+    debug:  'Set DCP_DEBUG value and re-initialize debugging scopes',
   },
   commands: {
     report: printReport,
     kill:   processExit,
-    die:    () => worker && worker.stop()
+    die:    () => worker && worker.stop(),
+    debug:  (value) => require('dcp/internal/debugging').reinit(value),
   },
 };
 telnetd.init(replHelpers);
@@ -500,7 +502,7 @@ async function main()
       introBanner += `    -\t${wt.name}@${wt.versions.join(';')}\n`;
   }
 
-  introBanner += ' . Supervisor version: ' + worker.supervisorVersion;
+  introBanner += ' . Supervisor version: ' + worker.supervisorVersion + '\n';
   introBanner += ' . Output mode: ' + cliArgs.outputMode + '\n';
   introBanner += ' * Ready' + '\n';
 
