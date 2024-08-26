@@ -1,35 +1,60 @@
 /**
  * @file        dcp-worker-config.js
- *              Default configuration for the standalone DCP Worker package.
- *              Copy this file before modifying, so that changes are preserved
- *              during the upgrade cycle. Suggested locations:
- *              - /etc/dcp/dcp-worker/dcp-config.js, or 
+ *              Default configuration for the standalone DCP Worker package.  Copy this file before
+ *              modifying so that changes are preserved during the upgrade cycle. If this file is in the
+ *              "/opt/dcp/.dcp" directory as the result of an application install, do:
+ *              - sudo --user dcp cp /opt/dcp/.dcp/dcp-worker-config.js /opt/dcp/.dcp/dcp-config.js
+ *              Otherwise, suggested locations include:
+ *              - /etc/dcp/dcp-worker/dcp-config.js, or
  *              - ~/.dcp/dcp-worker/dcp-config.js.
  *
- *              Those files have a higher precedence than the configuration
- *              that ships with the npm package; changes made in those files
- *              will be merged into the running configuration, overriding the
- *              defaults specified here.
+ *              Those files have a higher precedence than the configuration that ships with the npm
+ *              package; changes made in those files will be merged into the running configuration,
+ *              overriding the defaults specified here.
  *
- *              Windows users can also affect these changes by adding entries
- *              to the registry. This is the preferred method for enterprise
- *              deployment.
+ *              Windows users can also affect these changes by adding entries to the registry. This is
+ *              the preferred method for enterprise deployment.
  *
  * @author      Wes Garland
  * @date        Feb 2021
  */
 {
+  /* The DCP Worker Supervisor spawns evaluator sandboxes that execute job slices. */
   worker: {
-    defaultCoreDensity: { cpu: 0.9, gpu: 0.75 }, /* proportion of this machine's cores to use by default */
-    trustComputeGroupOrigins: true,  /* Trust the scheduler to modify allowOrigins via Compute Group configuration */
+    /* The DCP Bank account where earned funds are deposited by default, of the form:
+     * '0x718cABAabA0d3E85292FD8bCFb78B9f0368d612c'.
+     */
+    paymentAddress: undefined,
 
-    /* Allow lists permitting supervisor network access beyond DCP messages to services */
+    /* The number of CPU/GPU cores that the worker can use. */
+    /*
+    cores: {
+      cpu: 7,
+      gpu: 1,
+    }
+    */
+
+    /* The proportion of this machine's cores to use by default. */
+    defaultCoreDensity: {
+      cpu: 0.9,
+      gpu: 0.75,
+    },
+
+    /* Maximum number of sandboxes that can run at the same time. */
+    /*
+    maxSandboxes: 10,
+    */
+
+    /* Trust the scheduler to modify allowOrigins via Compute Group configuration. */
+    trustComputeGroupOrigins: true,
+
+    /* Allow lists permitting supervisor network access beyond DCP messages to services. */
     allowOrigins: {
-      fetchWorkFunctions: [ dcpConfig.scheduler.location.origin ],
-      fetchArguments:     [ dcpConfig.scheduler.location.origin ],
-      fetchData:          [ dcpConfig.scheduler.location.origin ],
-      sendResults:        [ dcpConfig.scheduler.location.origin ],
-      any:                [],
+      fetchWorkFunctions: [ dcpConfig.scheduler.location.origin ], // Can fetch work functions only from these sources
+      fetchArguments:     [ dcpConfig.scheduler.location.origin ], // Can fetch job arguments only from these sources
+      fetchData:          [ dcpConfig.scheduler.location.origin ], // Can fetch input set data only from these sources
+      sendResults:        [ dcpConfig.scheduler.location.origin ], // Can submit results only to these sources
+      any:                [],                                      // Can fetch anything from these sources
     },
 
     /* Vector describing the lowest-value work this worker will accept. */
@@ -44,23 +69,25 @@
      * Distributive and/or local IT staff at site-licensed locations.
      */
     computeGroups: [
-      // { joinKey: 'scott', joinSecret: 'tiger' },
-      // { joinKey: 'scott', joinHash: 'eh1-672937c2b944982e071185b888770f8b8ea67c11f56d545e403e0d513c609b87' },
-      // keystore('~/.dcp/scott'),
+      // { joinKey: 'demo', joinSecret: 'secret' },
+      // { joinKey: 'demo', joinHash: 'eh1-...' },
+      // keystore('~/.dcp/demo'),
     ],
 
-    jobAddresses: false,               /* If specified, restrict the worker to only these jobs */
-    paymentAddress: undefined,      /* Bank account where earned funds are transfered if not specified on command-line */
+    /* Can be false to work on any job, or an array of job ID strings (eg.
+     * ['0xF9D2...F537']) to restrict work to only these jobs.
+     */
+    jobAddresses: false,
   },
 
-  /* The evaluator is a secure environment for creating DCP Worker sandboxes, used when the Worker
-   * is running in Node.js. This configuration specifies where this worker's evaluator daemon is
-   * listening. Killing the evaluator stops all work from happening on this worker; the worker
-   * will run in the background waiting for it to re-launch when this happens. 
+  /* The evaluator is a secure environment used by DCP Worker sandboxes. This configuration specifies
+   * where this worker's evaluator is listening. Killing the evaluator stops all work from happening on
+   * this worker; the worker will run in the background waiting for it to re-launch when this happens.
    */
   evaluator: {
-    listen:   new URL('dcpsaw://localhost:9000/'),
+    listen: new URL('dcpsaw://localhost:9000/'),
   },
 
-  cookie: require('process').env.DCP_CONFIG_COOKIE, /* used to verify that configuration file was actually loaded */
+  /* Used to verify that the configuration file was loaded. */
+  cookie: require('process').env.DCP_CONFIG_COOKIE,
 }
