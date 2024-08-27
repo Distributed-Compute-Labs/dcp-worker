@@ -21,7 +21,8 @@ const path    = require('path');
 const crypto  = require('crypto');
 const chalk   = require('chalk');
 const telnetd = require('../lib/remote-console');
-const utils   = require('../lib/utils');
+
+const { slicesFetched, debugging, displayMaxDiagInfo } = require('../lib/utils');
 
 const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
 const EXIT_UNHANDLED = 5;
@@ -30,13 +31,15 @@ const EXIT_UNHANDLED = 5;
 const replHelpers = {
   help: {
     report: 'Print a worker status & slice report',
-    kill: 'Try to kill the worker',
-    die:  'Kill the worker',
+    kill:   'Try to kill the worker',
+    die:    'Kill the worker',
+    debug:  'Set DCP_DEBUG value and re-initialize debugging scopes',
   },
   commands: {
     report: printReport,
     kill:   processExit,
-    die:    () => worker && worker.stop()
+    die:    () => worker && worker.stop(),
+    debug:  (value) => require('dcp/internal/debugging').reinit(value),
   },
 };
 telnetd.init(replHelpers);
@@ -73,6 +76,12 @@ function parseCliArgs()
         alias: 'd',
         describe: 'default proportion of CPU,GPU to use when cores not specified',
         type: 'string',
+      },
+      maxSandboxes: {
+        alias: 'm',
+        describe: 'Maximum number of sandboxes',
+        type: 'number',
+        default: undefined,
       },
       verbose: {
         alias: 'v',
@@ -294,7 +303,7 @@ async function main()
   process.on('SIGQUIT', handleSigDeath);
   process.on('unhandledRejection', handleUnhandled);
   process.on('uncaughtException', handleUnhandled);
-  
+
   const getOpts = {};
   if (cliArgs.defaultPaymentAddressToDCP)
     getOpts.oAuth = false;
@@ -343,7 +352,6 @@ async function main()
   const dcpWorkerOptions = dcpConfig.worker;
   const forceOptions = {
     paymentAddress,
-    maxWorkingSandboxes: cliArgs.cores,
   };
   const defaultOptions = {
     sandboxOptions: {
@@ -357,7 +365,7 @@ async function main()
     forceOptions.publicGroupFallback = mkBool(cliArgs.publicGroupFallback);
 
   addConfig(dcpWorkerOptions, defaultOptions, dcpConfig.worker, forceOptions);
-  processCoresAndDensity(dcpWorkerOptions, cliArgs);
+  processCoresAndMaxSandboxes(dcpWorkerOptions, cliArgs);
 
   /* Support magic value used by Windows screensaver configuration /wg June 2023 */
   if (dcpWorkerOptions.leavePublicGroup === 'fallback')
@@ -398,10 +406,23 @@ async function main()
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
 
   worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
-  worker.on('error',   (...payload) => console.error(...payload));
   worker.on('warning', (...payload) => console.warn (...payload));
   worker.on('stop', () => { console.log('Worker is stopping') });
   worker.on('end',  () => { logClosing('log', 'Worker has stopped') });
+  // Display clean diagnostic when not debugging and env var
+  //   DCP_SUPERVISOR_DEBUG_DISPLAY_MAX_INFO isn't set.
+  worker.on('error',   (error) => {
+    if (displayMaxDiagInfo())
+      console.error(error);
+    else
+    {
+      const errorCode = error.code ?? error.errorCode;
+      if (errorCode)
+        console.error(`Error: ${error.message}: error.code ${errorCode}`);
+      else
+        console.error(`Error: ${error.message}`);
+    }
+  });
   require('../lib/default-ui-events').hook(worker, cliArgs);
 
   if (cliArgs.outputMode === 'dashboard')
@@ -431,7 +452,7 @@ async function main()
         if (ev instanceof Error)
           console.error('Error fetching task:', ev);
         else
-          dcpWorkerOptions.leavePublicGroup = Boolean(utils.slicesFetched(ev) > 0);
+          dcpWorkerOptions.leavePublicGroup = Boolean(slicesFetched(ev) > 0);
       }
     }
   }
@@ -466,8 +487,8 @@ async function main()
     introBanner += ' . Leaving the public compute group' + '\n';
   if (dcpWorkerOptions.cores)
     introBanner += ` . Configured Cores: ${dcpWorkerOptions.cores.cpu},${dcpWorkerOptions.cores.gpu}\n`
-  else
-    introBanner += ` . Target core density: ${JSON.stringify(dcpWorkerOptions.defaultCoreDensity)}\n`;
+  if (typeof dcpWorkerOptions.maxSandboxes !== 'undefined')
+    introBanner += ` . Maximum Sandboxes: ${dcpWorkerOptions.maxSandboxes}\n`
   if (cliArgs.verbose)
     introBanner += ` + Verbosity level: ${cliArgs.verbose}` + '\n';
   if (telnetd.hasOwnProperty('port'))
@@ -480,8 +501,8 @@ async function main()
     for (const wt of worktimes)
       introBanner += `    -\t${wt.name}@${wt.versions.join(';')}\n`;
   }
-  
-  introBanner += ' . Supervisor version: ' + worker.supervisorVersion;
+
+  introBanner += ' . Supervisor version: ' + worker.supervisorVersion + '\n';
   introBanner += ' . Output mode: ' + cliArgs.outputMode + '\n';
   introBanner += ' * Ready' + '\n';
 
@@ -501,7 +522,8 @@ async function main()
 }
 
 /**
- * Process the cores and density cli arguments.
+ * Process the cores and maxSandboxes cli arguments.
+ * Also processes density, but that isn't currently used and may be deprecated in the future.
  *
  * cliArgs.cores is the core count of the hardware to use.
  * It can be specified with only the cpu or gpu component, or both.
@@ -509,8 +531,10 @@ async function main()
  * E.g. -c 2,1  => cores = { cpu: 2,         gpu: 1 }
  *      -c 10   => cores = { cpu: 10,        gpu: <default> }
  *      -c ,10  => cores = { cpu: <default>, gpu: 10 }
+ *      -m 5    => maxSandboxes = 5
+ *      default maxSandboxes := Math.max( 1, Math.round((System RAM) / 2.5GB) );
  */
-function processCoresAndDensity (dcpWorkerOptions, cliArgs)
+function processCoresAndMaxSandboxes (dcpWorkerOptions, cliArgs)
 {
   const DCPWorker = require('dcp/worker').Worker;
   const defaultTargets = {
@@ -532,10 +556,12 @@ function processCoresAndDensity (dcpWorkerOptions, cliArgs)
   parseArg('density');
   parseArg('cores');
 
-  if (dcpWorkerOptions.cores)
-    debugging() && console.debug('dcp-worker: cores =', dcpWorkerOptions.cores);
-  if (dcpWorkerOptions.density)
-    debugging() && console.debug('dcp-worker: core density =', dcpWorkerOptions.density);
+  if (typeof cliArgs['maxSandboxes'] !== 'undefined')
+    dcpWorkerOptions.maxSandboxes = Number(cliArgs['maxSandboxes']);
+  else
+    DCPWorker.defaultMaxSandboxes(dcpWorkerOptions);
+  debugging() && console.debug(`dcp-worker: cores = { ${dcpWorkerOptions.cores.cpu}, ${dcpWorkerOptions.cores.gpu} }`);
+  debugging() && console.debug('dcp-worker: core density =', dcpWorkerOptions.density);
 }
 
 /**
@@ -688,24 +714,44 @@ function sliceReport()
 /**
  * Handle a signal which requests our the death of the Worker by
  *  - stopping the worker
- *  - unregistering the handler (this allows a second signal to forcibly terminate the process
- *    if that is the default behaviour)
+ *  - unregistering the signal handler and replacing it with a call to process.exit() after
+ *    two tries.
+ *    -> this allows a third signal to forcibly terminate the process
  *  - set a long timeout (dcpConfig.worker.cleanupTimeout seconds), after which the process
  *    exits forcibly with a non-zero exit code (unix standard for various signals)
+ *  - the worker is soft-stopped after the first signal if it is not SIGQUIT but hard stopped
+ *    all other times.
  */
 function handleSigDeath(signalName, signal)
 {
-  process.off(signalName, handleSigDeath);
+  handleSigDeath.count = Number(handleSigDeath.count || 0) + 1;
+
+  if (handleSigDeath.count > 2)
+  {
+    process.on(signalName, () => {
+      console.error(signalName);
+      process.exit(signal - 128)
+    });
+  }
 
   if (!worker)
     console.warn(`trapped ${signalName}, signal ${signal}`);
   else
   {
-    console.warn(`trapped ${signalName}, signal ${signal} -- stopping worker`);
-    worker.stop(signalName === 'SIGQUIT');
+    const immediate = signalName === 'SIGQUIT' || handleSigDeath.count > 1;
+    console.warn(`trapped ${signalName}, signal ${signal} -- stopping worker`,
+                 immediate ? 'immediately' : `after ${handleSigDeath.count} slices have finished`);
+    worker.stop(immediate);
   }
 
-  setTimeout(() => processExit(signal - 128), getCleanupTimeoutMs()).unref();
+  function die()
+  {
+    processExit(signal - 128);
+  }
+
+  setTimeout(die, getCleanupTimeoutMs()).unref();
+  if (handleSigDeath.count === 3)
+    die();
 }
 
 /**
@@ -714,7 +760,7 @@ function handleSigDeath(signalName, signal)
 function getCleanupTimeoutMs()
 {
   const defaultCT = 60;
-  var cleanupTimeout = dcpConfig.worker.cleanupTimeout;
+  var cleanupTimeout = dcpConfig.worker?.cleanupTimeout;
 
   if (typeof cleanupTimeout === 'undefined')
     cleanupTimeout = defaultCT;
@@ -781,14 +827,6 @@ function verifyDefaultConfigIntegrity()
     console.error(' ! DCP Worker default configuration was not loaded; exiting.');
     processExit(1);
   }
-}
-
-/* thunk - ensures global debugging() symbol always available even if called before dcp-client init */
-function debugging()
-{
-  require('dcp-client');
-  debugging = require('dcp/internal/debugging').scope('dcp-worker');
-  return debugging.apply(this, arguments);
 }
 
 /**
