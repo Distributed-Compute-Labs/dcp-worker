@@ -382,7 +382,7 @@ async function dbusScreenSaverMonitor()
   catch (error)
   {
     const prettyName = chosen.split('.')[1];
-    console.error(`It seems we don't currently support ${prettyName} screen savers properly, sorry!\n${error}`);
+    console.error(`${prettyName} screensaver doesn't support activeness query, screensaver is not started, or user ${os.userInfo().username} doesn't have access to dbus\n ${error}`);
     process.exit(3);
   }
 }
