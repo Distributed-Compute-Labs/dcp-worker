@@ -1,47 +1,146 @@
 # DCP-Worker
 
-This is the official Node DCP Worker implementation for DCP, the Distributed Compute Protocol.
-This code implements a DCP Worker which is intended to be executed interactively and supplies
-necessary library routines and packages for implementing other worker types (eg the DCP Service Worker).
+This is the official DCP Worker program for the Distributive Compute Platform.
 
-Note that, in order to run this DCP Worker, you also need a DCP Evaluator; we use a completely separate
-build process, unrelated to NodeJS and NPM, to create our evaluators for security reasons. Our native
-evaluator embeds Google's V8 JavaScript engine directly; this evaluator hosts the sandbox which executes
-DCP workload.
+This package implements a DCP Worker which can be executive interactively, or a system service, using
+Node.js to communicate with the scheduler and control the DCP Evaluator.
 
-You can find a complete package for Linux, including Evaluator binaries at https://archive.distributed.computer/releases/, 
+A companion program, the DCP Evaluator, is required to use this worker. When you install the DCP Worker
+with your system's package manager, the installer will automatically install the DCP Evaluator as
+`dcp-evaluator-v8`. The DCP Evaluator is a secure sandboxing tool which uses the V8 JavaScript engine
+and the Dawn WebGPU engine from Google to execute JavaScript, WebAssembly, and WebGPU code.
+
+You can find a complete package for Linux, including Evaluator binaries at https://archive.distributed.computer/releases/,
 and documentation at https://docs.distributed.computer/worker/readme.html.  If you are a developer
 who interested in porting the Evaluator to your own platform, please contact us and we will
 grant you early access to the MIT-licensed source code.  The build is CMake with GN and largely
 based around V8.
 
-This code, without the evaluator binaries, is used for DCP LocalExec, a debugging tool for DCP Client developers.
-
-## Record of Issue
-
-Date        |  Author          | Change
------------ | ---------------- | ---------------------------------------------
-May  4 2021 | Wes Garland      | Updated to reflect Scheduler v4 Release
-May 29 2020 | Wes Garland      | Early Developer Preview Release
-Mar 29 2021 | Wes Garland      | DCP Service Worker moved to separate package
+This package is also used for DCP LocalExec, a local debugging tool for developers using DCP Client.
 
 ## Release Notes
-
-### Implementation Status
-DCP is currently (May 2020) in testing for a limited set of developers under our Early Developer Preview program.  If you would like to be part of our *First Dev* cohort, visit https://dcp.dev/ and sign up!
+This document was last updated Aug 27, 2024.
 
 ### Supported Platforms
-- Node.js version 12 (LTS)
-- Ubuntu Linux 18.04 (LTS)
-- Ubuntu Linux 20.04 (LTS)
+- Node.js (all maintenance, active, current releases)
+- Microsoft Windows 10, 11
+- Ubuntu Linux 20.04
+- Ubuntu Linux 22.04
+- Ubuntu Linux 24.04
 - More to come
 
-### Related Products
-Other utilities for developers working with DCP can be retrieved via npm, and include:
+## Manifest
+| File                       | Purpose
+|:---------------------------|:------------------------------------------------
+| bin/dcp-worker             | Program which requests work from the scheduler and coordinates its evaluation in a secure environment called dcp-evaluator-v8
+| bin/dcp-evaluator-start    | Program which launches dcp-evaluator-v8
+| bin/dcp-evaluator-manager  | Program which which manages the launching of dcp-evaluator-v8; e.g. based on system load, terminal activity, screensaver activity, etc.
+| etc/dcp-worker-config.js   | Default configuration for dcp-worker
 
-* [`dcp-client`](https://npmjs.com/package/dcp-client) - the official client library for DCP, the Distributed Compute Protocol
-* [`dcp-util`](https://npmjs.com/package/dcp-util) - a series of utilities for working with DCP; manipulate keystores, cancel jobs, etc.
-* [`niim`](https://www.npmjs.com/package/niim) - a command-line debugger for NodeJS (fork of node-inspect) which can debug DCP programs (passphrase prompts cause problems with node-inspect mainline)
+### Related Packages
+- dcp-evaluator-v8, our isolated JS/WASM/WebGPU evaluation environment, ships separately. Installing dcp-worker with your system's package manager will automatically install dcp-evaluator-v8 as a dependency.
+
+## Troubleshooting
+The following conditions must be met for a Worker to do work:
+* the Evaluator must be startable - normally managed with `dcp-evaluator-manager`
+* the Worker must be running
+* there must be work available on the scheduler that is suitable for this worker
+  * the worker must have the correct capabilities (GPU?)
+  * the job's payment must exceed the worker's minimum wage
+  * the worker and the job must be in the same Compute Group
+
+### Check: Evaluator is running
+This varies from platform to platform. This document assumes the Worker was installed from an OS-specific package supplied by Distributive.
+
+#### Microsoft Windows
+The Evaluator is automatically started by the Distributive Screensaver.
+
+#### Ubuntu Linux
+On Ubuntu Linux, the Evaluator is started by `dcp-evaluator-manager`, under the control of
+[systemd](https://systemd.io/), running as the user `dcp`. The Evaluator Manager is responsible for
+disabling the Evaluator when the system load changes, the screen saver deactivatees, or a terminal
+becomes active.
+
+| Action                     | Command
+|:---------------------------|:------------------------------------------------
+| View all DCP systemd units | systemctl --no-pager list-units 'dcp-*' --all
+| Stop the Evaluator         | sudo systemctl stop dcp-evaluator-manager
+| Start the Evaluator        | sudo systemctl start dcp-evaluator-manager
+| Restart the Evaluator      | sudo systemctl restart dcp-evaluator-manager
+| View the journal (logs)    | sudo systemctl journalctl -u dcp-evaluator-manager -f
+
+### Check: Worker is running
+This varies from platform to platform. This document assumes the Worker was installed from an
+OS-specific package supplied by Distributive.
+
+#### Microsoft Windows
+The Worker is installed as a Windows Service, and can be managed via the Windows Service Manager.
+To open the Windows Services Manager on Windows 10 or 11:
+* Press Windows-X or right-click the start button to open the WinX menu
+* Choose `Run`
+* Type `sevices.msc` in the Run box and press enter
+
+#### Ubuntu Linux
+On Ubuntu Linux, the Worker is started under the control of [systemd](https://systemd.io/), running as
+the user `dcp`. The Worker communicates with the Scheduler and uses an Evaluator to execute workload.
+
+| Action                     | Command
+|:---------------------------|:------------------------------------------------
+| View all DCP systemd units | systemctl --no-pager list-units 'dcp-*' --all
+| Stop the Worker            | sudo systemctl stop dcp-worker
+| Start the Worker           | sudo systemctl start dcp-worker
+| Restart the Workr          | sudo systemctl restart dcp-worker
+| View the journal (logs)    | sudo systemctl journalctl -u dcp-worker -f
+
+### Check: Worker is working
+
+#### All Operating Systems
+The `dcp-worker` program in this package normally runs as a system service, but it can also be run as an
+interactive program. This program displays configuration information and shows what it is doing with the
+Evaluator in real time.  `dcp-worker -h` shows a help screen; to run in interactive mode, simply start
+`bin/dcp-worker` from a terminal window without any `-o` options.
+
+Administrators with a large number of workers may wish to configure [syslog](https://en.wikipedia.org/wiki/Syslog)
+logging, and use an off-the-shelf logging aggregation service. The full gamut of options relating to
+syslog output are documented in the `dcp-worker` help screen. Note that only one type of output at a
+time is currently possible with `dcp-worker`; Linux administrators who want both system journals and
+syslog output will need to configure their local syslog service to receive messages from systemd.
+
+#### Microsoft Windows
+The DCP Worker service writes logs to the Windows Event Viewer. To open the event viewer on Windows 10 or
+11, click
+* Start
+* Control Panel
+* System and Security
+* Administrative Tools
+
+Next, double-click Event Viewer, and select DCP Worker logs.
+
+#### Ubuntu Linux
+The default configure runs `bin/dcp-worker -o console`, which sends log output to stdout/stderr; this
+output is captured by systemd and recorded in the system journals.
+`sudo systemctl journalctl -u dcp-worker --since='15 minutes ago'` will show recent activity.
+
+## Systems  Integration
+This DCP Worker package can be integrated into a wide variety of systems. Distributive currently
+(Aug 2024) ships a Windows screensaver, an Ubuntu (Debian) package, and a Dockerized version of the
+Debian package.
+
+Systems integrators should be aware that the Evaluator (processes named `dcp-evaluator-v8`) can be
+killed at any time to immediately decrease system load. A program called `dcp-evaluator-manager`
+can be used to automate this; it can kill running Evaluators based on screensaver or terminal activity,
+and refuse to spawn new Evaluators based on current system load.  Systems Integrators familiar with
+`inetd` will understand that `dcp-evaluator-manager` is a variation on this theme, and can be replaced
+a similar program should a more suitable one exist to manage load for the environment in question.
+
+Systems integrators leave the `dcp-worker` program running as much as possible. This process consumes
+very few resources, but manages the transmission of results to the Scheduler. During system shutdown,
+delivering a single SIGINT to `dcp-worker` will cause it submit all pending results to the Scheduler,
+return all pending slices, etc.  This graceful shutdown will take less than 30 seconds (usually much
+less).
+
+No DCP job or process will be irrepairably damanged by killing any process on a Worker node. The worst
+that can happen is that work with pending results will be routed to another node.
 
 ## DCP Glossary
 ### Entities
@@ -60,6 +159,9 @@ A Node.js daemon which
 * enables the movement of DCC between entities requesting work and entities performing work
 * enables the movement of DCC between the ledger and the blockchain
 * enables the placement of DCC in escrow on behalf of the Scheduler for work which is anticipated to be done
+
+#### Compute Group
+A collection of Workers and Jobs
 
 #### Portal
 A user-facing web application which allows or enables
@@ -83,7 +185,7 @@ A JavaScript program which includes a Supervisor and one or more Sandboxes
 A component of a Worker, used to execute arbitrary JavaScript code in a secure environment.
 
 #### Supervisor
-The component of a Worker which communicates with the Scheduler and Sandboxen.
+The component of a Worker which communicates with the Scheduler and Sandboxes.
 
 ### Concepts
 #### Job
@@ -111,24 +213,16 @@ A parallel supercomputer consisting of one or more schedulers and workers.  When
 A ledger which acts a repository for DCC which is not on the block chain.  The Bank can move DCC between Bank Accounts much more quickly than it can move DCC between Addresses on the Ethereum block chain network.  Meta data attached to bank accounts can restrict certain operations, such as ear-marking funds for use only by job deployment.
 
 #### Address
-A unique identifier in DCP which can be used as a Bank Account identifier (account number) or Address on the Ethereum network.
+A unique identifier in DCP which can be used to identity a bank account, user, compute group, etc.
 
-#### Wallet
-In the general (blockchain) sense, a wallet is a piece of software that allows the user to interact with the greater economy as a whole.  So as your actual wallet in your pocket has your cash and credit cards and you access your wallet in order to make a purchase and keep records (by pulling out  cash or cards, and stuffing receipts back in), a blockchain wallet performs a similar function in that it gives you a place to store your private keys (your money), it provides a balance of what all those moneys add up to, it provides a way to receive moneys and send moneys, and provides a record of all those sends and receives. Most blockchain wallets provide at least 3 basic functions
-1. generate and stores your public/private key pairs
-2. allow you to use those key pairs through transactions (allows you to craft and transmit transactions to the peers)
-3. keep a record of the transactions
-
-Additionally, most of the current crypto wallets (such as Bitcoin core) provide blockchain validation and consensus functions in that they can act to create or validate new blocks to the chain in addition to creating or validating transactions.
-
-##### Distributed.Computer Wallet
-The Distributed.Computer acts as a Wallet; the platform exposes Wallet-related functionality both via software APIs and the portal web site.
- - Public/private key pairs are generated via the portal, wallet API, and command-line utilities
- - Public/private key pairs are stored in the database as passphrase-protected Keystores
- - Public/private key pairs stored in the Distributed.Computer Wallet can be retrieved via the portal webite
+#### Key
+A secret number that corresponds to an address. The address can be derived mathematically from the key, but the key cannot be derived from the address. In DCP, access is granted to a resource identitified by an address by signing a message with the key. This a very common public-key-private-key encryption technique, and is why it is important to safeguard your keys.
 
 #### Keystore
-A data structure which stores an encrypted key pair (address + private key). Generally speaking, the keystore will be encrypted with a passphrase.
+A data structure which stores a key. The key can be safeguarded from prying eyes by encrypting it with a passphrase within the keystore.
 
 ### Keystore File
-A file which stores a JSON-encoded Keystore.
+A file which stores a Keystore.
+
+#### Wallet
+A collection of Keystores.
