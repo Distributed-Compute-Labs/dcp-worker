@@ -19,13 +19,14 @@
  */
 'use strict';
 
-const os     = require('os');
-const fs     = require('fs');
-const path   = require('path');
-const net    = require('net');
-const dns    = require('dns');
-const debug  = require('debug');
-const getopt = require('posix-getopt');
+const os      = require('os');
+const fs      = require('fs');
+const path    = require('path');
+const net     = require('net');
+const dns     = require('dns');
+const debug   = require('debug');
+const getopt  = require('posix-getopt');
+const pidfile = require('../lib/pidfile');
 
 var userActivity = { /* no props true => okay to launch evaluator */
   screensaver: true,
@@ -42,6 +43,7 @@ const daemonConfig = {
   net:  new URL('tcpip://localhost:9000/'),
   proc: require.resolve('./dcp-evaluator-start'),
   argv: [ '-s', '--prefix', `${path.resolve(defaultPrefix)}/` ],
+  pidfile: pidfile.getDefaultPidFilename,
   limits: {
     loadavgType: 'short',
     randomLoadSamples: new Array(5).fill(0.5),
@@ -68,11 +70,13 @@ Usage: ${process.argv[0]} [-h | --help] [--prefix=<dir>] [--pts=<dir>] [-a]
        [-p port] [-l | --max-load=<number>] [-r | --rate=<number>] [-L]
        [-s | --signal=[name or number][,<toggle|quick>]]
        [-T | --loadavg-type=<short,medium,long,random>]
+       [-f | --pidfile=</path/to/file.pid>]
        [-- <options to dcp-evaluator-start, must be last option>]
 Where:
  -i sets the idle timeout in seconds for tty sessions (${daemonConfig.session.idleTimeout}s)
  -p specifies the port to listen on for dcpsaw: worker connections (${daemonConfig.net.port})
  --prefix specifies the directory where the DCP evaluator package was installed
+ --pidfile specifies an alternate location for the pid file (currently ${daemonConfig.pidfile})
  --pts specifies the location of the system's pseudo terminal (${ptsDir})
  --disable-monitor=session disables monitoring of ssh/telnet/etc sessions
  --disable-monitor=screensaver disables monitoring of the screensaver
@@ -228,7 +232,10 @@ function handleConnection (socket, config)
 
   const options = {
     env: Object.assign({}, process.env),
+    windowsHide: true,
+    maxBuffer: 1024 * 1024 * 1024 * 2,
   };
+  Object.apply(options, daemonConfig.spawnOptions);
   child = require('child_process').spawn(config.proc, config.argv, options);
   child.stderr.setEncoding('ascii');
   child.socket = socket;
@@ -353,24 +360,23 @@ async function dbusScreenSaverMonitor()
   }
 
   if (!iface)
+    console.warn('Warning: could not open dbus session to any screensaver, tried', screensaverList);
+  else
   {
-    console.error('Could not open dbus session to any screensaver, tried', screensaverList);
-    process.exit(3);
+    const ssActive = await iface.GetActive(); // eslint-disable-line new-cap
+    debug('dcp-evaluator-manager')('Screen saver active:', ssActive);
+    userActivity.screensaver = ssActive ? false : 'active dbus screensaver (initial)';
+
+    /* screensaver not active => user activity */
+    iface.on('ActiveChanged', function screenSaverChangeHandler(active) {
+      userActivity.screensaver = active ? false : 'active dbus screensaver (change)';
+      debug('dcp-evaluator-manager')(`screen saver ${active ? 'started' : 'finished'} at`, new Date());
+      if (!daemonConfig.limits.onlyWhenBusy && checkUserActivity())
+        killChildren();
+    });
+
+    console.log('Monitoring dbus messages for', iface.$name);
   }
-
-  const ssActive = await iface.GetActive(); // eslint-disable-line new-cap
-  debug('dcp-evaluator-manager')('Screen saver active:', ssActive);
-  userActivity.screensaver = ssActive ? false : 'active dbus screensaver (initial)';
-
-  /* screensaver not active => user activity */
-  iface.on('ActiveChanged', function screenSaverChangeHandler(active) {
-    userActivity.screensaver = active ? false : 'active dbus screensaver (change)';
-    debug('dcp-evaluator-manager')(`screen saver ${active ? 'started' : 'finished'} at`, new Date());
-    if (!daemonConfig.limits.onlyWhenBusy && checkUserActivity())
-      killChildren();
-  });
-
-  console.log('Monitoring dbus messages for', iface.$name);
 }
 
 /* Activate screensaver monitor. Promise resolves when the initial state has been figured out. */
@@ -503,7 +509,7 @@ function odRequire(moduleId)
 /* Main program entry point */
 async function main()
 {
-  const parser = new getopt.BasicParser('h(help)P:(prefix)d:(disable-monitor)l:(max-load)r:(rate)Li:ap:s:(signal)T:(loadavg-type)', process.argv);
+  const parser = new getopt.BasicParser('h(help)P:(prefix)d:(disable-monitor)l:(max-load)r:(rate)Li:ap:s:(signal)T:(loadavg-type)f:(pidfile)', process.argv);
   var option;
 
   while ((option = parser.getopt()) !== undefined)
@@ -599,10 +605,17 @@ async function main()
         daemonConfig.limits.loadavgType = option.optarg;
         break;
       }
+
+      case 'f':
+      {
+        daemonConfig.pidfile = option.optarg;
+      }
     }
   }
 
   daemonConfig.argv = daemonConfig.argv.concat(process.argv.slice(parser.optind())); /* All options after -- pass to dcp-evaluator-start */
+  if (daemonConfig.pidfile)
+    pidfile.write(daemonConfig.pidfile);
 
   process.on('uncaughtException', function (error) {
     console.error('\n---', (new Date()).toLocaleString(), '-------------------------------------------------');
