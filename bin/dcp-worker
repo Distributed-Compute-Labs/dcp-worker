@@ -512,6 +512,7 @@ async function main()
     introBanner += ' . WebGPU available. GPU info:\n';
     for (let descriptor in webgpuInfo.info)
       introBanner += `    -\t${descriptor}: ${webgpuInfo.info[descriptor]}\n`;
+    dcpConfig.evaluator.gpu = webgpuInfo.info.device;
   }
 
   introBanner += ' . Supervisor version: ' + worker.supervisorVersion + '\n';
