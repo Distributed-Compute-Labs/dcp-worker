@@ -509,7 +509,7 @@ async function main()
     introBanner += ' . WebGPU not enabled\n';
   else
   {
-    introBanner += ' . WebGPU availabe. GPU info:\n';
+    introBanner += ' . WebGPU available. GPU info:\n';
     for (let descriptor in webgpuInfo.info)
       introBanner += `    -\t${descriptor}: ${webgpuInfo.info[descriptor]}\n`;
   }
