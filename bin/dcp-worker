@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#! /usr/bin/env node
 /**
  *  @file       dcp-worker.js
  *              Standalone NodeJS DCP Worker
@@ -407,6 +407,7 @@ async function main()
 
   worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
   worker.on('warning', (...payload) => console.warn (...payload));
+  worker.on('job', job => console.log(` . Job: ${job.name} ${job.address.slice(0,8)} ${job.description || ''} ${job.link || ''}`));
   worker.on('stop', () => { console.log('Worker is stopping') });
   worker.on('end',  () => { logClosing('log', 'Worker has stopped') });
   // Display clean diagnostic when not debugging and env var
