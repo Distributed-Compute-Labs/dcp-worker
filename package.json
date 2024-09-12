@@ -1,12 +1,12 @@
 {
   "name": "dcp-worker",
   "version": "3.3.11-0",
-  "description": "JavaScript portion of DCP Workers for Node.js",
+  "description": "Node.js Worker for Distributive Compute Platform",
   "main": "bin/dcp-worker",
   "keywords": [
     "dcp"
   ],
-  "homepage": "https://gitlab.com/Distributed-Compute-Protocol/dcp-worker#readme",
+  "homepage": "https://www.npmjs.com/package/dcp-worker#readme",
   "bugs": {
     "url": "https://gitlab.com/Distributed-Compute-Protocol/dcp-worker/issues"
   },
@@ -15,7 +15,7 @@
     "url": "git+ssh://git@gitlab.com/Distributed-Compute-Protocol/dcp-worker.git"
   },
   "license": "MIT",
-  "author": "Kings Distributed Systems",
+  "author": "Distributive Corp.",
   "bin": {
     "dcp-evaluator-manager": "bin/dcp-evaluator-manager",
     "dcp-evaluator-start": "bin/dcp-evaluator-start",
