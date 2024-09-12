@@ -7,7 +7,7 @@ Node.js to communicate with the scheduler and control the DCP Evaluator.
 
 A companion program, the DCP Evaluator, is required to use this worker. When you install the DCP Worker
 with your system's package manager, the installer will automatically install the DCP Evaluator as
-`dcp-evaluator-v8`. The DCP Evaluator is a secure sandboxing tool which uses the V8 JavaScript engine
+`dcp-evaluator-v8` or `dcp-evaluator`. The DCP Evaluator is a secure sandboxing tool which uses the V8 JavaScript engine
 and the Dawn WebGPU engine from Google to execute JavaScript, WebAssembly, and WebGPU code.
 
 You can find a complete package for Linux, including Evaluator binaries at https://archive.distributed.computer/releases/,
@@ -19,7 +19,7 @@ based around V8.
 This package is also used for DCP LocalExec, a local debugging tool for developers using DCP Client.
 
 ## Release Notes
-This document was last updated Aug 27, 2024.
+This document was last updated Sep 12, 2024.
 
 ### Supported Platforms
 - Node.js (all maintenance, active, current releases)
@@ -49,50 +49,9 @@ The following conditions must be met for a Worker to do work:
   * the job's payment must exceed the worker's minimum wage
   * the worker and the job must be in the same Compute Group
 
-### Check: Evaluator is running
-This varies from platform to platform. This document assumes the Worker was installed from an OS-specific package supplied by Distributive.
-
-#### Microsoft Windows
-The Evaluator is automatically started by the Distributive Screensaver.
-
-#### Ubuntu Linux
-On Ubuntu Linux, the Evaluator is started by `dcp-evaluator-manager`, under the control of
-[systemd](https://systemd.io/), running as the user `dcp`. The Evaluator Manager is responsible for
-disabling the Evaluator when the system load changes, the screen saver deactivatees, or a terminal
-becomes active.
-
-| Action                     | Command
-|:---------------------------|:------------------------------------------------
-| View all DCP systemd units | systemctl --no-pager list-units 'dcp-*' --all
-| Stop the Evaluator         | sudo systemctl stop dcp-evaluator-manager
-| Start the Evaluator        | sudo systemctl start dcp-evaluator-manager
-| Restart the Evaluator      | sudo systemctl restart dcp-evaluator-manager
-| View the journal (logs)    | sudo systemctl journalctl -u dcp-evaluator-manager -f
-
 ### Check: Worker is running
 This varies from platform to platform. This document assumes the Worker was installed from an
 OS-specific package supplied by Distributive.
-
-#### Microsoft Windows
-The Worker is installed as a Windows Service, and can be managed via the Windows Service Manager.
-To open the Windows Services Manager on Windows 10 or 11:
-* Press Windows-X or right-click the start button to open the WinX menu
-* Choose `Run`
-* Type `sevices.msc` in the Run box and press enter
-
-#### Ubuntu Linux
-On Ubuntu Linux, the Worker is started under the control of [systemd](https://systemd.io/), running as
-the user `dcp`. The Worker communicates with the Scheduler and uses an Evaluator to execute workload.
-
-| Action                     | Command
-|:---------------------------|:------------------------------------------------
-| View all DCP systemd units | systemctl --no-pager list-units 'dcp-*' --all
-| Stop the Worker            | sudo systemctl stop dcp-worker
-| Start the Worker           | sudo systemctl start dcp-worker
-| Restart the Workr          | sudo systemctl restart dcp-worker
-| View the journal (logs)    | sudo systemctl journalctl -u dcp-worker -f
-
-### Check: Worker is working
 
 #### All Operating Systems
 The `dcp-worker` program in this package normally runs as a system service, but it can also be run as an
@@ -106,9 +65,20 @@ syslog output are documented in the `dcp-worker` help screen. Note that only one
 time is currently possible with `dcp-worker`; Linux administrators who want both system journals and
 syslog output will need to configure their local syslog service to receive messages from systemd.
 
+The Worker can log its activities to a variety of destinations (dependent on operating system), and
+emits logs when new jobs are fetched, job slices are completed, and so on.
+
 #### Microsoft Windows
-The DCP Worker service writes logs to the Windows Event Viewer. To open the event viewer on Windows 10 or
-11, click
+The Worker is installed as a Windows Service, and can be managed via the Windows Service Manager.
+To open the Windows Services Manager on Windows 10 or 11:
+* Press Windows-X or right-click the start button to open the WinX menu
+* Choose `Run`
+* Type `sevices.msc` in the Run box and press enter
+
+By default, the DCP Worker service writes logs to the Windows Event Viewer, but can be sent to a remote
+syslog service if so desired.
+
+To open the event viewer on Windows 10 or 11, click
 * Start
 * Control Panel
 * System and Security
@@ -117,9 +87,43 @@ The DCP Worker service writes logs to the Windows Event Viewer. To open the even
 Next, double-click Event Viewer, and select DCP Worker logs.
 
 #### Ubuntu Linux
-The default configure runs `bin/dcp-worker -o console`, which sends log output to stdout/stderr; this
+On Ubuntu Linux, the Worker is started under the control of [systemd](https://systemd.io/), running as
+the user `dcp`. The Worker communicates with the Scheduler and uses an Evaluator to execute workload.
+By default, the Worker logs are written to the system journal, but can be sent to a remote syslog
+service if so desired. The systemd unit is named `dcp-worker`.
+
+| Action                     | Command
+|:---------------------------|:------------------------------------------------
+| View all DCP systemd units | systemctl --no-pager list-units 'dcp*' --all
+| Stop the Worker            | sudo systemctl stop dcp-worker
+| Start the Worker           | sudo systemctl start dcp-worker
+| Restart the Worker         | sudo systemctl restart dcp-worker
+| View the journal (logs)    | sudo systemctl journalctl -u dcp-worker -f
+
+The default configuration runs `bin/dcp-worker -o console`, which sends log output to stdout/stderr; this
 output is captured by systemd and recorded in the system journals.
 `sudo systemctl journalctl -u dcp-worker --since='15 minutes ago'` will show recent activity.
+
+### Check: Evaluator is running
+This varies from platform to platform. This document assumes the Worker was installed from an
+OS-specific package supplied by Distributive.
+
+#### Microsoft Windows
+The Evaluator is automatically started by the Distributive Screensaver.
+
+#### Ubuntu Linux
+On Ubuntu Linux, the Evaluator is started by `dcp-evaluator-manager`, under the control of
+[systemd](https://systemd.io/), running as the user `dcp`. The Evaluator Manager is responsible for
+disabling the Evaluator when the system load changes, the screen saver deactivatees, or a terminal
+becomes active.
+
+| Action                     | Command
+|:---------------------------|:------------------------------------------------
+| View all DCP systemd units | systemctl --no-pager list-units 'dcp*' --all
+| Stop the Evaluator         | sudo systemctl stop dcp-evaluator-manager
+| Start the Evaluator        | sudo systemctl start dcp-evaluator-manager
+| Restart the Evaluator      | sudo systemctl restart dcp-evaluator-manager
+| View the journal (logs)    | sudo systemctl journalctl -u dcp-evaluator-manager -f
 
 ## Systems  Integration
 This DCP Worker package can be integrated into a wide variety of systems. Distributive currently
@@ -133,11 +137,11 @@ and refuse to spawn new Evaluators based on current system load.  Systems Integr
 `inetd` will understand that `dcp-evaluator-manager` is a variation on this theme, and can be replaced
 a similar program should a more suitable one exist to manage load for the environment in question.
 
-Systems integrators leave the `dcp-worker` program running as much as possible. This process consumes
-very few resources, but manages the transmission of results to the Scheduler. During system shutdown,
-delivering a single SIGINT to `dcp-worker` will cause it submit all pending results to the Scheduler,
-return all pending slices, etc.  This graceful shutdown will take less than 30 seconds (usually much
-less).
+Systems integrators should leave the `dcp-worker` program running as much as possible. This process
+consumes very few resources, but manages the transmission of results to the Scheduler. During system
+shutdown, delivering a single SIGINT to `dcp-worker` will cause it submit all pending results to the 
+Scheduler, return all pending slices, etc.  This graceful shutdown will take less than 30 seconds
+(usually much less).
 
 No DCP job or process will be irrepairably damanged by killing any process on a Worker node. The worst
 that can happen is that work with pending results will be routed to another node.
