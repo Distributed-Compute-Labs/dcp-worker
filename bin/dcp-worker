@@ -559,8 +559,6 @@ function processCoresAndMaxSandboxes (dcpWorkerOptions, cliArgs)
 
   if (typeof cliArgs['maxSandboxes'] !== 'undefined')
     dcpWorkerOptions.maxSandboxes = Number(cliArgs['maxSandboxes']);
-  else
-    DCPWorker.defaultMaxSandboxes(dcpWorkerOptions);
   debugging() && console.debug(`dcp-worker: cores = { ${dcpWorkerOptions.cores.cpu}, ${dcpWorkerOptions.cores.gpu} }`);
   debugging() && console.debug('dcp-worker: core density =', dcpWorkerOptions.density);
 }
