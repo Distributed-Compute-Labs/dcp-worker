@@ -18,7 +18,7 @@
  */
 {
   worker: {
-    utilitization: { cpu: 1.0, gpu: 0.75 },    /* proportion of this machine's resources to use by defaut. */
+    utilization: { cpu: 1.0, gpu: 0.75 },      /* proportion of this machine's resources to use by defaut. */
     maxSandboxes: undefined,                   /* maximum number of sandboxes working or idling, undefined = auto */
     cores: { cpu: undefined, gpu: undefined }, /* how many cpus/gpus this machine has; undefined = detect */
     paymentAddress: undefined,                 /* Bank account for earnings; undefined = read ~/.dcp/default.keystore */
