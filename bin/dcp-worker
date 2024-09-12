@@ -57,7 +57,7 @@ function parseCliArgs()
   defaultPidFileName = require('../lib/pidfile').getDefaultPidFileName(dcpConfig.worker.pidfile);
 
   const cliArgs = require('dcp/cli')
-  .base('Standalone NodeJS DCP Worker')
+  .base('DCP Worker: Request work form the DCP Scheduler and send it to DCP Evaluators')
     .options({
       paymentAddress: {
         describe: 'The address to deposit funds into, will use the default bank keystore if not provided.',
