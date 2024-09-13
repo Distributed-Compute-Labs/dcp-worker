@@ -502,6 +502,19 @@ async function main()
       introBanner += `    -\t${wt.name}@${wt.versions.join(';')}\n`;
   }
 
+  const webgpuInfo = await require('../lib/webgpu-info').checkWebGPU();
+  if (!webgpuInfo)
+    introBanner += ' . WebGPU detection failed\n';
+  else if (!webgpuInfo.enabled)
+    introBanner += ' . WebGPU not enabled\n';
+  else
+  {
+    introBanner += ' . WebGPU available. GPU info:\n';
+    for (let descriptor in webgpuInfo.info)
+      introBanner += `    -\t${descriptor}: ${webgpuInfo.info[descriptor]}\n`;
+    dcpConfig.evaluator.gpu = webgpuInfo.info.device;
+  }
+
   introBanner += ' . Supervisor version: ' + worker.supervisorVersion + '\n';
   introBanner += ' . Output mode: ' + cliArgs.outputMode + '\n';
   introBanner += ' * Ready' + '\n';
