@@ -35,8 +35,8 @@
 
     /* Lowest-value work this worker will accept - should be based on local cost */
     minimumWage: {
-      'CPU':  0, /* DCC per second of CPU time */
-      'GPU':  0, /* DCC per second of GPU time */
+      'CPU':  0, /* DCC per hour of CPU time */
+      'GPU':  0, /* DCC per hour of GPU time */
       'in':   0, /* DCC per megabyte of inbound network traffic */
       'out':  0, /* DCC per megabyte of outbound network traffic */
     },
