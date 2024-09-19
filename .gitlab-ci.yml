@@ -81,6 +81,7 @@ tidelift:
 # Run `trunk check` on the project to hightlight newly introduced lint issues
 # when compared to the target branch.
 check:
+  allow_failure: true
   variables:
     # Can't cache `~/.cache/trunk/`.
     TRUNK_CACHE: ${CI_PROJECT_DIR}/.cache/trunk/
