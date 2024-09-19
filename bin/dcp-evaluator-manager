@@ -338,10 +338,12 @@ async function dbusScreenSaverMonitor()
     'org.gnome.ScreenSaver',
     'org.cinnamon.ScreenSaver',
     'org.kde.screensaver',
-    'org.freedesktop.ScreenSaver'
+    'org.freedesktop.ScreenSaver' // if this ever worked, it doesn't work now as of Ubuntu 24.04 LTS
+                                  // on GNOME, org.freesktop.ScreenSaver will complaint about
+                                  // GetActive isn't a part of offical Freesktop screen saver spec
   ];
   var iface;
-
+  var chosen;
   for (let ss of screensaverList)
   {
     try
@@ -350,6 +352,7 @@ async function dbusScreenSaverMonitor()
       if (obj)
       {
         iface = obj.interfaces[ss];
+        chosen = ss;
         break;
       }
     }
@@ -360,9 +363,15 @@ async function dbusScreenSaverMonitor()
   }
 
   if (!iface)
-    console.warn('Warning: could not open dbus session to any screensaver, tried', screensaverList);
-  else
   {
+    console.warn('Warning: could not open dbus session to any screensaver, tried', screensaverList);
+    return;
+  }
+  
+  try
+  {
+    // Note this is almost guranteed to fail if (GNOME is installed + you're accessing it not on GNOME,
+    // such as over SSH or on another DE)
     const ssActive = await iface.GetActive(); // eslint-disable-line new-cap
     debug('dcp-evaluator-manager')('Screen saver active:', ssActive);
     userActivity.screensaver = ssActive ? false : 'active dbus screensaver (initial)';
@@ -376,6 +385,12 @@ async function dbusScreenSaverMonitor()
     });
 
     console.log('Monitoring dbus messages for', iface.$name);
+  }
+  catch (error)
+  {
+    const prettyName = chosen.split('.')[1];
+    console.error(`${prettyName} screensaver doesn't support activeness query, screensaver is not started, or user ${os.userInfo().username} doesn't have access to dbus\n ${error}`);
+    process.exit(3);
   }
 }
 

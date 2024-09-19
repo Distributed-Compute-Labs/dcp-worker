@@ -27,3 +27,6 @@ runtimes:
 lint:
   enabled:
     - eslint@8.52.0
+  threshold:
+    - linters: [ALL]
+      level: high
