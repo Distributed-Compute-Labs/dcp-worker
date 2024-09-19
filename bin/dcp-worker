@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#! /usr/bin/env node
 /**
  *  @file       dcp-worker.js
  *              Standalone NodeJS DCP Worker
@@ -57,7 +57,7 @@ function parseCliArgs()
   defaultPidFileName = require('../lib/pidfile').getDefaultPidFileName(dcpConfig.worker.pidfile);
 
   const cliArgs = require('dcp/cli')
-  .base('Standalone NodeJS DCP Worker')
+  .base('DCP Worker: Request work from the DCP Scheduler and send it to DCP Evaluators')
     .options({
       paymentAddress: {
         describe: 'The address to deposit funds into, will use the default bank keystore if not provided.',
@@ -407,6 +407,7 @@ async function main()
 
   worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
   worker.on('warning', (...payload) => console.warn (...payload));
+  worker.on('job', job => console.log(` . Job: ${job.name} ${job.address.slice(0,8)} ${job.description || ''} ${job.link || ''}`));
   worker.on('stop', () => { console.log('Worker is stopping') });
   worker.on('end',  () => { logClosing('log', 'Worker has stopped') });
   // Display clean diagnostic when not debugging and env var
@@ -571,8 +572,6 @@ function processCoresAndMaxSandboxes (dcpWorkerOptions, cliArgs)
 
   if (typeof cliArgs['maxSandboxes'] !== 'undefined')
     dcpWorkerOptions.maxSandboxes = Number(cliArgs['maxSandboxes']);
-  else
-    DCPWorker.defaultMaxSandboxes(dcpWorkerOptions);
   debugging() && console.debug(`dcp-worker: cores = { ${dcpWorkerOptions.cores.cpu}, ${dcpWorkerOptions.cores.gpu} }`);
   debugging() && console.debug('dcp-worker: core density =', dcpWorkerOptions.density);
 }
