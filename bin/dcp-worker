@@ -44,6 +44,15 @@ const replHelpers = {
 };
 telnetd.init(replHelpers);
 
+/**
+ * Output startup banner message. Currently a wrapper for console.log, future plans are to make it
+ * possible to suppress these messages, and also to send them multiple places (eg tty and syslog)
+ */
+function bannerLog()
+{
+  console.log.apply(console, arguments);
+}
+
 /* Initialize dcp-client with local config defaults and run the main function. DCP_CONFIG_COOKIE becomes dcpConfig.cookie.
  * And dcpConfig is defined as a side effect of initializing dcp-client.
  */
@@ -406,6 +415,13 @@ async function main()
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
 
   worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
+  bannerLog(` * Starting DCP Worker ${worker.workerId}`);
+  bannerLog(` . Using evaluator at ${dcpConfig.evaluator.location}`);
+  bannerLog(` . Configured for scheduler ${dcpConfig.scheduler.location}`);
+  bannerLog(` . Bank is ${dcpConfig.bank.location}`);
+  bannerLog(` . Earned funds will be deposited in account ${worker.paymentAddress}`);
+  bannerLog(` . Identity is ${worker.identityKeystore.address}`);
+
   worker.on('warning', (...payload) => console.warn (...payload));
   worker.on('stop', () => { console.log('Worker is stopping') });
   worker.on('end',  () => { logClosing('log', 'Worker has stopped') });
@@ -457,13 +473,6 @@ async function main()
     }
   }
 
-  let introBanner = '';
-  introBanner += ` * Starting DCP Worker ${worker.workerId}` + '\n';
-  introBanner += ` . Configured for scheduler ${dcpConfig.scheduler.location}` + '\n';
-  introBanner += ` . Bank is ${dcpConfig.bank.location}` + '\n';
-  introBanner += ` . Earned funds will be deposited in account ${worker.paymentAddress}` + '\n';
-  introBanner += ` . Identity is ${worker.identityKeystore.address}` + '\n';
-
   function qty(amount, singular, plural) /* XXX i18n */
   {
     if (Array.isArray(amount))
@@ -478,49 +487,47 @@ async function main()
   }
 
   if (dcpWorkerOptions.jobAddresses?.length > 0)
-    introBanner += ` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')} ` + dcpWorkerOptions.jobAddresses.join(', ') + '\n';
+    bannerLog(` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')} ` + dcpWorkerOptions.jobAddresses.join(', '));
   if (dcpWorkerOptions.computeGroups && Object.keys(dcpWorkerOptions.computeGroups).length > 0)
-    introBanner += ` . Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')} ` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', ') + '\n';
+    bannerLog(` . Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')} ` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', '));
   if (dcpWorkerOptions.publicGroupFallback)
-    introBanner += ' . Falling back on public group when preferred groups have no work' + '\n';
+    bannerLog(' . Falling back on public group when preferred groups have no work');
   if (dcpWorkerOptions.leavePublicGroup)
-    introBanner += ' . Leaving the public compute group' + '\n';
+    bannerLog(' . Leaving the public compute group');
   if (dcpWorkerOptions.cores)
-    introBanner += ` . Configured Cores: ${dcpWorkerOptions.cores.cpu},${dcpWorkerOptions.cores.gpu}\n`
+    bannerLog(` . Configured Cores: ${dcpWorkerOptions.cores.cpu},${dcpWorkerOptions.cores.gpu}`);
   if (typeof dcpWorkerOptions.maxSandboxes !== 'undefined')
-    introBanner += ` . Maximum Sandboxes: ${dcpWorkerOptions.maxSandboxes}\n`
+    bannerLog(` . Maximum Sandboxes: ${dcpWorkerOptions.maxSandboxes}`);
   if (cliArgs.verbose)
-    introBanner += ` + Verbosity level: ${cliArgs.verbose}` + '\n';
+    bannerLog(` + Verbosity level: ${cliArgs.verbose}`);
   if (telnetd.hasOwnProperty('port'))
-    introBanner += ` ! telnetd listening on port ${telnetd.port}\n`;
+    bannerLog(` ! telnetd listening on port ${telnetd.port}`);
 
   const { worktimes } = require('dcp-client/libexec/sandbox/worktimes');
   if (Object.keys(worktimes).length > 0)
   {
-    introBanner += ' . Worktimes Available:\n';
+    bannerLog(' . Worktimes Available:');
     for (const wt of worktimes)
-      introBanner += `    -\t${wt.name}@${wt.versions.join(';')}\n`;
+      bannerLog(`    -\t${wt.name}@${wt.versions.join(';')}`);
   }
 
   const webgpuInfo = await require('../lib/webgpu-info').checkWebGPU();
   if (!webgpuInfo)
-    introBanner += ' . WebGPU detection failed\n';
+    bannerLog(' . WebGPU detection failed');
   else if (!webgpuInfo.enabled)
-    introBanner += ' . WebGPU not enabled\n';
+    bannerLog(' . WebGPU not enabled');
   else
   {
-    introBanner += ' . WebGPU available. GPU info:\n';
+    bannerLog(' . WebGPU available. GPU info:');
     for (let descriptor in webgpuInfo.info)
-      introBanner += `    -\t${descriptor}: ${webgpuInfo.info[descriptor]}\n`;
+      bannerLog(`    -\t${descriptor}: ${webgpuInfo.info[descriptor]}`);
     dcpConfig.evaluator.gpu = webgpuInfo.info.device;
   }
 
-  introBanner += ' . Supervisor version: ' + worker.supervisorVersion + '\n';
-  introBanner += ' . Output mode: ' + cliArgs.outputMode + '\n';
-  introBanner += ' * Ready' + '\n';
-
-  console.log(introBanner);
+  bannerLog(' . Supervisor version: ' + worker.supervisorVersion);
+  bannerLog(' . Output mode: ' + cliArgs.outputMode);
   require('../lib/check-scheduler-version').check();
+  bannerLog(' * Ready');
 
   if (parseFloat(cliArgs.reportInterval))
   {
@@ -819,7 +826,7 @@ function verifyDefaultConfigIntegrity()
     if (!originalMd5sum.startsWith(actualMd5sum))
     {
       console.warn(chalk.yellow(` ! Detected modified ${workerConfPath};`));
-      console.warn(' . DCP Worker configuration changes should not be made by updating the default');
+      console.warn(' ! DCP Worker configuration changes should not be made by updating the default');
       console.warn('   config, as that file will be overwritten on the next npm update. Instead,');
       console.warn('   make changes via one of the following locations:');
       console.warn('    - ~/.dcp/dcp-worker/dcp-config.js');
