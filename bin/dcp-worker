@@ -23,6 +23,7 @@ const chalk   = require('chalk');
 const telnetd = require('../lib/remote-console');
 
 const { slicesFetched, debugging, displayMaxDiagInfo } = require('../lib/utils');
+const { a$sleep } = require('dcp/utils');
 
 const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
 const EXIT_UNHANDLED = 5;
@@ -435,20 +436,20 @@ async function main()
     }
   }
 
-  worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
-  bannerLog(` * Starting DCP Worker ${worker.workerId}`);
+  const nascentWorker = new DCPWorker(identityKeystore, dcpWorkerOptions);
+  bannerLog(` * Starting DCP Worker ${nascentWorker.workerId}`);
   bannerLog(` . Using evaluator at ${dcpConfig.evaluator.location}`);
   bannerLog(` . Configured for scheduler ${dcpConfig.scheduler.location}`);
   bannerLog(` . Bank is ${dcpConfig.bank.location}`);
-  bannerLog(` . Earned funds will be deposited in account ${worker.paymentAddress}`);
-  bannerLog(` . Identity is ${worker.identityKeystore.address}`);
+  bannerLog(` . Earned funds will be deposited in account ${nascentWorker.paymentAddress}`);
+  bannerLog(` . Identity is ${nascentWorker.identityKeystore.address}`);
 
-  worker.on('warning', (...payload) => console.warn (...payload));
-  worker.on('stop', () => { console.log('Worker is stopping') });
-  worker.on('end',  () => { logClosing('log', 'Worker has stopped') });
+  nascentWorker.on('warning', (...payload) => console.warn (...payload));
+  nascentWorker.on('stop', () => { console.log('Worker is stopping') });
+  nascentWorker.on('end',  () => { logClosing('log', 'Worker has stopped') });
   // Display clean diagnostic when not debugging and env var
   //   DCP_SUPERVISOR_DEBUG_DISPLAY_MAX_INFO isn't set.
-  worker.on('error',   (error) => {
+  nascentWorker.on('error',   (error) => {
 
     if (displayMaxDiagInfo())
       console.error(error);
@@ -461,18 +462,18 @@ async function main()
         console.error(`Error: ${error.message}`);
     }
   });
-  require('../lib/default-ui-events').hook(worker, cliArgs);
+  require('../lib/default-ui-events').hook(nascentWorker, cliArgs);
 
   if (cliArgs.outputMode === 'dashboard')
-    require('../lib/dashboard-tui').init(worker, cliArgs);
+    require('../lib/dashboard-tui').init(nascentWorker, cliArgs);
 
   /* Let incorrect event-loop references keep us alive when linked with a debug library, but
    * exit quickly/accurately for production code even when the library isn't perfect.
    */
   if (require('dcp/build').config.build !== 'debug')
-    worker.on('end', processExit);
+    nascentWorker.on('end', processExit);
   else
-    worker.on('end', () => setTimeout(processExit, getCleanupTimeoutMs()).unref());
+    nascentWorker.on('end', () => setTimeout(processExit, getCleanupTimeoutMs()).unref());
 
   if (dcpWorkerOptions.publicGroupFallback)
   {
@@ -483,7 +484,7 @@ async function main()
       /* Enable public group fallback - this currently works by enabling or disabling the public group
        * on the next fetch based on whether or not the most recent fetch was an empty task or not.
        */
-      worker.on('fetch', fetchEventHandler);
+      nascentWorker.on('fetch', fetchEventHandler);
 
       function fetchEventHandler(ev)
       {
@@ -535,15 +536,15 @@ async function main()
   }
 
   let webgpuInfo;
+  console.throb('log', ' ! Waiting for dcp-evaluator to start...');
   for (let i=0; !webgpuInfo; i++)
   {
     webgpuInfo = await require('../lib/webgpu-info').checkWebGPU();
     if (webgpuInfo)
       break;
-    if (i === 0)
-      console.log(' ! Waiting for dcp-evaluator to start...');
-    const { a$sleep } = require('dcp/utils');
-    await a$sleep(Math.max(i + 1, 5));
+    console.throb();
+    await a$sleep(Math.max(i + 1, 10) / 4);
+    console.throb();
   }
 
   if (!webgpuInfo)
@@ -569,10 +570,9 @@ async function main()
     }
   }
 
-  bannerLog(' . Supervisor version: ' + worker.supervisorVersion);
+  bannerLog(' . Supervisor version: ' + nascentWorker.supervisorVersion);
   bannerLog(' . Output mode: ' + cliArgs.outputMode);
   require('../lib/check-scheduler-version').check();
-  bannerLog(' * Ready');
 
   if (parseFloat(cliArgs.reportInterval))
   {
@@ -582,8 +582,14 @@ async function main()
       console.warn('Ignoring --reportInterval in dashboard output mode');
   }
 
-  /* Start the worker. Normal process exit happens by virtue of the worker<end> event */
-  await worker.start();
+  /* Start the worker. Normal process exit happens by virtue of the worker<end> event. Move forward one
+   * tick in case processExit was called during initialization.
+   */
+  setImmediate(async function workerStart() {
+    bannerLog(' * Ready');
+    worker = nascentWorker;
+    await worker.start();
+  });
 }
 
 /**
@@ -800,22 +806,25 @@ function handleSigDeath(signalName, signal)
   }
 
   if (!worker)
+  {
     console.warn(`trapped ${signalName}, signal ${signal}`);
+    die();
+  }
   else
   {
     const immediate = signalName === 'SIGQUIT' || handleSigDeath.count > 1;
     console.warn(`trapped ${signalName}, signal ${signal} -- stopping worker`,
                  immediate ? 'immediately' : `after ${handleSigDeath.count} slices have finished`);
     worker.stop(immediate);
-    process.emit('dcpBeforeExit');
+    setTimeout(die, getCleanupTimeoutMs()).unref();
   }
+  process.emit('dcpBeforeExit');
 
   function die()
   {
     processExit(signal - 128);
   }
 
-  setTimeout(die, getCleanupTimeoutMs()).unref();
   if (handleSigDeath.count === 3)
     die();
 }
