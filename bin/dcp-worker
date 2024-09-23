@@ -26,6 +26,7 @@ const { slicesFetched, debugging, displayMaxDiagInfo } = require('../lib/utils')
 
 const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
 const EXIT_UNHANDLED = 5;
+const systemStateInfo = globalThis.systemStateInfo = {};
 
 /* Setup the telnet REPL up early to ensure early-failure log messages are captured */
 const replHelpers = {
@@ -43,6 +44,15 @@ const replHelpers = {
   },
 };
 telnetd.init(replHelpers);
+
+/**
+ * regexps of GPUs we cannot use. Properties match device descriptors. More regexps can be added via
+ * dcpConfig.bannedGPUs.
+ */
+const bannedGPUs =
+{
+  device: /llvmpipe/,
+}
 
 /**
  * Output startup banner message. Currently a wrapper for console.log, future plans are to make it
@@ -307,11 +317,11 @@ async function main()
   require('../lib/startWorkerLogger').init(cliArgs); /* Start remote logger as early as possible */
   verifyDefaultConfigIntegrity();                    /* Bail before TUI & as early as possible if bad conf */
 
-  process.on('SIGINT', handleSigDeath);
+  process.on('SIGINT',  handleSigDeath);
   process.on('SIGTERM', handleSigDeath);
   process.on('SIGQUIT', handleSigDeath);
   process.on('unhandledRejection', handleUnhandled);
-  process.on('uncaughtException', handleUnhandled);
+  process.on('uncaughtException',  handleUnhandled);
 
   const getOpts = {};
   if (cliArgs.defaultPaymentAddressToDCP)
@@ -414,6 +424,17 @@ async function main()
   if (cliArgs.watchdogInterval)
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
 
+  if (dcpConfig.bannedGPUs)
+  {
+    for (let prop of dcpConfig.bannedGPUs)
+    {
+      if (!bannedGPUs[prop])
+        bannedGPUs[prop] = dcpConfig.bannedGPUs[prop];
+      else
+        bannedGPUs[prop] = new RegExp(`(${dcpConfig.bannedGPUs[prop].source})|(${bannedGPUs[prop].source})`);
+    }
+  }
+
   worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
   bannerLog(` * Starting DCP Worker ${worker.workerId}`);
   bannerLog(` . Using evaluator at ${dcpConfig.evaluator.location}`);
@@ -428,6 +449,7 @@ async function main()
   // Display clean diagnostic when not debugging and env var
   //   DCP_SUPERVISOR_DEBUG_DISPLAY_MAX_INFO isn't set.
   worker.on('error',   (error) => {
+
     if (displayMaxDiagInfo())
       console.error(error);
     else
@@ -473,7 +495,8 @@ async function main()
     }
   }
 
-  function qty(amount, singular, plural) /* XXX i18n */
+  /** @todo i18n */
+  function qty(amount, singular, plural)
   {
     if (Array.isArray(amount))
       amount = amount.length;
@@ -511,7 +534,18 @@ async function main()
       bannerLog(`    -\t${wt.name}@${wt.versions.join(';')}`);
   }
 
-  const webgpuInfo = await require('../lib/webgpu-info').checkWebGPU();
+  let webgpuInfo;
+  for (let i=0; !webgpuInfo; i++)
+  {
+    webgpuInfo = await require('../lib/webgpu-info').checkWebGPU();
+    if (webgpuInfo)
+      break;
+    if (i === 0)
+      console.log(' ! Waiting for dcp-evaluator to start...');
+    const { a$sleep } = require('dcp/utils');
+    await a$sleep(Math.max(i + 1, 5));
+  }
+
   if (!webgpuInfo)
     bannerLog(' . WebGPU detection failed');
   else if (!webgpuInfo.enabled)
@@ -521,7 +555,18 @@ async function main()
     bannerLog(' . WebGPU available. GPU info:');
     for (let descriptor in webgpuInfo.info)
       bannerLog(`    -\t${descriptor}: ${webgpuInfo.info[descriptor]}`);
-    dcpConfig.evaluator.gpu = webgpuInfo.info.device;
+    systemStateInfo.gpu = Object.assign({}, webgpuInfo.info);
+    systemStateInfo.gpu.device
+    for (let descriptor in bannedGPUs)
+    {
+      if (bannedGPUs[descriptor].test(webgpuInfo.info[descriptor]))
+      {
+        console.error(' * This GPU is not supported; disabling');
+        dcpWorkerOptions.cores = { cpu: dcpWorkerOptions.cores.cpu, gpu: 0 };
+        systemStateInfo.gpu.disabled = true;
+        break;
+      }
+    }
   }
 
   bannerLog(' . Supervisor version: ' + worker.supervisorVersion);
@@ -762,6 +807,7 @@ function handleSigDeath(signalName, signal)
     console.warn(`trapped ${signalName}, signal ${signal} -- stopping worker`,
                  immediate ? 'immediately' : `after ${handleSigDeath.count} slices have finished`);
     worker.stop(immediate);
+    process.emit('dcpBeforeExit');
   }
 
   function die()
