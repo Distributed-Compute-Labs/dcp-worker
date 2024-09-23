@@ -158,13 +158,13 @@ function parseCliArgs()
       leavePublicGroup: {
         type: 'boolean',
         hidden: true,
-        describe: 'Do not fetch slices from public compute group.',
+        describe: 'Do not fetch slices from global compute group.',
         default: undefined,
       },
 
       publicGroupFallback: {
         hidden: true,
-        describe: 'If set, worker will prefer private groups but fall back on the public group if no preferred work is available',
+        describe: 'If set, worker will prefer private groups but fall back on the global group if no preferred work is available',
         type: 'boolean',
         default: undefined,
         defaultDescription: undefined,
@@ -478,10 +478,10 @@ async function main()
   if (dcpWorkerOptions.publicGroupFallback)
   {
     if (dcpWorkerOptions.leavePublicGroup)
-      console.warn(' ! Public Group fallback has been requested, but the public group is blocked by local configuration');
+      console.warn(' ! Global Group fallback has been requested, but the global group is blocked by local configuration');
     else
     {
-      /* Enable public group fallback - this currently works by enabling or disabling the public group
+      /* Enable global group fallback - this currently works by enabling or disabling the global group
        * on the next fetch based on whether or not the most recent fetch was an empty task or not.
        */
       nascentWorker.on('fetch', fetchEventHandler);
@@ -515,9 +515,9 @@ async function main()
   if (dcpWorkerOptions.computeGroups && Object.keys(dcpWorkerOptions.computeGroups).length > 0)
     bannerLog(` . Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')} ` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', '));
   if (dcpWorkerOptions.publicGroupFallback)
-    bannerLog(' . Falling back on public group when preferred groups have no work');
+    bannerLog(' . Falling back on global group when preferred groups have no work');
   if (dcpWorkerOptions.leavePublicGroup)
-    bannerLog(' . Leaving the public compute group');
+    bannerLog(' . Leaving the global compute group');
   if (dcpWorkerOptions.cores)
     bannerLog(` . Configured Cores: ${dcpWorkerOptions.cores.cpu},${dcpWorkerOptions.cores.gpu}`);
   if (typeof dcpWorkerOptions.maxSandboxes !== 'undefined')
