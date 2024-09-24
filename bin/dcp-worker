@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#! /usr/bin/env node
 /**
  *  @file       dcp-worker.js
  *              Standalone NodeJS DCP Worker
@@ -23,9 +23,11 @@ const chalk   = require('chalk');
 const telnetd = require('../lib/remote-console');
 
 const { slicesFetched, debugging, displayMaxDiagInfo } = require('../lib/utils');
+const { a$sleep } = require('dcp/utils');
 
 const configName = process.env.DCP_CONFIG || '../etc/dcp-worker-config';
 const EXIT_UNHANDLED = 5;
+const systemStateInfo = globalThis.systemStateInfo = {};
 
 /* Setup the telnet REPL up early to ensure early-failure log messages are captured */
 const replHelpers = {
@@ -44,6 +46,26 @@ const replHelpers = {
 };
 telnetd.init(replHelpers);
 
+/**
+ * regexps of GPUs we cannot use. Properties match device descriptors. More regexps can be added via
+ * dcpConfig.bannedGPUs.
+ */
+const bannedGPUs =
+{
+  device: /llvmpipe/,
+}
+
+/**
+ * Output startup banner message. Currently a wrapper for console.log, future plans are to make it
+ * possible to suppress these messages, and also to send them multiple places (eg tty and syslog)
+ */
+function bannerLog()
+{
+  console.log.apply(console, arguments);
+  bannerLog.cumulative.push(arguments);
+}
+bannerLog.cumulative = [];
+
 /* Initialize dcp-client with local config defaults and run the main function. DCP_CONFIG_COOKIE becomes dcpConfig.cookie.
  * And dcpConfig is defined as a side effect of initializing dcp-client.
  */
@@ -57,7 +79,7 @@ function parseCliArgs()
   defaultPidFileName = require('../lib/pidfile').getDefaultPidFileName(dcpConfig.worker.pidfile);
 
   const cliArgs = require('dcp/cli')
-  .base('Standalone NodeJS DCP Worker')
+  .base('DCP Worker: Request work from the DCP Scheduler and send it to DCP Evaluators')
     .options({
       paymentAddress: {
         describe: 'The address to deposit funds into, will use the default bank keystore if not provided.',
@@ -138,13 +160,13 @@ function parseCliArgs()
       leavePublicGroup: {
         type: 'boolean',
         hidden: true,
-        describe: 'Do not fetch slices from public compute group.',
+        describe: 'Do not fetch slices from global compute group.',
         default: undefined,
       },
 
       publicGroupFallback: {
         hidden: true,
-        describe: 'If set, worker will prefer private groups but fall back on the public group if no preferred work is available',
+        describe: 'If set, worker will prefer private groups but fall back on the global group if no preferred work is available',
         type: 'boolean',
         default: undefined,
         defaultDescription: undefined,
@@ -298,11 +320,11 @@ async function main()
   require('../lib/startWorkerLogger').init(cliArgs); /* Start remote logger as early as possible */
   verifyDefaultConfigIntegrity();                    /* Bail before TUI & as early as possible if bad conf */
 
-  process.on('SIGINT', handleSigDeath);
+  process.on('SIGINT',  handleSigDeath);
   process.on('SIGTERM', handleSigDeath);
   process.on('SIGQUIT', handleSigDeath);
   process.on('unhandledRejection', handleUnhandled);
-  process.on('uncaughtException', handleUnhandled);
+  process.on('uncaughtException',  handleUnhandled);
 
   const getOpts = {};
   if (cliArgs.defaultPaymentAddressToDCP)
@@ -405,13 +427,33 @@ async function main()
   if (cliArgs.watchdogInterval)
     dcpWorkerOptions.watchdogInterval = cliArgs.watchdogInterval;
 
-  worker = new DCPWorker(identityKeystore, dcpWorkerOptions);
-  worker.on('warning', (...payload) => console.warn (...payload));
-  worker.on('stop', () => { console.log('Worker is stopping') });
-  worker.on('end',  () => { logClosing('log', 'Worker has stopped') });
+  if (dcpConfig.bannedGPUs)
+  {
+    for (let prop of dcpConfig.bannedGPUs)
+    {
+      if (!bannedGPUs[prop])
+        bannedGPUs[prop] = dcpConfig.bannedGPUs[prop];
+      else
+        bannedGPUs[prop] = new RegExp(`(${dcpConfig.bannedGPUs[prop].source})|(${bannedGPUs[prop].source})`);
+    }
+  }
+
+  const nascentWorker = new DCPWorker(identityKeystore, dcpWorkerOptions);
+  bannerLog(` * Starting DCP Worker ${nascentWorker.workerId}`);
+  bannerLog(` . Using evaluator at ${dcpConfig.evaluator.location}`);
+  bannerLog(` . Configured for scheduler ${dcpConfig.scheduler.location}`);
+  bannerLog(` . Bank is ${dcpConfig.bank.location}`);
+  bannerLog(` . Earned funds will be deposited in account ${nascentWorker.paymentAddress}`);
+  bannerLog(` . Identity is ${nascentWorker.identityKeystore.address}`);
+
+  nascentWorker.on('warning', (...payload) => console.warn (...payload));
+  nascentWorker.on('stop', () => { console.log('Worker is stopping') });
+  nascentWorker.on('end',  () => { logClosing('log', 'Worker has stopped') });
+
   // Display clean diagnostic when not debugging and env var
   //   DCP_SUPERVISOR_DEBUG_DISPLAY_MAX_INFO isn't set.
-  worker.on('error',   (error) => {
+  nascentWorker.on('error',   (error) => {
+
     if (displayMaxDiagInfo())
       console.error(error);
     else
@@ -423,29 +465,29 @@ async function main()
         console.error(`Error: ${error.message}`);
     }
   });
-  require('../lib/default-ui-events').hook(worker, cliArgs);
+  require('../lib/default-ui-events').hook(nascentWorker, cliArgs);
 
   if (cliArgs.outputMode === 'dashboard')
-    require('../lib/dashboard-tui').init(worker, cliArgs);
+    require('../lib/dashboard-tui').init(nascentWorker, cliArgs, bannerLog.cumulative);
 
   /* Let incorrect event-loop references keep us alive when linked with a debug library, but
    * exit quickly/accurately for production code even when the library isn't perfect.
    */
   if (require('dcp/build').config.build !== 'debug')
-    worker.on('end', processExit);
+    nascentWorker.on('end', processExit);
   else
-    worker.on('end', () => setTimeout(processExit, getCleanupTimeoutMs()).unref());
+    nascentWorker.on('end', () => setTimeout(processExit, getCleanupTimeoutMs()).unref());
 
   if (dcpWorkerOptions.publicGroupFallback)
   {
     if (dcpWorkerOptions.leavePublicGroup)
-      console.warn(' ! Public Group fallback has been requested, but the public group is blocked by local configuration');
+      console.warn(' ! Global Group fallback has been requested, but the global group is blocked by local configuration');
     else
     {
-      /* Enable public group fallback - this currently works by enabling or disabling the public group
+      /* Enable global group fallback - this currently works by enabling or disabling the global group
        * on the next fetch based on whether or not the most recent fetch was an empty task or not.
        */
-      worker.on('fetch', fetchEventHandler);
+      nascentWorker.on('fetch', fetchEventHandler);
 
       function fetchEventHandler(ev)
       {
@@ -457,14 +499,8 @@ async function main()
     }
   }
 
-  let introBanner = '';
-  introBanner += ` * Starting DCP Worker ${worker.workerId}` + '\n';
-  introBanner += ` . Configured for scheduler ${dcpConfig.scheduler.location}` + '\n';
-  introBanner += ` . Bank is ${dcpConfig.bank.location}` + '\n';
-  introBanner += ` . Earned funds will be deposited in account ${worker.paymentAddress}` + '\n';
-  introBanner += ` . Identity is ${worker.identityKeystore.address}` + '\n';
-
-  function qty(amount, singular, plural) /* XXX i18n */
+  /** @todo i18n */
+  function qty(amount, singular, plural)
   {
     if (Array.isArray(amount))
       amount = amount.length;
@@ -478,36 +514,70 @@ async function main()
   }
 
   if (dcpWorkerOptions.jobAddresses?.length > 0)
-    introBanner += ` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')} ` + dcpWorkerOptions.jobAddresses.join(', ') + '\n';
+    bannerLog(` * Processing only ${qty(dcpWorkerOptions.jobAddresses, 'job')} ` + dcpWorkerOptions.jobAddresses.join(', '));
   if (dcpWorkerOptions.computeGroups && Object.keys(dcpWorkerOptions.computeGroups).length > 0)
-    introBanner += ` . Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')} ` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', ') + '\n';
+    bannerLog(` . Joining compute ${qty(dcpWorkerOptions.computeGroups, 'group')} ` + dcpWorkerOptions.computeGroups.map(el => el.joinKey).join(', '));
   if (dcpWorkerOptions.publicGroupFallback)
-    introBanner += ' . Falling back on public group when preferred groups have no work' + '\n';
+    bannerLog(' . Falling back on global group when preferred groups have no work');
   if (dcpWorkerOptions.leavePublicGroup)
-    introBanner += ' . Leaving the public compute group' + '\n';
+    bannerLog(' . Leaving the global compute group');
   if (dcpWorkerOptions.cores)
-    introBanner += ` . Configured Cores: ${dcpWorkerOptions.cores.cpu},${dcpWorkerOptions.cores.gpu}\n`
+    bannerLog(` . Configured Cores: ${dcpWorkerOptions.cores.cpu},${dcpWorkerOptions.cores.gpu}`);
   if (typeof dcpWorkerOptions.maxSandboxes !== 'undefined')
-    introBanner += ` . Maximum Sandboxes: ${dcpWorkerOptions.maxSandboxes}\n`
+    bannerLog(` . Maximum Sandboxes: ${dcpWorkerOptions.maxSandboxes}`);
   if (cliArgs.verbose)
-    introBanner += ` + Verbosity level: ${cliArgs.verbose}` + '\n';
+    bannerLog(` + Verbosity level: ${cliArgs.verbose}`);
   if (telnetd.hasOwnProperty('port'))
-    introBanner += ` ! telnetd listening on port ${telnetd.port}\n`;
+    bannerLog(` ! telnetd listening on port ${telnetd.port}`);
 
   const { worktimes } = require('dcp-client/libexec/sandbox/worktimes');
   if (Object.keys(worktimes).length > 0)
   {
-    introBanner += ' . Worktimes Available:\n';
+    bannerLog(' . Worktimes Available:');
     for (const wt of worktimes)
-      introBanner += `    -\t${wt.name}@${wt.versions.join(';')}\n`;
+      bannerLog(`    -\t${wt.name}@${wt.versions.join(';')}`);
   }
 
-  introBanner += ' . Supervisor version: ' + worker.supervisorVersion + '\n';
-  introBanner += ' . Output mode: ' + cliArgs.outputMode + '\n';
-  introBanner += ' * Ready' + '\n';
+  let webgpuInfo;
+  console.throb('log', ' ! Waiting for dcp-evaluator to start...');
+  for (let i=0; !webgpuInfo; i++)
+  {
+    webgpuInfo = await require('../lib/webgpu-info').checkWebGPU();
+    if (webgpuInfo)
+      break;
+    console.throb();
+    await a$sleep(Math.max(i + 1, 10) / 4);
+    console.throb();
+  }
 
-  console.log(introBanner);
-  require('../lib/check-scheduler-version').check();
+  if (!webgpuInfo)
+    bannerLog(' . WebGPU detection failed');
+  else if (!webgpuInfo.enabled)
+  {
+    bannerLog(' . WebGPU not enabled');
+    systemStateInfo.gpu = false;
+  }
+  else
+  {
+    bannerLog(' . WebGPU available. GPU info:');
+    for (let descriptor in webgpuInfo.info)
+      bannerLog(`    -\t${descriptor}: ${webgpuInfo.info[descriptor]}`);
+    systemStateInfo.gpu = Object.assign({}, webgpuInfo.info);
+    systemStateInfo.gpu.device
+    for (let descriptor in bannedGPUs)
+    {
+      if (bannedGPUs[descriptor].test(webgpuInfo.info[descriptor]))
+      {
+        console.error(' * This GPU is not supported; disabling');
+        dcpWorkerOptions.cores = { cpu: dcpWorkerOptions.cores.cpu, gpu: 0 };
+        systemStateInfo.gpu.disabled = true;
+        break;
+      }
+    }
+  }
+
+  bannerLog(' . Supervisor version: ' + nascentWorker.supervisorVersion);
+  bannerLog(' . Output mode: ' + cliArgs.outputMode);
 
   if (parseFloat(cliArgs.reportInterval))
   {
@@ -517,8 +587,15 @@ async function main()
       console.warn('Ignoring --reportInterval in dashboard output mode');
   }
 
-  /* Start the worker. Normal process exit happens by virtue of the worker<end> event */
-  await worker.start();
+  /* Start the worker. Normal process exit happens by virtue of the worker<end> event. Move forward one
+   * tick in case processExit was called during initialization.
+   */
+  setImmediate(async function workerStart() {
+    bannerLog(' * Ready.\n');
+    require('../lib/check-scheduler-version').check();
+    worker = nascentWorker;
+    await worker.start();
+  });
 }
 
 /**
@@ -558,8 +635,6 @@ function processCoresAndMaxSandboxes (dcpWorkerOptions, cliArgs)
 
   if (typeof cliArgs['maxSandboxes'] !== 'undefined')
     dcpWorkerOptions.maxSandboxes = Number(cliArgs['maxSandboxes']);
-  else
-    DCPWorker.defaultMaxSandboxes(dcpWorkerOptions);
   debugging() && console.debug(`dcp-worker: cores = { ${dcpWorkerOptions.cores.cpu}, ${dcpWorkerOptions.cores.gpu} }`);
   debugging() && console.debug('dcp-worker: core density =', dcpWorkerOptions.density);
 }
@@ -735,21 +810,25 @@ function handleSigDeath(signalName, signal)
   }
 
   if (!worker)
+  {
     console.warn(`trapped ${signalName}, signal ${signal}`);
+    die();
+  }
   else
   {
     const immediate = signalName === 'SIGQUIT' || handleSigDeath.count > 1;
     console.warn(`trapped ${signalName}, signal ${signal} -- stopping worker`,
                  immediate ? 'immediately' : `after ${handleSigDeath.count} slices have finished`);
     worker.stop(immediate);
+    setTimeout(die, getCleanupTimeoutMs()).unref();
   }
+  process.emit('dcpBeforeExit');
 
   function die()
   {
     processExit(signal - 128);
   }
 
-  setTimeout(die, getCleanupTimeoutMs()).unref();
   if (handleSigDeath.count === 3)
     die();
 }
@@ -806,7 +885,7 @@ function verifyDefaultConfigIntegrity()
     if (!originalMd5sum.startsWith(actualMd5sum))
     {
       console.warn(chalk.yellow(` ! Detected modified ${workerConfPath};`));
-      console.warn(' . DCP Worker configuration changes should not be made by updating the default');
+      console.warn(' ! DCP Worker configuration changes should not be made by updating the default');
       console.warn('   config, as that file will be overwritten on the next npm update. Instead,');
       console.warn('   make changes via one of the following locations:');
       console.warn('    - ~/.dcp/dcp-worker/dcp-config.js');
