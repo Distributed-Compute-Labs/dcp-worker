@@ -62,7 +62,9 @@ const bannedGPUs =
 function bannerLog()
 {
   console.log.apply(console, arguments);
+  bannerLog.cumulative.push(arguments);
 }
+bannerLog.cumulative = [];
 
 /* Initialize dcp-client with local config defaults and run the main function. DCP_CONFIG_COOKIE becomes dcpConfig.cookie.
  * And dcpConfig is defined as a side effect of initializing dcp-client.
@@ -465,7 +467,7 @@ async function main()
   require('../lib/default-ui-events').hook(nascentWorker, cliArgs);
 
   if (cliArgs.outputMode === 'dashboard')
-    require('../lib/dashboard-tui').init(nascentWorker, cliArgs);
+    require('../lib/dashboard-tui').init(nascentWorker, cliArgs, bannerLog.cumulative);
 
   /* Let incorrect event-loop references keep us alive when linked with a debug library, but
    * exit quickly/accurately for production code even when the library isn't perfect.
@@ -550,7 +552,10 @@ async function main()
   if (!webgpuInfo)
     bannerLog(' . WebGPU detection failed');
   else if (!webgpuInfo.enabled)
+  {
     bannerLog(' . WebGPU not enabled');
+    systemStateInfo.gpu = false;
+  }
   else
   {
     bannerLog(' . WebGPU available. GPU info:');
@@ -572,7 +577,6 @@ async function main()
 
   bannerLog(' . Supervisor version: ' + nascentWorker.supervisorVersion);
   bannerLog(' . Output mode: ' + cliArgs.outputMode);
-  require('../lib/check-scheduler-version').check();
 
   if (parseFloat(cliArgs.reportInterval))
   {
@@ -586,7 +590,8 @@ async function main()
    * tick in case processExit was called during initialization.
    */
   setImmediate(async function workerStart() {
-    bannerLog(' * Ready');
+    bannerLog(' * Ready.\n');
+    require('../lib/check-scheduler-version').check();
     worker = nascentWorker;
     await worker.start();
   });
