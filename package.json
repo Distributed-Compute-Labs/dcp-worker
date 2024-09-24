@@ -1,6 +1,6 @@
 {
   "name": "dcp-worker",
-  "version": "3.3.12-1",
+  "version": "3.3.12",
   "description": "Node.js Worker for Distributive Compute Platform",
   "main": "bin/dcp-worker",
   "keywords": [
